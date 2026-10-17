@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { berlinDay, daysBetween } from "./calendar-day";
+import {
+  berlinDay,
+  type CalendarDay,
+  calendarDayBefore,
+  daysBetween,
+} from "./calendar-day";
 
 describe("berlinDay", () => {
   it.each([
@@ -74,5 +79,19 @@ describe("daysBetween", () => {
     ["backwards, negative", "2026-10-17T05:00:00Z", "2026-10-14T05:00:00Z", -3],
   ])("counts the days from one day to another, %s", (_, from, to, days) => {
     expect(daysBetween(day(from), day(to))).toBe(days);
+  });
+});
+
+describe("calendarDayBefore", () => {
+  it.each([
+    ["the day itself", "2026-10-17", 0, "2026-10-17"],
+    ["the day before", "2026-10-17", 1, "2026-10-16"],
+    ["across a month start", "2026-10-01", 9, "2026-09-22"],
+    ["across the night clocks go back", "2026-10-26", 2, "2026-10-24"],
+    ["across the night clocks go forward", "2026-03-30", 2, "2026-03-28"],
+    ["across a year start", "2027-01-01", 1, "2026-12-31"],
+  ])("goes back from one day to another, %s", (_, day, days, earlier) => {
+    // Safe: valid `YYYY-MM-DD`s.
+    expect(calendarDayBefore(day as CalendarDay, days)).toBe(earlier);
   });
 });

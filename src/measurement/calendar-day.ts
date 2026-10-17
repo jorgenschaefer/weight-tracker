@@ -15,6 +15,13 @@ export function daysBetween(from: CalendarDay, to: CalendarDay): number {
   return (utcMidnight(to) - utcMidnight(from)) / MS_PER_DAY;
 }
 
+/** The day `days` days before `day`. */
+export function calendarDayBefore(day: CalendarDay, days: number): CalendarDay {
+  const midnight = new Date(utcMidnight(day) - days * MS_PER_DAY);
+  // Safe: an ISO date in UTC starts with its `YYYY-MM-DD`.
+  return midnight.toISOString().slice(0, 10) as CalendarDay;
+}
+
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Midnight UTC of `day`: a calendar day, free of Berlin's daylight saving. */

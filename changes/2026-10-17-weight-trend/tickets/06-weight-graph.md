@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-12
 advances:  AC-23, AC-24
 after:     03-google-health-and-page, 04-trend
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -57,3 +57,33 @@ Toward the ACs below, this ticket makes true:
 - Dunkler Modus.
 
 ## Left standing
+
+**Checks.** `npm run check` passes: 17 test files, 269 tests. The graph is not on the page yet; that is ticket 05's job. Both reviewers mounted it on a scratch route under `npm run dev` and looked at it in headless Chrome, then removed the route:
+- **First round:** 320, 599 and 960 px. It matched the specimens and nothing was clipped or overflowed.
+- **Second round:** a trend piece of a single day after a gap.
+
+**What no automated test proves.**
+- **How the graph looks.** Opacity, line width, rings and labels are pinned as SVG attributes. Only the reviewers' screenshots show that the drawing looks like the specimens.
+- **The single-day trend piece.** Its corner is drawn twice and the round caps make it a dot. The test pins the doubled corner. That Chrome really draws the dot (about 3 px) was seen in the second review only.
+
+**Review findings not fixed:**
+- **Should-fix, second round: a single-day trend piece can hide under the last day's dot.** After a gap, the first day back can have a trend that is a single point. It is drawn as a dot the width of the line, 3 px. The last day's measurement is a full dot of radius 5.5 px (6.5 px wide). If the trend lies within about 4 px of that measurement (about 0.15 kg on a phone with a 6 kg range), the trend dot is completely covered. Then the graph looks like AC-23's "nur die Punkte", although there is a trend. The specimens draw nothing at all for such a piece, and the criteria do not settle how one day of trend should look (a dot, a short dash, a ring). That is for the user, so I left it at the dot.
+- **Nit, second round: the graph's height jumps in.** The drawing appears only after the first ResizeObserver frame has measured the width. Until then the wrapper is 0 px tall, so whatever ticket 05 puts below the graph moves down by 190 or 380 px once per load. The height depends on the width (layout), so it is not known before the measurement. Ticket 05, which places the graph, can reserve the space.
+
+**Decisions that would be costly to reverse:**
+- **The component.** `WeightGraph({ series: SixWeekSeries, today: CalendarDay })` in `src/app/WeightGraph.tsx`. The page passes `today` (Berlin), because the window ends at today, not at the last measurement.
+  - It measures its own width with `useElementSize` from `@mantine/hooks` and draws at that pixel width, without a `viewBox`, so text keeps its size.
+  - It draws nothing before the width is known, and nothing where the six weeks hold no measurement, since there is no weight to scale to.
+  - It is drawn with SVG presentation attributes in `currentColor`, not CSS classes, so it takes the text colour of ticket 05's surface.
+- **Two layouts.** Below 600 px wide, the drawing uses `Main.dc.html`'s values: 190 px tall, every second kilo labelled when the range is over 5 kg, a date every 10 days. From 600 px it uses `Breit.dc.html`'s values: 380 px tall, every kilo, a date every 7 days. 600 px is my choice; the specimens show only 320 and 960 px.
+- **New helpers others will reuse.**
+  - `calendarDayBefore(day, days)` in `src/measurement/calendar-day.ts`. It is not named `daysBefore`, because `cache.ts` already has a private `daysBefore` that works on instants.
+  - `formatCalendarDay(day)` (`5.8.`) in `src/app/format.ts`. It goes through `formatDay` at noon UTC, so dates are still formatted one way.
+- **Weight labels are whole kilos, written with `String`** (`98`). Whole numbers look the same in German, so AC-24 holds for them.
+- **The last day's dot wins.** The last measurement is drawn as the large full dot even when it is an outlier, as the specimen does.
+
+**Departures from the specimens:**
+- **Wide date labels.** `Breit.dc.html` labels today and every 7th day before it. A label on today sticks out past the right edge, so here the labels start 3 days before today (9.9. … 14.10. on 17.10.), as the phone specimen's do.
+- **A single-day trend piece is a dot.** The specimens' `buildChart` draws nothing for it. Here it is drawn as a dot; see the should-fix above.
+
+**New names not in `UBIQUITOUS_LANGUAGE.md`:** none of them are domain words. `WeightGraph` is the component ("Graph" on the page), and `Mark`, `Layout` and `ChartScale` are private to the file.

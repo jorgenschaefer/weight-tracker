@@ -3,6 +3,8 @@
  * on a clock in Berlin, wherever the browser is.
  */
 
+import type { CalendarDay } from "@/measurement/calendar-day";
+
 /** A weight in kg, with a decimal comma and one decimal: `98,6`. */
 export function formatKg(kg: number): string {
   return KG.format(kg);
@@ -11,6 +13,12 @@ export function formatKg(kg: number): string {
 /** The Berlin day of `instant`, without the year: `5.8.`. */
 export function formatDay(instant: Date): string {
   return DAY.format(instant);
+}
+
+/** A calendar day, without the year: `5.8.`. */
+export function formatCalendarDay(day: CalendarDay): string {
+  // Noon UTC falls on the same day in Berlin, in summer and in winter.
+  return formatDay(new Date(`${day}T12:00:00Z`));
 }
 
 /** The Berlin time of day of `instant`: `7:12`. */

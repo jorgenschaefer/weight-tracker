@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatDay, formatKg, formatTime } from "./format";
+import type { CalendarDay } from "@/measurement/calendar-day";
+import { formatCalendarDay, formatDay, formatKg, formatTime } from "./format";
 
 describe("formatKg", () => {
   it.each([
@@ -24,6 +25,19 @@ describe("formatDay", () => {
 
   it("writes the Berlin day in winter, an hour ahead of UTC", () => {
     expect(formatDay(new Date("2026-12-31T23:30:00Z"))).toBe("1.1.");
+  });
+});
+
+describe("formatCalendarDay", () => {
+  it.each([
+    ["2026-08-05", "5.8."],
+    ["2026-10-17", "17.10."],
+    ["2026-01-01", "1.1."],
+    ["2026-03-29", "29.3."],
+    ["2026-10-25", "25.10."],
+  ])("writes %s as %s, without the year", (day, text) => {
+    // Safe: valid `YYYY-MM-DD`s.
+    expect(formatCalendarDay(day as CalendarDay)).toBe(text);
   });
 });
 
