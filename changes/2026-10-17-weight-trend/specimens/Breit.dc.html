@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Farbfeld, breiter Bildschirm</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#10355A}a:hover{color:#0A2440}
+.meta{font-size:15px;opacity:.85}
+.h{margin:0;font-size:104px;line-height:.95;font-weight:600;letter-spacing:-0.015em}
+.band{margin-top:16px;font-size:26px;font-weight:600}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;padding-top:12px;border-top:1px solid color-mix(in srgb,currentColor 30%,transparent)}
+.nl{font-size:14px;font-weight:500;opacity:.85}
+.nv{margin-top:2px;font-size:36px;font-weight:600;font-stretch:88%;font-variant-numeric:tabular-nums}
+.nu{font-size:14px;font-weight:500;opacity:.85}
+.grid{stroke:currentColor;stroke-opacity:.2;stroke-width:1}
+.ylab{fill:currentColor;fill-opacity:.8;font:12px 'Archivo',sans-serif;text-anchor:end}
+.xlab{fill:currentColor;fill-opacity:.8;font:12px 'Archivo',sans-serif;text-anchor:middle}
+.trend{fill:none;stroke:currentColor;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.dot{fill:currentColor;fill-opacity:.38}
+.dot-out{fill:none;stroke:currentColor;stroke-width:2}
+.dot-cur{fill:currentColor}
+.logout{align-self:flex-start;min-height:44px;padding:0;border:0;background:none;color:inherit;font:14px 'Archivo',sans-serif;text-decoration:underline;opacity:.8;cursor:pointer}
+.logout:focus-visible{outline:3px solid currentColor;outline-offset:3px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 880px; box-sizing: border-box; background: #D5E4F1; color: #10355A; font-family: 'Archivo', sans-serif; padding: 40px 0 16px">
+<div style="max-width: 960px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; gap: 32px">
+<div class="meta">{{meta}}</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 48px; align-items: end">
+<div>
+<h1 class="h">Nimmt ab</h1>
+<div class="band">{{band}}</div>
+</div>
+<div class="nums">
+<div><div class="nl">Trend</div><div class="nv">{{trend}}</div><div class="nu">kg</div></div>
+<div><div class="nl">Gemessen</div><div class="nv">{{measured}}</div><div class="nu">kg</div></div>
+<div><div class="nl">Tempo 4 Wochen</div><div class="nv">{{pace}}</div><div class="nu">kg pro Woche</div></div>
+</div>
+</div>
+<svg width="960" height="380" role="img" aria-label="Messungen und Trend der letzten sechs Wochen">
+<sc-for list="{{chart.gridY}}" as="g" hint-placeholder-count="5">
+<line class="grid" x1="{{chart.x0}}" x2="{{chart.x1}}" y1="{{g.y}}" y2="{{g.y}}"></line>
+<text class="ylab" x="{{g.lx}}" y="{{g.ly}}">{{g.label}}</text>
+</sc-for>
+<sc-for list="{{chart.ticksX}}" as="k" hint-placeholder-count="6">
+<text class="xlab" x="{{k.x}}" y="{{chart.xly}}">{{k.label}}</text>
+</sc-for>
+<sc-for list="{{chart.dots}}" as="d" hint-placeholder-count="30">
+<circle class="{{d.cls}}" cx="{{d.cx}}" cy="{{d.cy}}" r="{{d.r}}"></circle>
+</sc-for>
+<sc-for list="{{chart.segs}}" as="p" hint-placeholder-count="1">
+<polyline class="trend" points="{{p.points}}"></polyline>
+</sc-for>
+</svg>
+<button class="logout" type="button" style="margin-top: auto">Abmelden</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":880}}'>
+var RAW = [["2026-07-01",95.9],["2026-07-02",95.1],["2026-07-03",95.5],["2026-07-04",97.5],["2026-07-05",96.2],["2026-07-06",95.6],["2026-07-07",95.5],["2026-07-08",95.1],["2026-07-09",94.6],["2026-07-10",96.2],["2026-07-11",95.8],["2026-07-12",97.7],["2026-07-13",97.2],["2026-07-14",96.1],["2026-07-15",96],["2026-07-16",96.2],["2026-07-17",96.9],["2026-07-18",98.6],["2026-07-19",98.6],["2026-07-20",98],["2026-07-21",96.8],["2026-07-22",96.3],["2026-07-23",97.1],["2026-07-24",97.1],["2026-07-26",97.4],["2026-07-27",96.5],["2026-07-28",96.2],["2026-07-29",96.5],["2026-07-30",96],["2026-07-31",96.8],["2026-08-01",95.8],["2026-08-02",97.4],["2026-08-03",96.9],["2026-08-04",97],["2026-08-05",97.1],["2026-08-06",97.4],["2026-08-07",98],["2026-08-10",97.7],["2026-08-11",97.2],["2026-08-12",97.5],["2026-08-13",97.2],["2026-08-14",98],["2026-08-15",97.5],["2026-08-16",98.5],["2026-08-18",97.8],["2026-08-19",97.8],["2026-08-20",97.8],["2026-08-21",97.8],["2026-08-22",97.4],["2026-08-23",99.3],["2026-08-24",98.8],["2026-08-25",98.1],["2026-08-26",97.8],["2026-08-27",97.6],["2026-08-28",98.9],["2026-08-29",99.3],["2026-08-30",101],["2026-08-31",98.7],["2026-09-01",99.6],["2026-09-02",98.7],["2026-09-03",99.1],["2026-09-04",100],["2026-09-05",101.2],["2026-09-06",99.2],["2026-09-07",99.7],["2026-09-08",99.4],["2026-09-09",99.8],["2026-09-10",100.2],["2026-09-11",100.1],["2026-09-12",101.3],["2026-09-13",99.6],["2026-09-14",99.3],["2026-09-15",98.8],["2026-09-16",99.5],["2026-09-17",98.8],["2026-09-18",100.3],["2026-09-19",99.4],["2026-09-20",100.5],["2026-09-21",99.7],["2026-09-22",99.4],["2026-10-01",100.9],["2026-10-02",100.4],["2026-10-03",98.9],["2026-10-04",98.1],["2026-10-05",98.6],["2026-10-06",97.7],["2026-10-07",96.8],["2026-10-08",97.6],["2026-10-09",97.8],["2026-10-10",97.5],["2026-10-11",97.3],["2026-10-12",99.7],["2026-10-13",98.1],["2026-10-14",97.4],["2026-10-15",97.1],["2026-10-16",98.3],["2026-10-17",98.6]];
+function med(a){var s=a.slice().sort(function(x,y){return x-y;});var m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+function dayNum(d){return Math.round(Date.parse(d+'T00:00:00Z')/864e5);}
+function fmtD(t){var d=new Date(t*864e5);return d.getUTCDate()+'.'+(d.getUTCMonth()+1)+'.';}
+function fmtK(v,dec){return v.toFixed(dec==null?1:dec).replace('.',',');}
+function fmtS(v,dec){var r=Math.abs(v).toFixed(dec==null?1:dec);if(+r===0)return '±'+r.replace('.',',');return (v>0?'+':'−')+r.replace('.',',');}
+var ROWS=(function(){
+var pts=RAW.map(function(r){return {t:dayNum(r[0]),v:r[1]};});
+var lastFall=null,out=[];
+pts.forEach(function(p,i){
+var w=pts.slice(0,i+1).filter(function(q){return q.t>p.t-14;});
+var r={t:p.t,v:p.v,lv:null,n:null,pace:null,lastFall:null};
+if(w.length>=5){
+var s=[];for(var a=0;a<w.length;a++)for(var b=a+1;b<w.length;b++)s.push((w[b].v-w[a].v)/(w[b].t-w[a].t));
+var sl=med(s);
+r.lv=med(w.map(function(q){return q.v+sl*(p.t-q.t);}));
+if(sl*7<-0.2)lastFall=p.t;
+}
+r.lastFall=lastFall;r.n=lastFall==null?null:p.t-lastFall;
+for(var j=out.length-1;j>=0;j--){if(out[j].lv!=null&&out[j].t<=p.t-28){if(r.lv!=null)r.pace=(r.lv-out[j].lv)/((p.t-out[j].t)/7);break;}}
+out.push(r);
+});
+return out;
+})();
+function band(p){return p>0.1?'Zunahme':p>=-0.1?'Gewicht gehalten':p>=-0.5?'Langsames Abnehmen':p>=-1?'Moderates Abnehmen':'Schnelles Abnehmen';}
+function buildChart(idx,W,H){
+var L=36,R=8,T=10,B=28,cur=ROWS[idx],t1=cur.t,t0=t1-41;
+var rows=ROWS.slice(0,idx+1).filter(function(r){return r.t>=t0;});
+var vals=[];rows.forEach(function(r){vals.push(r.v);if(r.lv!=null)vals.push(r.lv);});
+var lo=Math.floor(Math.min.apply(null,vals)-0.3),hi=Math.ceil(Math.max.apply(null,vals)+0.3);
+function x(t){return L+(t-t0)/41*(W-L-R);}
+function y(v){return T+(hi-v)/(hi-lo)*(H-T-B);}
+var gridY=[];for(var g=lo;g<=hi;g++)gridY.push({y:y(g),label:String(g),lx:L-8,ly:y(g)+4});
+var ticksX=[];for(var k=t1;k>=t0;k-=7)ticksX.push({x:x(k),label:fmtD(k)});
+var dots=rows.map(function(r){var o=r.lv!=null&&Math.abs(r.v-r.lv)>0.9;return {cx:x(r.t),cy:y(r.v),r:r===cur?6.5:o?5.5:4.5,cls:r===cur?'dot-cur':o?'dot-out':'dot'};});
+var segs=[],seg=[],prev=null;
+rows.forEach(function(r){if(r.lv==null)return;if(prev!=null&&r.t-prev>3){segs.push(seg);seg=[];}seg.push(x(r.t).toFixed(1)+','+y(r.lv).toFixed(1));prev=r.t;});
+if(seg.length)segs.push(seg);
+return {x0:L,x1:W-R,xly:H-8,gridY:gridY,ticksX:ticksX,dots:dots,segs:segs.map(function(s){return {points:s.join(' ')};})};
+}
+class Component extends DCLogic {
+renderVals() {
+var i=ROWS.length-1,r=ROWS[i];
+return {
+meta:'Letzte Messung '+fmtD(r.t)+' um 7:12 Uhr: '+fmtK(r.v)+' kg',
+band:band(r.pace),trend:fmtK(r.lv),measured:fmtK(r.v),pace:fmtS(r.pace,2),
+chart:buildChart(i,960,380)
+};
+}
+}
+</script>
+</body>
+</html>

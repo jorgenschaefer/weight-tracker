@@ -2,66 +2,99 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Urteil mit Dauer</title>
+<title>Farbfeld</title>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
-a{color:#2D6CB3}a:hover{color:#1F4F86}
-.grid{stroke:#E2E0D9;stroke-width:1}
-.ylab{fill:#5C6570;font:12px 'IBM Plex Mono',monospace;text-anchor:end}
-.xlab{fill:#5C6570;font:12px 'IBM Plex Mono',monospace;text-anchor:middle}
-.trend{fill:none;stroke:#2D6CB3;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
-.dot{fill:#8C96A1}
-.dot-out{fill:#F6F5F1;stroke:#B85C12;stroke-width:2}
-.dot-cur{fill:#1E2329}
-.v-down{background:#DCE8F5;color:#173E66}
-.v-l1{background:#F7E6D3;color:#6E3608}
-.v-l2{background:#EBB98A;color:#4A2203}
-.v-l3{background:#9E4A0C;color:#FFFFFF}
-.btn{min-width:44px;height:44px;border:1px solid #C9C6BD;background:#FFFFFF;border-radius:8px;font:500 16px 'IBM Plex Sans',sans-serif;color:#1E2329;cursor:pointer}
-.btn:hover{background:#EFEDE7}
+a{color:#10355A}a:hover{color:#0A2440}
+.cap{height:28px;font-size:14px;font-weight:500;color:#2F3740}
+.col{position:relative;display:flex;flex-direction:column;gap:8px}
+.fold{position:absolute;left:-40px;top:672px;width:34px;border-top:1px dashed #7A838D;font-size:11px;color:#4D5660;text-align:right;padding-top:2px}
+.scr{width:360px;height:760px;box-sizing:border-box;padding:20px 20px 8px;display:flex;flex-direction:column;border-radius:6px;overflow:hidden}
+.lv0{background:#D5E4F1;color:#10355A}
+.lv1{background:#F5E1CB;color:#5A2C06}
+.lv2{background:#EDA562;color:#3A1801}
+.lv3{background:#8A380A;color:#FFF3E8}
+.meta{font-size:14px;line-height:1.4;opacity:.85}
+.h{margin:28px 0 0;font-size:64px;line-height:.98;font-weight:600;font-stretch:100%;letter-spacing:-0.01em}
+.lv1 .h{font-size:44px;font-weight:700}
+.lv2 .h{font-size:44px;font-weight:800;font-stretch:112%}
+.lv3 .h{font-size:42px;font-weight:900;font-stretch:125%}
+.busy .h{opacity:.45}
+.busyline{margin-top:12px;font-size:15px;font-weight:600}
+.sub{margin-top:12px;font-size:16px;line-height:1.4}
+.band{margin-top:14px;font-size:21px;font-weight:600;font-stretch:100%}
+.fetch{margin-top:18px;height:48px;border:0;border-radius:8px;font:600 17px 'Archivo',sans-serif;cursor:pointer}
+.lv0 .fetch{background:#10355A;color:#D5E4F1}
+.lv1 .fetch{background:#5A2C06;color:#F5E1CB}
+.lv2 .fetch{background:#3A1801;color:#EDA562}
+.lv3 .fetch{background:#FFF3E8;color:#8A380A}
+.fetch:focus-visible,.logout:focus-visible{outline:3px solid currentColor;outline-offset:3px}
+.nums{margin-top:28px;padding-top:12px;border-top:1px solid color-mix(in srgb,currentColor 30%,transparent);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nl{font-size:13px;font-weight:500;opacity:.85}
+.nv{margin-top:2px;font-size:28px;font-weight:600;font-stretch:88%;font-variant-numeric:tabular-nums}
+.nu{font-size:13px;font-weight:500;opacity:.85}
+.chart{margin-top:28px}
+.grid{stroke:currentColor;stroke-opacity:.2;stroke-width:1}
+.ylab{fill:currentColor;fill-opacity:.8;font:11px 'Archivo',sans-serif;text-anchor:end}
+.xlab{fill:currentColor;fill-opacity:.8;font:11px 'Archivo',sans-serif;text-anchor:middle}
+.trend{fill:none;stroke:currentColor;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.dot{fill:currentColor;fill-opacity:.38}
+.dot-out{fill:none;stroke:currentColor;stroke-width:2}
+.dot-cur{fill:currentColor}
+.logout{margin-top:auto;align-self:flex-start;min-height:44px;padding:0;border:0;background:none;color:inherit;font:14px 'Archivo',sans-serif;text-decoration:underline;opacity:.8;cursor:pointer}
 </style>
 </helmet>
-<div style="width: 960px; height: 720px; box-sizing: border-box; padding: 40px 40px 32px; display: flex; flex-direction: column; gap: 20px; background: #F6F5F1; color: #1E2329; font-family: 'IBM Plex Sans', sans-serif">
-<div style="font: 500 13px 'IBM Plex Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; color: #5C6570">Gewicht · Stand {{dateLabel}}</div>
-<div class="{{verdictCls}}" style="border-radius: 14px; padding: 28px 32px; display: flex; flex-direction: column; gap: 8px">
-<div style="font-size: 44px; font-weight: 700; line-height: 1.1">{{headline}}</div>
-<div style="font-size: 18px; line-height: 1.4">{{subline}}</div>
+<div style="width: 1664px; height: 880px; box-sizing: border-box; padding: 32px 40px; display: flex; gap: 48px; background: #E3E6E9; font-family: 'Archivo', sans-serif">
+<sc-for list="{{screens}}" as="s" hint-placeholder-count="4">
+<div class="col">
+<div class="cap">{{s.caption}}</div>
+<div class="fold">640</div>
+<div class="scr {{s.cls}}">
+<div class="meta">{{s.meta}}</div>
+<sc-if value="{{s.busy}}" hint-placeholder-val="{{false}}">
+<div class="busyline">Vorläufig, wird aktualisiert …</div>
+</sc-if>
+<h1 class="h">{{s.headline}}</h1>
+<sc-if value="{{s.hasSub}}" hint-placeholder-val="{{false}}">
+<div class="sub">{{s.sub}}</div>
+</sc-if>
+<div class="band">{{s.band}}</div>
+<sc-if value="{{s.login}}" hint-placeholder-val="{{false}}">
+<button class="fetch" type="button">Daten abrufen</button>
+</sc-if>
+<div class="nums">
+<div><div class="nl">Trend</div><div class="nv">{{s.trend}}</div><div class="nu">kg</div></div>
+<div><div class="nl">Gemessen</div><div class="nv">{{s.measured}}</div><div class="nu">kg</div></div>
+<div><div class="nl">Tempo 4 Wochen</div><div class="nv">{{s.pace}}</div><div class="nu">kg pro Woche</div></div>
 </div>
-<div style="display: flex; gap: 32px; font-size: 15px; color: #3E4650">
-<div>Trend <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: #1E2329">{{lvLabel}} kg</span></div>
-<div>Gemessen <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: #1E2329">{{vLabel}} kg</span></div>
-<div>Tempo 14 Tage <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: #1E2329">{{rateLabel}} kg/Woche</span></div>
-</div>
-<svg width="880" height="300" role="img" aria-label="Tageswerte und Trend der letzten sechs Wochen">
-<sc-for list="{{chart.gridY}}" as="g" hint-placeholder-count="5">
-<line class="grid" x1="{{chart.x0}}" x2="{{chart.x1}}" y1="{{g.y}}" y2="{{g.y}}"></line>
+<svg class="chart" width="320" height="190" role="img" aria-label="Messungen und Trend der letzten sechs Wochen">
+<sc-for list="{{s.chart.gridY}}" as="g" hint-placeholder-count="5">
+<line class="grid" x1="{{s.chart.x0}}" x2="{{s.chart.x1}}" y1="{{g.y}}" y2="{{g.y}}"></line>
 <text class="ylab" x="{{g.lx}}" y="{{g.ly}}">{{g.label}}</text>
 </sc-for>
-<sc-for list="{{chart.ticksX}}" as="k" hint-placeholder-count="6">
-<text class="xlab" x="{{k.x}}" y="{{chart.xly}}">{{k.label}}</text>
+<sc-for list="{{s.chart.ticksX}}" as="k" hint-placeholder-count="6">
+<text class="xlab" x="{{k.x}}" y="{{s.chart.xly}}">{{k.label}}</text>
 </sc-for>
-<sc-for list="{{chart.dots}}" as="d" hint-placeholder-count="30">
+<sc-for list="{{s.chart.dots}}" as="d" hint-placeholder-count="30">
 <circle class="{{d.cls}}" cx="{{d.cx}}" cy="{{d.cy}}" r="{{d.r}}"></circle>
 </sc-for>
-<polyline class="trend" points="{{chart.trend}}"></polyline>
+<sc-for list="{{s.chart.segs}}" as="p" hint-placeholder-count="1">
+<polyline class="trend" points="{{p.points}}"></polyline>
+</sc-for>
 </svg>
-<div style="display: flex; align-items: center; gap: 12px; margin-top: auto">
-<label for="stand" style="font-size: 15px; color: #3E4650; white-space: nowrap">Stand am</label>
-<button class="btn" type="button" aria-label="Einen Tag zurück" onClick="{{prev}}">‹</button>
-<input id="stand" type="range" min="{{minIdx}}" max="{{maxIdx}}" value="{{idx}}" onChange="{{slide}}" style="flex-grow: 1; accent-color: #2D6CB3">
-<button class="btn" type="button" aria-label="Einen Tag vor" onClick="{{next}}">›</button>
-<div style="font: 500 15px 'IBM Plex Mono', monospace; min-width: 64px; text-align: right">{{dateLabel}}</div>
+<button class="logout" type="button">Abmelden</button>
 </div>
+</div>
+</sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":960,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1664,"height":880}}'>
 var RAW = [["2026-07-01",95.9],["2026-07-02",95.1],["2026-07-03",95.5],["2026-07-04",97.5],["2026-07-05",96.2],["2026-07-06",95.6],["2026-07-07",95.5],["2026-07-08",95.1],["2026-07-09",94.6],["2026-07-10",96.2],["2026-07-11",95.8],["2026-07-12",97.7],["2026-07-13",97.2],["2026-07-14",96.1],["2026-07-15",96],["2026-07-16",96.2],["2026-07-17",96.9],["2026-07-18",98.6],["2026-07-19",98.6],["2026-07-20",98],["2026-07-21",96.8],["2026-07-22",96.3],["2026-07-23",97.1],["2026-07-24",97.1],["2026-07-26",97.4],["2026-07-27",96.5],["2026-07-28",96.2],["2026-07-29",96.5],["2026-07-30",96],["2026-07-31",96.8],["2026-08-01",95.8],["2026-08-02",97.4],["2026-08-03",96.9],["2026-08-04",97],["2026-08-05",97.1],["2026-08-06",97.4],["2026-08-07",98],["2026-08-10",97.7],["2026-08-11",97.2],["2026-08-12",97.5],["2026-08-13",97.2],["2026-08-14",98],["2026-08-15",97.5],["2026-08-16",98.5],["2026-08-18",97.8],["2026-08-19",97.8],["2026-08-20",97.8],["2026-08-21",97.8],["2026-08-22",97.4],["2026-08-23",99.3],["2026-08-24",98.8],["2026-08-25",98.1],["2026-08-26",97.8],["2026-08-27",97.6],["2026-08-28",98.9],["2026-08-29",99.3],["2026-08-30",101],["2026-08-31",98.7],["2026-09-01",99.6],["2026-09-02",98.7],["2026-09-03",99.1],["2026-09-04",100],["2026-09-05",101.2],["2026-09-06",99.2],["2026-09-07",99.7],["2026-09-08",99.4],["2026-09-09",99.8],["2026-09-10",100.2],["2026-09-11",100.1],["2026-09-12",101.3],["2026-09-13",99.6],["2026-09-14",99.3],["2026-09-15",98.8],["2026-09-16",99.5],["2026-09-17",98.8],["2026-09-18",100.3],["2026-09-19",99.4],["2026-09-20",100.5],["2026-09-21",99.7],["2026-09-22",99.4],["2026-10-01",100.9],["2026-10-02",100.4],["2026-10-03",98.9],["2026-10-04",98.1],["2026-10-05",98.6],["2026-10-06",97.7],["2026-10-07",96.8],["2026-10-08",97.6],["2026-10-09",97.8],["2026-10-10",97.5],["2026-10-11",97.3],["2026-10-12",99.7],["2026-10-13",98.1],["2026-10-14",97.4],["2026-10-15",97.1],["2026-10-16",98.3],["2026-10-17",98.6]];
 function med(a){var s=a.slice().sort(function(x,y){return x-y;});var m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
 function dayNum(d){return Math.round(Date.parse(d+'T00:00:00Z')/864e5);}
@@ -70,65 +103,60 @@ function fmtK(v,dec){return v.toFixed(dec==null?1:dec).replace('.',',');}
 function fmtS(v,dec){var r=Math.abs(v).toFixed(dec==null?1:dec);if(+r===0)return '±'+r.replace('.',',');return (v>0?'+':'−')+r.replace('.',',');}
 var ROWS=(function(){
 var pts=RAW.map(function(r){return {t:dayNum(r[0]),v:r[1]};});
-var low=Infinity,lowT=null,lastFall=null,out=[];
+var lastFall=null,out=[];
 pts.forEach(function(p,i){
 var w=pts.slice(0,i+1).filter(function(q){return q.t>p.t-14;});
-var r={t:p.t,v:p.v,lv:null,rate:null,st:null};
+var r={t:p.t,v:p.v,lv:null,n:null,pace:null,lastFall:null};
 if(w.length>=5){
 var s=[];for(var a=0;a<w.length;a++)for(var b=a+1;b<w.length;b++)s.push((w[b].v-w[a].v)/(w[b].t-w[a].t));
 var sl=med(s);
 r.lv=med(w.map(function(q){return q.v+sl*(p.t-q.t);}));
-r.rate=sl*7;
-r.st=r.rate<-0.2?'down':r.rate>0.2?'up':'flat';
-if(r.st==='down')lastFall=p.t;
-if(r.lv<low){low=r.lv;lowT=p.t;}
+if(sl*7<-0.2)lastFall=p.t;
 }
-r.low=low;r.lowT=lowT;r.lastFall=lastFall;
+r.lastFall=lastFall;r.n=lastFall==null?null:p.t-lastFall;
+for(var j=out.length-1;j>=0;j--){if(out[j].lv!=null&&out[j].t<=p.t-28){if(r.lv!=null)r.pace=(r.lv-out[j].lv)/((p.t-out[j].t)/7);break;}}
 out.push(r);
 });
 return out;
 })();
-var FIRST=ROWS.findIndex(function(r){return r.lv!=null&&r.lastFall!=null;});
-var START=ROWS.findIndex(function(r){return r.t===dayNum('2026-09-06');});
+function idxOf(d){var t=dayNum(d);return ROWS.findIndex(function(r){return r.t===t;});}
+function level(n){return n==null||n<3?0:n<7?1:n<14?2:3;}
+function band(p){return p>0.1?'Zunahme':p>=-0.1?'Gewicht gehalten':p>=-0.5?'Langsames Abnehmen':p>=-1?'Moderates Abnehmen':'Schnelles Abnehmen';}
 function buildChart(idx,W,H){
-var L=48,R=16,T=12,B=30,cur=ROWS[idx],t1=cur.t,t0=t1-41;
+var L=30,R=6,T=8,B=24,cur=ROWS[idx],t1=cur.t,t0=t1-41;
 var rows=ROWS.slice(0,idx+1).filter(function(r){return r.t>=t0;});
 var vals=[];rows.forEach(function(r){vals.push(r.v);if(r.lv!=null)vals.push(r.lv);});
 var lo=Math.floor(Math.min.apply(null,vals)-0.3),hi=Math.ceil(Math.max.apply(null,vals)+0.3);
 function x(t){return L+(t-t0)/41*(W-L-R);}
 function y(v){return T+(hi-v)/(hi-lo)*(H-T-B);}
-var gridY=[];for(var g=lo;g<=hi;g++)gridY.push({y:y(g),label:String(g),lx:L-8,ly:y(g)+4});
-var ticksX=[];for(var k=t1;k>=t0;k-=7)ticksX.push({x:x(k),label:fmtD(k)});
-var dots=rows.map(function(r){var out=r.lv!=null&&Math.abs(r.v-r.lv)>0.9;return {cx:x(r.t),cy:y(r.v),r:r===cur?6:4.5,cls:r===cur?'dot-cur':out?'dot-out':'dot'};});
-var trend=rows.filter(function(r){return r.lv!=null;}).map(function(r){return x(r.t).toFixed(1)+','+y(r.lv).toFixed(1);}).join(' ');
-return {x0:L,x1:W-R,xly:H-8,gridY:gridY,ticksX:ticksX,dots:dots,trend:trend,x:x,y:y,rows:rows};
+var step=hi-lo>5?2:1,gridY=[];for(var g=lo;g<=hi;g+=step)gridY.push({y:y(g),label:String(g),lx:L-6,ly:y(g)+4});
+var ticksX=[];for(var k=t1-3;k>=t0+3;k-=10)ticksX.push({x:x(k),label:fmtD(k)});
+var dots=rows.map(function(r){var o=r.lv!=null&&Math.abs(r.v-r.lv)>0.9;return {cx:x(r.t),cy:y(r.v),r:r===cur?5.5:o?4.5:3.5,cls:r===cur?'dot-cur':o?'dot-out':'dot'};});
+var segs=[],seg=[],prev=null;
+rows.forEach(function(r){if(r.lv==null)return;if(prev!=null&&r.t-prev>3){segs.push(seg);seg=[];}seg.push(x(r.t).toFixed(1)+','+y(r.lv).toFixed(1));prev=r.t;});
+if(seg.length)segs.push(seg);
+return {x0:L,x1:W-R,xly:H-6,gridY:gridY,ticksX:ticksX,dots:dots,segs:segs.map(function(s){return {points:s.join(' ')};})};
 }
+var STATES=[
+{d:'2026-10-17',time:'7:12',caption:'17.10.: nimmt ab, mit Ausreißer am 12.10.'},
+{d:'2026-08-06',time:'7:05',caption:'6.8.: erste Stufe, wird gerade aktualisiert',busy:true},
+{d:'2026-08-12',time:'6:58',caption:'12.8.: zweite Stufe'},
+{d:'2026-08-30',time:'7:20',caption:'30.8.: höchste Stufe, Anmeldung nötig',login:true}
+];
 class Component extends DCLogic {
 renderVals() {
-var self=this;
-var idx=(this.state&&this.state.idx!=null)?this.state.idx:START;
-var cur=ROWS[idx];
-var headline,subline,cls;
-var n=cur.st==='down'?0:cur.t-cur.lastFall;
-if(n<3){
-headline='Nimmt ab';
-subline=cur.st==='down'?'Der Trend fällt um '+fmtK(-cur.rate)+' kg pro Woche. Ausreißer einzelner Tage zählen kaum.':'Der Trend flacht gerade ab ('+fmtS(cur.rate)+' kg/Woche). Das zählt erst, wenn es mehrere Tage anhält.';
-cls='v-down';
-}else{
-headline='Seit '+n+' Tagen kein Abnehmen';
-subline='Trend '+(cur.st==='up'?'steigt':'stockt')+' ('+fmtS(cur.rate)+' kg/Woche). Zuletzt abgenommen bis '+fmtD(cur.lastFall)+'.';
-cls=n<7?'v-l1':n<14?'v-l2':'v-l3';
-}
-function go(i){self.setState({idx:Math.max(FIRST,Math.min(ROWS.length-1,i))});}
+return {screens:STATES.map(function(s){
+var i=idxOf(s.d),r=ROWS[i],lv=level(r.n);
 return {
-idx:idx,minIdx:FIRST,maxIdx:ROWS.length-1,
-dateLabel:fmtD(cur.t),
-headline:headline,subline:subline,verdictCls:cls,
-lvLabel:fmtK(cur.lv,1),vLabel:fmtK(cur.v,1),rateLabel:fmtS(cur.rate),
-chart:buildChart(idx,880,300),
-prev:function(){go(idx-1);},next:function(){go(idx+1);},
-slide:function(e){go(+e.target.value);}
+caption:s.caption,cls:'lv'+lv+(s.busy?' busy':''),
+meta:'Letzte Messung '+fmtD(r.t)+' um '+s.time+' Uhr: '+fmtK(r.v)+' kg',
+headline:lv===0?'Nimmt ab':'Seit '+r.n+' Tagen kein Abnehmen',
+hasSub:lv>0,sub:lv>0?'Zuletzt abgenommen bis '+fmtD(r.lastFall):'',
+band:band(r.pace),busy:!!s.busy,login:!!s.login,
+trend:fmtK(r.lv),measured:fmtK(r.v),pace:fmtS(r.pace,2),
+chart:buildChart(i,320,190)
 };
+})};
 }
 }
 </script>

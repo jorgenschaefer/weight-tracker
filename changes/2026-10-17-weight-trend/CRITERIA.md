@@ -34,10 +34,18 @@ Bisher wurde das Gewicht in Google Fit / Google Health und zusätzlich in einem 
 
 ## Agreed design
 
-Variante A, „Urteil mit Dauer“: oben ein großes Urteil auf einer Fläche, deren Farbe mit der Dauer eskaliert, darunter die Zahlen, darunter der Graph. Gegenüber dem Muster neu: die Zeile mit der Tempo-Stufe (AC-10), der Knopf „Daten abrufen“ und „Wird aktualisiert …“ am Urteil (AC-15, AC-16), das Handy-Layout (AC-13). Die Unterzeile des Urteils nennt keine Tempo-Zahl mehr (AC-11). Der Regler „Stand am“ gehörte nur zum Muster. Nur heller Modus.
+„Farbfeld“: Der ganze Bildschirm ist die Urteilsfläche. Ihre Farbe eskaliert mit den Stufen aus AC-5, und die Überschrift wird mit jeder Stufe breiter und schwerer (Breiten- und Gewichtsachse von Archivo). Darunter stehen die Tempo-Stufe, die drei Zahlen und der Graph, alles in der Schriftfarbe der Fläche; Ausreißer sind hohle Ringe, die zählende Messung des letzten Tages ist ein größerer voller Punkt, die Trendlinie ist an Lücken unterbrochen. Auf breiten Bildschirmen füllt die Farbe das ganze Fenster, der Inhalt ist auf 960 px begrenzt: Urteil links, Zahlen rechts daneben, Graph darunter. Gegenüber den ACs neu: nach einer Lücke der Satz „Ein Urteil gibt es wieder ab der 5. Messung nach der Lücke.“ Die mehreren Tage nebeneinander und die Markierung bei 640 px gehören nur zum Muster. Nur heller Modus.
 
-- Artifact: https://claude.ai/artifact/9QccWmoDGn9BM3mqJ3a3nn (Artboard „A · Urteil mit Dauer“; B und C dort sind verworfen)
-- Kopie: [`specimens/Main.dc.html`](specimens/Main.dc.html)
+Farben (Fläche / Schrift):
+
+- „Nimmt ab“: `#D5E4F1` / `#10355A`
+- 3–6 Tage: `#F5E1CB` / `#5A2C06`
+- 7–13 Tage und Lücke mit deutlicher Zunahme: `#EDA562` / `#3A1801`
+- ab 14 Tagen: `#8A380A` / `#FFF3E8`
+- neutral (Lücke im Rahmen, Messung zu alt, erster Besuch): `#DDE1E5` / `#20262C`
+
+- Artifact: https://claude.ai/artifact/AQy9j1PdWULSjXSoCDuvNr (Artboards „A: Farbfeld“, „A: weitere Zustände“, „A: breiter Bildschirm“; „B: Kalender“ und „C: Skala“ dort sind verworfen)
+- Kopien: [`specimens/Main.dc.html`](specimens/Main.dc.html) (Urteil in allen Stufen, Abruf, Anmeldung), [`specimens/Zustaende.dc.html`](specimens/Zustaende.dc.html) (Lücke, Messung zu alt, Fehler, erster Besuch), [`specimens/Breit.dc.html`](specimens/Breit.dc.html) (breiter Bildschirm)
 
 **Agreed; build to this, do not redesign.**
 
@@ -54,7 +62,7 @@ Variante A, „Urteil mit Dauer“: oben ein großes Urteil auf einer Fläche, d
 - Feature-Module nach `UBIQUITOUS_LANGUAGE.md`: `src/measurement/` (Abruf von Google Health, Cache, erste Messung pro Berliner Kalendertag), `src/trend/` (robuster Trend und Steigung, Tempo mit fünf Stufen), `src/verdict/` (Urteil: Schwelle 0,2 kg/Woche, 3 Tage Bestätigung, Stufen 3/7/14; Lücke: mehr als 3 Tage, Vergleich bis zur 5. Messung), `src/app/` für die Seite. Jede dieser Regeln hat genau einen Ort, benannt nach ihr (etwa `src/verdict/verdict.ts`, `src/verdict/gap.ts`, `src/trend/pace.ts`).
 - Die Logik in `src/measurement/` (außer dem Google-Zugriff), `src/trend/` und `src/verdict/` besteht aus reinen Funktionen ohne Browser- oder React-Bezug; „heute“ wird als Parameter übergeben, die Uhr liest nur die UI. So läuft sie später unverändert auf einem Server.
 - Nur ein Modul in `src/measurement/` spricht mit Google; es liefert Messungen oder einen typisierten Fehler, den die UI anzeigt.
-- Mantine-Komponenten für Knöpfe, Hinweise, Ladeanzeige und Layout; die Urteilsfläche und der Graph (handgeschriebenes SVG) sind eigener Code. Farben, IBM Plex Sans und Mono und Aufteilung wie im Muster.
+- Mantine-Komponenten für Knöpfe, Hinweise, Ladeanzeige und Layout; die Urteilsfläche und der Graph (handgeschriebenes SVG) sind eigener Code. Farben, Schrift Archivo (variabel mit Breiten- und Gewichtsachse, über `next/font`) und Aufteilung wie im Muster.
 - Startpunkt für den Trend ist der Ansatz des Musters (Theil-Sen über 14 Tage, Niveau als Median der Projektionen); der Build darf davon abweichen, solange die ACs halten.
 - Tests wie in `einsatz`: neben dem Code (`*.test.ts`), eine Testdatei je Quelldatei. Fixture `src/test/fixtures/gewicht-2026-07-bis-10.csv` ist der Auszug 1.7.–17.10.2026 aus `~/Projects/patientenakte-jorgen/unterlagen/gewicht.csv` im Format `datum,kg` (ein Wert pro Tag, ohne Uhrzeit). Fälle mit mehreren Messungen pro Tag (AC-2), Uhrzeiten und dem künstlichen Ausreißer (AC-6) sind künstliche Testdaten.
 - Das erste Ticket prüft am echten Konto, ob in der Google-Health-App eingetragene Messungen über die Health API ankommen, und bestätigt den Scope. Wenn nicht: anhalten und melden.
@@ -81,6 +89,9 @@ Variante A, „Urteil mit Dauer“: oben ein großes Urteil auf einer Fläche, d
 - **Benachrichtigungen (Mail, Push)** - gewünscht ist, visuell zu sehen, wo man steht, beim regelmäßigen Reinschauen.
 - **Variante B „Abstand zum Tief“** - ein altes Tief bleibt monatelang stehen, die Zahl verliert ihre Aussage.
 - **Variante C „Tempo über die Zeit“** - zugunsten von A verworfen; mehr Aufwand, das Urteil steht nicht im Vordergrund.
+- **Variante A „Urteil mit Dauer“ (erstes Muster)** - ersetzt durch das Farbfeld, bei dem die ganze Seite die Farbe des Urteils trägt.
+- **Kalender mit dem Urteil je Tag** - auf den ersten Blick ansprechend, auf Dauer zu viele Informationen auf einmal.
+- **Tempo-Skala als Mittelpunkt** - zugunsten des Farbfelds verworfen.
 - **Eigener Server schon jetzt** - für das MVP reicht die statische Seite; der Klick auf „Daten abrufen“ wird hingenommen; Server im Backlog.
 - **Tailwind wie in `ausgaben`** - die neueren Apps (`einsatz`, `drk-barmbek`, `dom`) nutzen Mantine; gleicher Aufwand.
 - **Vite oder reines TypeScript** - gleicher oder kaum geringerer Aufwand, bereitet den Server schlechter vor als Next.js.
