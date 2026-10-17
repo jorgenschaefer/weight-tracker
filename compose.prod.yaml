@@ -1,0 +1,23 @@
+name: gewicht
+
+services:
+  app:
+    image: gewicht/app:latest
+    pull_policy: never
+    restart: unless-stopped
+    build: .
+    init: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+    networks:
+      service_network:
+        aliases:
+          - gewicht
+
+networks:
+  service_network:
+    name: service_network
+    external: true

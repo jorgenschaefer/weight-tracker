@@ -1,1 +1,23 @@
-.env
+# dependencies
+/node_modules
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# env files; google-client-id.env is public and committed
+.env*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,29 @@
+# Large directories made fresh inside the image. node_modules comes from
+# `npm ci`, .next from `npm run build`; the host's (glibc) must NOT reach the
+# Alpine (musl) image.
+node_modules
+.next
+
+# Version control and local build artefacts
+.git
+.gitignore
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Secrets and the local environment must not reach the image. The public
+# google-client-id.env does not match these and is needed by the build.
+.env
+.env.*
+
+# Files for development and documentation, not for building or running
+changes
+*.md
+biome.json
+vitest.config.mts
+bin
+compose.prod.yaml
+
+# Editor and OS files
+.vscode
+.idea
+.DS_Store

@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-22
 advances:  
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -64,3 +64,31 @@ Google Health was confirmed on the user's real account before the tickets were w
 - Server, Webhook, serverseitiger Cache, Anmeldung ohne Klick bei jedem Besuch (`changes/backlog/server-mit-webhook.md`).
 
 ## Left standing
+
+**Not deployed, and checks not run.** `bin/deploy-prod` was not run, and neither was the live check. To do at acceptance, in this order:
+1. Point a DNS record for `gewicht.jorgenschaefer.de` at the jorgenschaefer host (README in `~/Projects/infrastructure`, section "Adding an app").
+2. `~/Projects/infrastructure/bin/deploy-jorgenschaefer`: this deploys the gateway, which also serves the other sites on that host.
+3. `~/Projects/weight-tracker/bin/deploy-prod`
+4. `~/Projects/infrastructure/bin/check-redirects jorgenschaefer --live`
+
+The infrastructure change is commit `9e9101d` in `~/Projects/infrastructure`. It has not been pushed.
+
+**AC-22 has no automated test in this repository.** I checked it by hand:
+- `docker compose -f compose.prod.yaml build` builds the image.
+- `docker compose -f compose.prod.yaml up -d --wait` brings the container to healthy.
+- From another container in `service_network`, `wget http://gewicht:3000/` returned the page.
+- The image contains no `.env`.
+- `bin/check-redirects jorgenschaefer` failed with the new expectation and passed once the site block was added.
+
+**Decisions that would be costly to reverse:**
+- The client ID lives in the committed `google-client-id.env`, a file of my own naming. `next.config.ts` reads it through `env`, so the code reads `process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID`. `next start` reads the file too, so the image carries it.
+- I could not use the files Next loads on its own. Only `.env` and `.env.local` are loaded in both dev and build, and `.env` is the user's own. The `.dockerignore` patterns `.env` and `.env.*` do not match `google-client-id.env`, so that file still gets into the build.
+- Names on the host: the Compose project and image are `gewicht` / `gewicht/app`, and the directory on the server is `~/gewicht`.
+- The image uses Node 24.22.0. That is the current LTS; Node 26 is not LTS yet.
+
+**Departures from the nudges and the template:**
+- There is no `docker-entrypoint.sh`. Without migrations and seeding, einsatz's entrypoint only runs `exec next start`, so the Dockerfile starts `next start` directly.
+- The Next.js agent-rules block is in `AGENTS.md`, not `CLAUDE.md`. Next 16.4.2 writes it there, so I committed `AGENTS.md`, and `CLAUDE.md` imports it with `@AGENTS.md`.
+- The test-file check keeps only einsatz's rule that each test file has a source file beside it and no source file has two. I left out einsatz's checks for server actions, routes and pages, which test login and token handling this app does not have. I also left out its `.mjs` case, because Vitest here only runs `.ts`/`.tsx`.
+- `next dev` and `next build` load the user's local `.env` themselves; Next prints "Environments: .env". No app code uses its values, and the `GOOGLE_*` names carry no `NEXT_PUBLIC_` prefix, so nothing from it reaches the page.
+- The app has no `next/font` yet. The placeholder uses Mantine's system font stack and loads no web font. The decision "fonts shipped with the app, not from Google Fonts" still holds, and it applies once a page chooses a font.
