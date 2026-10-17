@@ -11,6 +11,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -23,12 +24,12 @@ type TokenClientConfig = {
 
 /**
  * Stands in for Google Identity Services: the sign-in answers with `answer`,
- * and revoking reports `revoked`. Returns the configs the page asked for and
- * the tokens it revoked.
+ * and revoking reports `revoked`, or never answers. Returns the configs the
+ * page asked for and the tokens it revoked.
  */
 function stubGoogleSignIn(
   answer: (config: TokenClientConfig) => void,
-  revoked = { successful: true },
+  revoked: { successful: boolean } | "never" = { successful: true },
 ) {
   const configs: TokenClientConfig[] = [];
   const revokedTokens: string[] = [];
@@ -39,9 +40,9 @@ function stubGoogleSignIn(
           configs.push(config);
           return { requestAccessToken: () => answer(config) };
         },
-        revoke: (token: string, done: (r: typeof revoked) => void) => {
+        revoke: (token: string, done: (r: { successful: boolean }) => void) => {
           revokedTokens.push(token);
-          done(revoked);
+          if (revoked !== "never") done(revoked);
         },
       },
     },
@@ -241,6 +242,18 @@ describe("fetchMeasurements", () => {
     });
   });
 
+  it("reports Google unreachable where it does not answer within 20 seconds", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", () => new Promise(() => {}));
+
+    const result = settled(fetchMeasurements("token-1", FROM));
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(result.value).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(result.value).toEqual({ ok: false, error: { kind: "unreachable" } });
+  });
+
   it("reports an unexpected response where the answer is no JSON", async () => {
     stubFetch(() => new Response("<html>", { status: 200 }));
 
@@ -284,6 +297,18 @@ describe("revokeAccess", () => {
     });
   });
 
+  it("reports Google unreachable where it does not answer within 20 seconds", async () => {
+    vi.useFakeTimers();
+    stubGoogleSignIn(granted, "never");
+
+    const result = settled(revokeAccess("token-1"));
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(result.value).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(result.value).toEqual({ ok: false, error: { kind: "unreachable" } });
+  });
+
   it("reports the sign-in unavailable where Google's script has not loaded", async () => {
     expect(await revokeAccess("token-1")).toEqual({
       ok: false,
@@ -291,3 +316,12 @@ describe("revokeAccess", () => {
     });
   });
 });
+
+/** The value `promise` has settled with so far, read without awaiting it. */
+function settled<T>(promise: Promise<T>): { value: T | undefined } {
+  const result: { value: T | undefined } = { value: undefined };
+  promise.then((value) => {
+    result.value = value;
+  });
+  return result;
+}

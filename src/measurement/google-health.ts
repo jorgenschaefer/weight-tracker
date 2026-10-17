@@ -75,7 +75,7 @@ export async function fetchMeasurements(
   const measurements: Measurement[] = [];
   let pageToken: string | undefined;
   do {
-    const page = await fetchPage(token, from, pageToken);
+    const page = await answeredInTime(fetchPage(token, from, pageToken));
     if (!page.ok) return page;
     measurements.push(...page.value.measurements);
     pageToken = page.value.nextPageToken;
@@ -91,11 +91,15 @@ export function revokeAccess(
   if (oauth2 === undefined)
     return Promise.resolve(failure("signInUnavailable"));
 
-  return new Promise((resolve) => {
-    oauth2.revoke(token, ({ successful }) =>
-      resolve(successful ? { ok: true, value: null } : failure("revokeFailed")),
-    );
-  });
+  return answeredInTime(
+    new Promise((resolve) => {
+      oauth2.revoke(token, ({ successful }) =>
+        resolve(
+          successful ? { ok: true, value: null } : failure("revokeFailed"),
+        ),
+      );
+    }),
+  );
 }
 
 /** An OAuth access token for the Google Health API. */
@@ -175,6 +179,24 @@ function parseDataPoint(dataPoint: unknown): Measurement | null {
   if (Number.isNaN(time.getTime())) return null;
   return { time, kg: weightGrams / 1000 };
 }
+
+/**
+ * `answer`, or Google unreachable where it has not come within
+ * {@link ANSWER_WITHIN_MS}: a request that hangs would otherwise keep the page
+ * waiting for good.
+ */
+function answeredInTime<T>(
+  answer: Promise<GoogleHealthResult<T>>,
+): Promise<GoogleHealthResult<T>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<GoogleHealthResult<T>>((resolve) => {
+    timer = setTimeout(() => resolve(failure("unreachable")), ANSWER_WITHIN_MS);
+  });
+  return Promise.race([answer, late]).finally(() => clearTimeout(timer));
+}
+
+/** Long enough for a slow mobile connection, short enough to still be looking. */
+const ANSWER_WITHIN_MS = 20_000;
 
 function grantedToken(
   response: TokenResponse,
