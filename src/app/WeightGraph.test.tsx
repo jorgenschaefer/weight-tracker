@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import {
@@ -117,15 +117,19 @@ describe("WeightGraph", () => {
     expect(radius(last)).toBeGreaterThan(radius(first));
   });
 
-  it("draws the last day's measurement as the full dot even where it is an outlier", async () => {
-    const [, last] = points(
+  it("draws the last day's measurement as a ring as large as the full dot where it is an outlier", async () => {
+    const [, , fullDot] = points(await drawGraph(withOutlierInTheMiddle));
+    const fullDotRadius = radius(fullDot);
+    cleanup();
+    const [, ring] = points(
       await drawGraph({
         ...withOutlierInTheMiddle,
         measurements: withOutlierInTheMiddle.measurements.slice(0, 2),
       }),
     );
 
-    expect(isFullDot(last)).toBe(true);
+    expect(isHollowRing(ring)).toBe(true);
+    expect(radius(ring)).toBe(fullDotRadius);
   });
 
   it("draws the trend as a line 3 px wide, broken at the gap from 22.9. to 1.10.", async () => {

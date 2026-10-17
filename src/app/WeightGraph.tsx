@@ -92,13 +92,7 @@ function Drawing({
           cx={scale.x(measurement.day)}
           cy={scale.y(measurement.kg)}
           radius={layout.radius}
-          mark={
-            i === series.measurements.length - 1
-              ? "latest"
-              : outlier
-                ? "outlier"
-                : "counting"
-          }
+          mark={mark(i === series.measurements.length - 1, outlier)}
         />
       ))}
       {series.trendLine.map((piece) => (
@@ -131,7 +125,7 @@ interface Layout {
   everyOtherKiloAbove: number;
   daysPerLabel: number;
   /** The radius of each mark: the latest is largest. */
-  radius: Record<Mark, number>;
+  radius: Record<Exclude<Mark, "latestOutlier">, number>;
 }
 
 const COMPACT: Layout = {
@@ -163,7 +157,13 @@ const WIDE: Layout = {
   radius: { counting: 4.5, outlier: 5.5, latest: 6.5 },
 };
 
-type Mark = "counting" | "outlier" | "latest";
+type Mark = "counting" | "outlier" | "latest" | "latestOutlier";
+
+/** The last day's measurement is the largest mark, hollow where it is an outlier. */
+function mark(latest: boolean, outlier: boolean): Mark {
+  if (latest) return outlier ? "latestOutlier" : "latest";
+  return outlier ? "outlier" : "counting";
+}
 
 function Point({
   cx,
@@ -174,7 +174,7 @@ function Point({
   cx: number;
   cy: number;
   mark: Mark;
-  radius: Record<Mark, number>;
+  radius: Layout["radius"];
 }) {
   switch (mark) {
     case "counting":
@@ -188,19 +188,26 @@ function Point({
         />
       );
     case "outlier":
-      return (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={radius.outlier}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-        />
-      );
+      return <Ring cx={cx} cy={cy} r={radius.outlier} />;
     case "latest":
       return <circle cx={cx} cy={cy} r={radius.latest} fill="currentColor" />;
+    case "latestOutlier":
+      return <Ring cx={cx} cy={cy} r={radius.latest} />;
   }
+}
+
+/** An outlier's hollow ring. */
+function Ring({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={r}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    />
+  );
 }
 
 interface ChartScale {
