@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
-import { formatCalendarDay, formatDay, formatKg, formatTime } from "./format";
+import {
+  formatCalendarDay,
+  formatDay,
+  formatKg,
+  formatKgChange,
+  formatPace,
+  formatTime,
+} from "./format";
 
 describe("formatKg", () => {
   it.each([
@@ -12,6 +19,36 @@ describe("formatKg", () => {
   ])("writes %d kg as %s, with a decimal comma and one decimal", (kg, text) => {
     expect(formatKg(kg)).toBe(text);
   });
+});
+
+describe("formatKgChange", () => {
+  it.each([
+    [1.04, "+1,0"],
+    [0.3, "+0,3"],
+    [-2.46, "−2,5"],
+    [0.04, "±0,0"],
+    [-0.04, "±0,0"],
+    [0, "±0,0"],
+  ])(
+    "writes a change of %d kg as %s, with its sign and one decimal",
+    (kg, text) => {
+      expect(formatKgChange(kg)).toBe(text);
+    },
+  );
+});
+
+describe("formatPace", () => {
+  it.each([
+    [-0.42, "−0,42"],
+    [0.1, "+0,10"],
+    [-1.5, "−1,50"],
+    [0, "±0,00"],
+  ])(
+    "writes a pace of %d kg per week as %s, with its sign and two decimals",
+    (kgPerWeek, text) => {
+      expect(formatPace(kgPerWeek)).toBe(text);
+    },
+  );
 });
 
 describe("formatDay", () => {

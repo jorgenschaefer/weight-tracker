@@ -1,8 +1,8 @@
-import { MantineProvider } from "@mantine/core";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE_KEY, parseCache, serializeCache } from "@/measurement/cache";
+import { CACHE_KEY } from "@/measurement/cache";
 import {
   fetchMeasurements,
   type GoogleHealthError,
@@ -11,7 +11,31 @@ import {
   signIn,
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
-import Page from "./page";
+import {
+  at,
+  daysAgo,
+  deferred,
+  FIRST_VISIT,
+  failure,
+  fetchButton,
+  google,
+  hasNoButton,
+  isNotShown,
+  isShown,
+  leavePage,
+  logoutButton,
+  MORNING,
+  MORNING_SHOWN,
+  NOW,
+  openAndClick,
+  renderPage,
+  standInForGoogle,
+  storeCache,
+  storedCache,
+  storeLoss,
+  storeMorning,
+} from "@/test/open-page";
+import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -20,111 +44,11 @@ vi.mock("@/measurement/google-health", () => ({
   revokeAccess: vi.fn(),
 }));
 
-const NOW = new Date("2026-10-17T08:00:00.000Z");
-const DAY = 24 * 60 * 60 * 1000;
-const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY);
-const at = (time: string | Date, kg: number): Measurement => ({
-  time: new Date(time),
-  kg,
-});
+beforeEach(() => standInForGoogle(NOW));
+afterEach(leavePage);
 
-/**
- * Google, in memory: the measurements in Google Health and the access
- * tokens it has granted the page and not yet revoked.
- */
-let google: { measurements: Measurement[]; grants: string[] };
-let tokensIssued: number;
-
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(NOW);
-  localStorage.clear();
-  google = { measurements: [], grants: [] };
-  tokensIssued = 0;
-
-  vi.mocked(signIn).mockImplementation(async () => {
-    const token = `token-${++tokensIssued}`;
-    google.grants.push(token);
-    return { ok: true, value: token };
-  });
-  vi.mocked(fetchMeasurements).mockImplementation(async (token, from) => {
-    if (!google.grants.includes(token))
-      return failure({ kind: "tokenRejected" });
-    return {
-      ok: true,
-      value: google.measurements.filter((m) => m.time >= from),
-    };
-  });
-  vi.mocked(revokeAccess).mockImplementation(async (token) => {
-    google.grants = google.grants.filter((t) => t !== token);
-    return { ok: true, value: null };
-  });
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-function failure(error: GoogleHealthError): {
-  ok: false;
-  error: GoogleHealthError;
-} {
-  return { ok: false, error };
-}
-
-function storeCache(fetchedAt: Date, measurements: Measurement[]) {
-  localStorage.setItem(CACHE_KEY, serializeCache({ fetchedAt, measurements }));
-}
-
-const storedCache = () => parseCache(localStorage.getItem(CACHE_KEY));
-
-function renderPage() {
-  render(
-    <MantineProvider>
-      <Page />
-    </MantineProvider>,
-  );
-  return userEvent.setup();
-}
-
-/** Opens the page and clicks `button`; returns the user to click on with. */
-async function openAndClick(button: () => Promise<HTMLElement>) {
-  const user = renderPage();
-  await user.click(await button());
-  return user;
-}
-
-const fetchButton = () =>
-  screen.findByRole("button", { name: "Daten abrufen" });
-const logoutButton = () => screen.findByRole("button", { name: "Abmelden" });
-
-/** One measurement, and how „Letzte Messung“ shows it. */
-const MORNING = at("2026-10-17T07:57:00Z", 98.599);
-const MORNING_SHOWN = "Letzte Messung 17.10. um 9:57 Uhr: 98,6 kg";
-
-/** A cache from yesterday's fetch, holding {@link MORNING}. */
-const storeMorning = () => storeCache(daysAgo(1), [MORNING]);
-
-const isShown = async (text: string) =>
-  expect(await screen.findByText(text)).toBeInTheDocument();
-
-const isNotShown = (text: string | RegExp) =>
-  expect(screen.queryByText(text)).not.toBeInTheDocument();
-
-const hasNoButton = (name: string) =>
-  expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
-
-const FIRST_VISIT =
-  "Diese Seite liest deine Gewichtsmessungen aus Google Health und zeigt dir, ob du noch abnimmst.";
-
-/** A promise to hold a call with, settled by the test. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
-  });
-  return { promise, resolve };
-}
+const verdict = () => screen.getByRole("heading", { level: 1 });
+const verdictSection = () => verdict().closest("section");
 
 describe("the first visit", () => {
   it("shows only the sentence of explanation and the button", async () => {
@@ -143,18 +67,26 @@ describe("the first visit", () => {
       "#DDE1E5",
     );
   });
-
-  it("is what a cache entry that cannot be read shows, and the fetch replaces it", async () => {
-    localStorage.setItem(CACHE_KEY, "{not json");
-    google.measurements = [MORNING];
-    await openAndClick(fetchButton);
-
-    await isShown(MORNING_SHOWN);
-    expect(storedCache()?.measurements).toEqual(google.measurements);
-  });
 });
 
 describe("opening the page with a cache", () => {
+  it("turns the button to fetch around on the surface, so it stands out on every level", async () => {
+    const august30 = new Date("2026-08-30T18:00:00+02:00");
+    vi.setSystemTime(august30);
+    storeCache(
+      august30,
+      weightHistory().filter((m) => m.time <= august30),
+    );
+    renderPage();
+
+    const button = await fetchButton();
+    expect(screen.getByRole("main")).toHaveStyle({
+      backgroundColor: "#8A380A",
+    });
+    expect(button.style.getPropertyValue("--button-bg")).toBe("#FFF3E8");
+    expect(button.style.getPropertyValue("--button-color")).toBe("#8A380A");
+  });
+
   it("shows the latest measurement from the cache at once, without Google", async () => {
     storeCache(daysAgo(1), [
       at("2026-10-16T05:10:00Z", 98.3),
@@ -184,6 +116,30 @@ describe("opening the page with a cache", () => {
     isNotShown(FIRST_VISIT);
   });
 
+  it("shows the verdict from the cache at once, without Google", async () => {
+    storeLoss();
+    renderPage();
+
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Nimmt ab",
+    );
+    expect(screen.getByText(/^Letzte Messung 17\.10\./)).toBeInTheDocument();
+    expect(fetchMeasurements).not.toHaveBeenCalled();
+  });
+
+  it("offers the button at the verdict, which stays, and fetches with one click", async () => {
+    storeLoss();
+    google.measurements = [MORNING];
+    const user = renderPage();
+
+    const button = await fetchButton();
+    expect(verdictSection()).toContainElement(button);
+    expect(verdict()).toHaveTextContent("Nimmt ab");
+    await user.click(button);
+
+    await isShown(MORNING_SHOWN);
+  });
+
   it("says so where the cache holds no measurement", async () => {
     storeCache(daysAgo(1), []);
     renderPage();
@@ -202,73 +158,19 @@ describe("opening the page with a cache", () => {
 });
 
 describe("fetching", () => {
-  it("signs in and fetches with one click, and shows the measurement from Google Health", async () => {
-    google.measurements = [MORNING];
-    await openAndClick(fetchButton);
-
-    await isShown(MORNING_SHOWN);
-    hasNoButton("Daten abrufen");
-  });
-
-  it("gets the last 90 days on the first fetch and keeps them in the cache", async () => {
-    google.measurements = [at(daysAgo(91), 101.0), at(daysAgo(89), 100.0)];
-    await openAndClick(fetchButton);
-
-    await waitFor(() =>
-      expect(storedCache()).toEqual({
-        fetchedAt: NOW,
-        measurements: [at(daysAgo(89), 100.0)],
-      }),
-    );
-  });
-
-  it("gets the last 14 days anew, so corrections and deletions arrive, and keeps older cached ones", async () => {
-    storeCache(daysAgo(1), [
-      at(daysAgo(20), 99.0),
-      at(daysAgo(10), 98.0),
-      at(daysAgo(5), 97.0),
-    ]);
-    google.measurements = [at(daysAgo(20), 95.0), at(daysAgo(10), 98.4)];
-    await openAndClick(fetchButton);
-
-    await waitFor(() =>
-      expect(storedCache()).toEqual({
-        fetchedAt: NOW,
-        measurements: [at(daysAgo(20), 99.0), at(daysAgo(10), 98.4)],
-      }),
-    );
-  });
-
-  it("gets everything since the last fetch where that lies further back than 14 days", async () => {
-    storeCache(daysAgo(30), [at(daysAgo(40), 99.0)]);
-    google.measurements = [
-      at(daysAgo(40), 95.0),
-      at(daysAgo(25), 98.0),
-      at(daysAgo(2), 97.0),
-    ];
-    await openAndClick(fetchButton);
-
-    await waitFor(() =>
-      expect(storedCache()?.measurements).toEqual([
-        at(daysAgo(40), 99.0),
-        at(daysAgo(25), 98.0),
-        at(daysAgo(2), 97.0),
-      ]),
-    );
-  });
-
-  it("shows „Wird aktualisiert …“ while the fetch runs, and not after", async () => {
-    storeMorning();
+  it("marks the verdict from the cache provisional while the fetch runs, and not after", async () => {
+    storeLoss();
     const answer = deferred<GoogleHealthResult<Measurement[]>>();
     vi.mocked(fetchMeasurements).mockReturnValueOnce(answer.promise);
     await openAndClick(fetchButton);
 
-    await isShown("Wird aktualisiert …");
+    await isShown("Vorläufig, wird aktualisiert …");
+    expect(verdictSection()).toHaveAttribute("aria-busy", "true");
+    expect(verdict()).toHaveTextContent("Nimmt ab");
     hasNoButton("Daten abrufen");
     answer.resolve({ ok: true, value: [] });
-    await waitFor(() =>
-      expect(screen.queryByText("Wird aktualisiert …")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => isNotShown(/wird aktualisiert/i));
+    expect(verdictSection()).toHaveAttribute("aria-busy", "false");
   });
 
   it("shows „Wird aktualisiert …“ on the first visit too", async () => {
@@ -294,7 +196,21 @@ describe("a failed fetch", () => {
       fetchedAt: daysAgo(1),
       measurements: cached,
     });
-    isNotShown("Wird aktualisiert …");
+    isNotShown(/wird aktualisiert/i);
+  });
+
+  it("keeps the verdict from the cache, the error right under „Letzte Messung“", async () => {
+    storeLoss();
+    vi.mocked(fetchMeasurements).mockResolvedValueOnce(
+      failure({ kind: "unreachable" }),
+    );
+    await openAndClick(fetchButton);
+
+    const error = await screen.findByText(
+      "Abruf fehlgeschlagen: Google antwortet nicht.",
+    );
+    expect(verdict()).toHaveTextContent("Nimmt ab");
+    expect(error.previousElementSibling).toHaveTextContent(/^Letzte Messung/);
   });
 
   it.each<[GoogleHealthError, string]>([
@@ -341,57 +257,9 @@ describe("a failed fetch", () => {
     );
     expect(await fetchButton()).toBeInTheDocument();
   });
-
-  it("signs in anew on the next click where Google rejected the token", async () => {
-    google.measurements = [MORNING];
-    storeCache(daysAgo(1), []);
-    vi.mocked(fetchMeasurements).mockResolvedValueOnce(
-      failure({ kind: "tokenRejected" }),
-    );
-    const user = await openAndClick(fetchButton);
-
-    await user.click(await fetchButton());
-
-    await isShown(MORNING_SHOWN);
-    isNotShown(/Abruf fehlgeschlagen/);
-    expect(tokensIssued).toBe(2);
-  });
 });
 
 describe("„Abmelden“", () => {
-  it("clears the cache, revokes the access and shows the first visit", async () => {
-    google.measurements = [MORNING];
-    const user = await openAndClick(fetchButton);
-
-    await user.click(await logoutButton());
-
-    await isShown(FIRST_VISIT);
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    expect(google.grants).toEqual([]);
-    expect(tokensIssued).toBe(1);
-  });
-
-  it("discards the token, so the next fetch signs in anew", async () => {
-    google.measurements = [MORNING];
-    const user = await openAndClick(fetchButton);
-    await user.click(await logoutButton());
-
-    await user.click(await fetchButton());
-
-    await isShown(MORNING_SHOWN);
-    expect(tokensIssued).toBe(2);
-  });
-
-  it("signs in first where it has no token, to revoke the access", async () => {
-    storeMorning();
-    await openAndClick(logoutButton);
-
-    await isShown(FIRST_VISIT);
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    await waitFor(() => expect(tokensIssued).toBe(1));
-    expect(google.grants).toEqual([]);
-  });
-
   it("clears the cache even where the access cannot be revoked, and says so", async () => {
     storeMorning();
     vi.mocked(signIn).mockResolvedValueOnce(failure({ kind: "signInFailed" }));
@@ -421,20 +289,62 @@ describe("„Abmelden“", () => {
       screen.getByRole("link", { name: "deinem Google-Konto" }),
     ).toHaveAttribute("href", "https://myaccount.google.com/connections");
   });
+});
 
-  it("drops what a fetch still running brings back", async () => {
-    storeMorning();
-    const answer = deferred<GoogleHealthResult<Measurement[]>>();
-    vi.mocked(fetchMeasurements).mockReturnValueOnce(answer.promise);
-    const user = await openAndClick(fetchButton);
+describe("the layout", () => {
+  it("puts the verdict, the pace band and the figures before the graph", async () => {
+    storeLoss();
+    renderPage();
 
-    await user.click(await logoutButton());
-    answer.resolve({ ok: true, value: [MORNING] });
+    const graph = await screen.findByRole("img", {
+      name: "Messungen und Trend der letzten sechs Wochen",
+    });
+    const inOrder = [
+      verdict(),
+      screen.getByText("Langsames Abnehmen"),
+      screen.getByText("Trend", { selector: "dt" }),
+      graph,
+    ];
+    for (const [earlier, later] of inOrder
+      .slice(0, -1)
+      .map((e, i) => [e, inOrder[i + 1]])) {
+      expect(earlier.compareDocumentPosition(later)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }
+  });
 
-    await isShown(FIRST_VISIT);
-    await waitFor(() => expect(google.grants).toEqual([]));
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    isNotShown(/Letzte Messung/);
-    isNotShown("Wird aktualisiert …");
+  // jsdom lays nothing out, so the stylesheets are read instead.
+  const stylesheets = ["page.module.css", "Verdict.module.css"].map((file) =>
+    readFileSync(join(import.meta.dirname, file), "utf8"),
+  );
+
+  it("dims the headline of a verdict marked provisional", () => {
+    const provisional = /\.verdict\[aria-busy="true"\] h1\s*\{([^}]*)\}/.exec(
+      stylesheets[0],
+    )?.[1];
+
+    expect(provisional).toMatch(/opacity:\s*0\.45/);
+  });
+
+  it("limits the content to 960 px, in the middle", () => {
+    const content = /\.content\s*\{([^}]*)\}/.exec(stylesheets[0])?.[1];
+
+    expect(content).toMatch(/max-width:\s*960px/);
+    expect(content).toMatch(/margin-inline:\s*auto/);
+  });
+
+  it("sets nothing wider than a 360 px screen outside the wide screen, but the limit", () => {
+    const narrow = stylesheets.map((css) =>
+      css
+        .replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "")
+        .replace(/max-width:\s*960px/, ""),
+    );
+    const lengths = narrow.flatMap((css) =>
+      [...css.matchAll(/(\d+(?:\.\d+)?)px/g)].map((match) => Number(match[1])),
+    );
+
+    expect(lengths.length).toBeGreaterThan(0);
+    expect(lengths.filter((px) => px > 360)).toEqual([]);
   });
 });

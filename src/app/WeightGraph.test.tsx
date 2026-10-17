@@ -5,6 +5,7 @@ import {
   type CountingMeasurement,
   countingMeasurements,
 } from "@/measurement/measurement";
+import { stubContainerWidth } from "@/test/container-width";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { WeightGraph } from "./WeightGraph";
@@ -34,30 +35,6 @@ async function drawGraph(
   });
   // Safe: the element with this role is the graph's <svg>.
   return graph as unknown as SVGSVGElement;
-}
-
-/** jsdom lays nothing out: every observed element reports `width`. */
-function stubContainerWidth(width: number) {
-  vi.stubGlobal(
-    "ResizeObserver",
-    class {
-      constructor(private readonly report: ResizeObserverCallback) {}
-      observe() {
-        // Safe: the graph reads only these two fields of an entry, and no
-        // field of the observer.
-        this.report(
-          [
-            {
-              borderBoxSize: [{ inlineSize: width, blockSize: 0 }],
-              contentRect: { width, height: 0 },
-            } as unknown as ResizeObserverEntry,
-          ],
-          this as unknown as ResizeObserver,
-        );
-      }
-      disconnect() {}
-    },
-  );
 }
 
 const points = (graph: SVGSVGElement) => [...graph.querySelectorAll("circle")];

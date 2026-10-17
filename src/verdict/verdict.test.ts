@@ -34,6 +34,7 @@ describe("trendVerdict", () => {
       kind: "noDecrease",
       days: 7,
       atLeast: false,
+      since: "2026-10-10",
       level: 2,
     });
   });
@@ -99,6 +100,7 @@ describe("trendVerdict", () => {
       kind: "noDecrease",
       days: 12,
       atLeast: true,
+      since: "2026-10-05",
       level: 2,
     });
   });

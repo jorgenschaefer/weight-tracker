@@ -1,0 +1,124 @@
+/* The verdict on the colour field, in the surface's text colour. The
+   headline grows wider and heavier with each level of no decrease, through
+   Archivo's width and weight axes. */
+.headline {
+  margin: 28px 0 0;
+  font-size: 64px;
+  line-height: 0.98;
+  font-weight: 600;
+  font-stretch: 100%;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+}
+
+.headline[data-emphasis="level1"] {
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.headline[data-emphasis="level2"] {
+  font-size: 44px;
+  font-weight: 800;
+  font-stretch: 112%;
+}
+
+.headline[data-emphasis="level3"] {
+  font-size: 42px;
+  font-weight: 900;
+  font-stretch: 125%;
+}
+
+.headline[data-emphasis="statement"] {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.02;
+}
+
+.explanation {
+  margin: 12px 0 0;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.band {
+  margin: 14px 0 0;
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.figures {
+  margin: 28px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.label,
+.unit {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.figure {
+  margin: 0;
+}
+
+.value {
+  display: block;
+  margin-top: 2px;
+  font-size: 28px;
+  font-weight: 600;
+  font-stretch: 88%;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The wide screen of page.module.css: the headline beside the figures. The
+   verdict's headline keeps roughly its proportions across the levels. */
+@media (min-width: 65em) {
+  .headline {
+    margin-top: 0;
+    font-size: 104px;
+    line-height: 0.95;
+    letter-spacing: -0.015em;
+  }
+
+  .headline[data-emphasis="level1"],
+  .headline[data-emphasis="level2"] {
+    font-size: 72px;
+  }
+
+  /* At its width and weight, "mindestens" fills the column beside the
+     figures at 60px; any larger breaks it inside the word. */
+  .headline[data-emphasis="level3"] {
+    font-size: 60px;
+  }
+
+  /* Smaller than the phone's proportion: these headlines are long, and the
+     column beside the figures is narrow. */
+  .headline[data-emphasis="statement"] {
+    font-size: 48px;
+  }
+
+  .band {
+    margin-top: 16px;
+    font-size: 26px;
+  }
+
+  .figures {
+    margin-top: 0;
+    gap: 24px;
+  }
+
+  .label,
+  .unit {
+    font-size: 14px;
+  }
+
+  .value {
+    font-size: 36px;
+  }
+}

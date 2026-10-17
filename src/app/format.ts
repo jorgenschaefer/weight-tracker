@@ -10,6 +10,16 @@ export function formatKg(kg: number): string {
   return KG.format(kg);
 }
 
+/** A change of weight in kg, signed, with one decimal: `+1,0`, `−2,5`, `±0,0`. */
+export function formatKgChange(kg: number): string {
+  return signed(kg, KG);
+}
+
+/** A pace in kg per week, signed, with two decimals: `−0,42`, `±0,00`. */
+export function formatPace(kgPerWeek: number): string {
+  return signed(kgPerWeek, PACE);
+}
+
 /** The Berlin day of `instant`, without the year: `5.8.`. */
 export function formatDay(instant: Date): string {
   return DAY.format(instant);
@@ -26,9 +36,24 @@ export function formatTime(instant: Date): string {
   return TIME.format(instant);
 }
 
+/**
+ * `value` in `format`, after its sign: `+`, a minus sign `−` (not the
+ * hyphen), or `±` where it rounds to zero.
+ */
+function signed(value: number, format: Intl.NumberFormat): string {
+  const magnitude = format.format(Math.abs(value));
+  if (magnitude === format.format(0)) return `±${magnitude}`;
+  return `${value > 0 ? "+" : "−"}${magnitude}`;
+}
+
 const KG = new Intl.NumberFormat("de-DE", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
+});
+
+const PACE = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const DAY = new Intl.DateTimeFormat("de-DE", {

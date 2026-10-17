@@ -1,13 +1,20 @@
-/* The colour field: the whole screen is the verdict surface, in its neutral
-   colours until there is a verdict to colour it by. */
+/* The colour field: the whole screen is the verdict surface, in the colours
+   page.tsx sets on it, neutral until there is a verdict to colour it by. */
 .surface {
   min-height: 100dvh;
   box-sizing: border-box;
   padding: 20px 20px 8px;
   display: flex;
   flex-direction: column;
-  background: #dde1e5;
-  color: #20262c;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .intro {
@@ -29,6 +36,21 @@
   font-weight: 600;
 }
 
+.summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Provisional while a fetch runs: the headline dimmed under the busy line. */
+.verdict[aria-busy="true"] h1 {
+  opacity: 0.45;
+}
+
 .busy {
   margin-top: 12px;
   font-size: 15px;
@@ -39,15 +61,12 @@
   --button-height: 48px;
   --button-radius: 8px;
   --button-fz: 17px;
-  --button-bg: #20262c;
-  --button-hover: #20262c;
-  --button-hover-color: #dde1e5;
   margin-top: 24px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
-.latest ~ .fetch {
+.verdict .fetch {
   margin-top: 18px;
 }
 
@@ -55,6 +74,20 @@
 .logout:focus-visible {
   outline: 3px solid currentColor;
   outline-offset: 3px;
+}
+
+/* The space the graph will take, held before it has measured its width:
+   WeightGraph.tsx draws 190 px tall below 600 px wide and 380 px from
+   there. 40em is a 640 px screen, whose padding leaves the graph 600 px. */
+.graph {
+  margin-top: 28px;
+  min-height: 190px;
+}
+
+@media (min-width: 40em) {
+  .graph {
+    min-height: 380px;
+  }
 }
 
 .logout {
@@ -65,4 +98,28 @@
   font-size: 14px;
   text-decoration: underline;
   opacity: 0.8;
+}
+
+/* The wide screen: the verdict on the left, the figures beside it, the
+   graph under both. Verdict.module.css switches at the same width. */
+@media (min-width: 65em) {
+  .surface {
+    padding: 40px 20px 16px;
+  }
+
+  .latest {
+    font-size: 15px;
+  }
+
+  .summary {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 48px;
+    align-items: end;
+  }
+
+  .graph {
+    margin-top: 32px;
+  }
 }

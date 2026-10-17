@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-13, AC-14, AC-15, AC-16, AC-17, AC-23, AC-24
 advances:  
 after:     03-google-health-and-page, 06-weight-graph, 07-verdict
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -101,3 +101,45 @@ The specimens are in `changes/2026-10-17-weight-trend/specimens/`. They do not r
 - Dunkler Modus.
 
 ## Left standing
+
+**Checks.** `npm run check` passes: 22 test files, 378 tests. `bin/deploy-prod` was not run.
+
+**What no automated test proves, and how it was checked instead.**
+- **AC-13 (layout).** jsdom does no layout. The tests pin what they can:
+  - the content order: verdict, pace band, figures, graph;
+  - the 960 px limit with `margin-inline: auto`;
+  - no length over 360 px in the stylesheets outside the wide screen's media query.
+
+  The rest was checked in headless Chromium, with the cache built from the fixture and a fake clock:
+  - **360×640 (first review):** 17.10., 6.8., 12.8., 30.8., 1.–4.10., too old, no verdict, provisional, sign-in error, first visit. Verdict, band and figures were above the fold in every state; the lowest bottom of the figures was 541 px. Nothing scrolled horizontally.
+  - **1280×800 (both reviews):** content 960 px and centred, verdict left, figures right (420 px), graph below. No console errors.
+- **AC-5 and AC-15 (headline per level, dimmed while provisional).** The colours per level are tested on the page. The headline's size, weight and width come from CSS, so a test reads the stylesheet: weight rises with each level, width does not shrink, and the provisional rule dims to 0.45. The rendered sizes were measured in the browser and matched `Main.dc.html`.
+- **AC-11's "no other pace"** is pinned on the page: exactly one „kg pro Woche“ is shown.
+- **Not seen in a browser:** the last fix, the wide level-3 headline at 60px (see below). It is an estimate from the reviewer's measurement and was not reviewed again.
+
+**Review findings not fixed.**
+- **Should-fix, second round: commit the extraction separately.** The reviewer asked for the behaviour-keeping split to come first, as its own commit: the hook moved from `page.tsx` to `useMeasurements.ts`, its tests to `useMeasurements.test.tsx`, and the shared setup to `src/test/open-page.tsx` and `src/test/container-width.ts`. The run's instructions require one commit for the code and the ticket, so it is one commit.
+  - The split was done as its own step first, with the suite at 322 tests before and after.
+  - Both reviewers confirmed that every moved test went over unchanged.
+- **Should-fix, second round, fixed without a third review: the wide level-3 headline broke „mindestens“ inside the word.**
+  - At 68px it measured about 506 px in the 492 px column. It is now 60px, which should make it about 446 px.
+  - Nobody looked at it in a browser afterwards; the review rounds were used up.
+  - On phones it fits (314 of 320 px at 42px).
+
+**Decisions that would be costly to reverse.**
+- **`TrendVerdict` gained `since: CalendarDay`.** For „Seit N Tagen“ it is the last day with a falling trend; under "at least" it is the first day with a trend. The page writes „Zuletzt abgenommen bis {since}“ from it, so the date follows the verdict's own rule rather than being worked out again from N. This matters if the user changes how N counts across a gap (ticket 07's Left standing). Under "at least" there is no such sentence, because no trend ever fell; the specimens show no such state.
+- **The colours live in TypeScript** (`surfaceColours` and `NEUTRAL` in `src/app/Verdict.tsx`). They are set inline on `<main>` and on the button, so tests can see them; the button is the surface turned around. The headline styling is in `Verdict.module.css`, chosen by `data-emphasis`: `losing`, `level1`–`level3`, or `statement` for the gap, too-old and no-verdict states.
+- **The page's files after the split:**
+  - `page.tsx`: the view of the states.
+  - `useMeasurements.ts`: fetching, the cache and logging out.
+  - `Verdict.tsx`: the headline, the sentence, the band and the figures.
+  - `src/test/open-page.tsx`: opening the page against Google in memory. The three page test files use it.
+- **Signed numbers** use the minus sign `−` (U+2212), and `±` where the value rounds to zero, as the specimens write them: `formatKgChange` gives `+1,0`, `formatPace` gives `−0,42`.
+- **The wide screen** starts at 65em (1040 px). The specimens give only „Nimmt ab“ at 104px for it. My sizes: levels 1 and 2 at 72px, level 3 at 60px, the gap, too-old and no-verdict headlines at 48px.
+- **The space for the graph** is held before it has measured its width: 190 px, and 380 px from 40em. This fixes ticket 06's nit that the content jumped. The space is held even when the six weeks hold no measurement.
+- **„Noch kein Urteil“ with no measurement at all.** Below „Noch keine Messung in Google Health in den letzten 90 Tagen“, the page now shows „Noch kein Urteil“ with its sentence and no figures.
+- **New names not in `UBIQUITOUS_LANGUAGE.md`:** `since` (on the verdict), `SurfaceColours`, `Figures` (the three numbers) and `useMeasurements`. Nobody could be asked during the run, so the glossary is unchanged.
+
+**Departures from the design.**
+- **The provisional line** is „Vorläufig, wird aktualisiert …“ above the dimmed headline, as the ticket says. On the first visit, with no verdict to mark provisional, it stays „Wird aktualisiert …“.
+- **Missing figures** are left out rather than shown empty: Trend and Tempo are absent where there is no trend (AC-23), and so is the band.

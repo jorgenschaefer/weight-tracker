@@ -2,12 +2,19 @@ import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import type { Trend } from "@/trend/trend";
 
 /**
- * What the trend says: „Nimmt ab“, or no decrease since `days` days - „at
- * least“ where no trend in the history fell - on its {@link Level}.
+ * What the trend says: „Nimmt ab“, or no decrease for `days` days `since` the
+ * last day with a falling trend - „at least“, since the first day with a
+ * trend, where no trend in the history fell - on its {@link Level}.
  */
 export type TrendVerdict =
   | { kind: "losing" }
-  | { kind: "noDecrease"; days: number; atLeast: boolean; level: Level };
+  | {
+      kind: "noDecrease";
+      days: number;
+      atLeast: boolean;
+      since: CalendarDay;
+      level: Level;
+    };
 
 /** How alarming a no-decrease verdict is: 3–6, 7–13, or 14 and more days. */
 export type Level = 1 | 2 | 3;
@@ -32,6 +39,7 @@ export function trendVerdict(
     kind: "noDecrease",
     days,
     atLeast: lastFalling === undefined,
+    since: since.day,
     level: level(days),
   };
 }

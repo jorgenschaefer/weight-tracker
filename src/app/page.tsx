@@ -1,41 +1,73 @@
 "use client";
 
 import { Anchor, Button, Text, UnstyledButton } from "@mantine/core";
-import { useEffect, useRef, useState } from "react";
+import type { MeasurementCache } from "@/measurement/cache";
+import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
+import type { GoogleHealthError } from "@/measurement/google-health";
 import {
-  CACHE_KEY,
-  type MeasurementCache,
-  parseCache,
-  periodToFetch,
-  replaceFetchedPeriod,
-  serializeCache,
-} from "@/measurement/cache";
-import {
-  type AccessToken,
-  fetchMeasurements,
-  type GoogleHealthError,
-  type GoogleHealthResult,
-  loadGoogleSignIn,
-  revokeAccess,
-  signIn,
-} from "@/measurement/google-health";
-import { latestMeasurement } from "@/measurement/measurement";
+  countingMeasurements,
+  latestMeasurement,
+} from "@/measurement/measurement";
+import { type Assessment, assess } from "@/verdict/assessment";
 import { formatDay, formatKg, formatTime } from "./format";
 import classes from "./page.module.css";
+import {
+  type Measurements,
+  type Problem,
+  useMeasurements,
+} from "./useMeasurements";
+import {
+  Figures,
+  NEUTRAL,
+  type SurfaceColours,
+  surfaceColours,
+  Verdict,
+} from "./Verdict";
+import { WeightGraph } from "./WeightGraph";
 
 export default function Page() {
   const measurements = useMeasurements();
+  if (measurements === null) return <Surface colours={NEUTRAL} />;
+  if (measurements.cache === null) {
+    return (
+      <Surface colours={NEUTRAL}>
+        <FirstVisit measurements={measurements} />
+      </Surface>
+    );
+  }
+  const today = berlinDay(new Date());
+  const assessment = assess(
+    countingMeasurements(measurements.cache.measurements),
+    today,
+  );
+  const colours = surfaceColours(assessment.status);
   return (
-    <main className={classes.surface}>
-      {measurements !== null &&
-        (measurements.cache === null ? (
-          <FirstVisit measurements={measurements} />
-        ) : (
-          <CachedMeasurements
-            cache={measurements.cache}
-            measurements={measurements}
-          />
-        ))}
+    <Surface colours={colours}>
+      <CachedMeasurements
+        cache={measurements.cache}
+        assessment={assessment}
+        today={today}
+        colours={colours}
+        measurements={measurements}
+      />
+    </Surface>
+  );
+}
+
+/** The colour field: the whole screen, its content in the middle. */
+function Surface({
+  colours,
+  children,
+}: {
+  colours: SurfaceColours;
+  children?: React.ReactNode;
+}) {
+  return (
+    <main
+      className={classes.surface}
+      style={{ backgroundColor: colours.surface, color: colours.ink }}
+    >
+      <div className={classes.content}>{children}</div>
     </main>
   );
 }
@@ -48,24 +80,50 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
         Diese Seite liest deine Gewichtsmessungen aus Google Health und zeigt
         dir, ob du noch abnimmst.
       </Text>
-      <FetchState measurements={measurements} />
+      {measurements.fetching ? (
+        <Text className={classes.busy}>Wird aktualisiert …</Text>
+      ) : (
+        <FetchButton measurements={measurements} colours={NEUTRAL} />
+      )}
       <ProblemLine problem={measurements.problem} />
     </>
   );
 }
 
+/**
+ * The page from the cached measurements: the verdict on `today` with its
+ * figures, and the graph under them.
+ */
 function CachedMeasurements({
   cache,
+  assessment,
+  today,
+  colours,
   measurements,
 }: {
   cache: MeasurementCache;
+  assessment: Assessment;
+  today: CalendarDay;
+  colours: SurfaceColours;
   measurements: Measurements;
 }) {
   return (
     <>
       <LatestMeasurement cache={cache} />
       <ProblemLine problem={measurements.problem} />
-      <FetchState measurements={measurements} />
+      <div className={classes.summary}>
+        <section className={classes.verdict} aria-busy={measurements.fetching}>
+          {measurements.fetching && (
+            <Text className={classes.busy}>Vorläufig, wird aktualisiert …</Text>
+          )}
+          <Verdict assessment={assessment} />
+          <FetchButton measurements={measurements} colours={colours} />
+        </section>
+        <Figures assessment={assessment} />
+      </div>
+      <div className={classes.graph}>
+        <WeightGraph series={assessment.sixWeekSeries} today={today} />
+      </div>
       <UnstyledButton className={classes.logout} onClick={measurements.logOut}>
         Abmelden
       </UnstyledButton>
@@ -85,17 +143,27 @@ function LatestMeasurement({ cache }: { cache: MeasurementCache }) {
   );
 }
 
-/** Where the verdict will stand: the busy line while fetching, else the button where a fetch needs sign-in. */
-function FetchState({ measurements }: { measurements: Measurements }) {
-  if (measurements.fetching) {
-    return <Text className={classes.busy}>Wird aktualisiert …</Text>;
-  }
-  if (measurements.signedIn) return null;
+/** „Daten abrufen“, where a fetch needs sign-in and none is running. */
+function FetchButton({
+  measurements,
+  colours,
+}: {
+  measurements: Measurements;
+  colours: SurfaceColours;
+}) {
+  if (measurements.fetching || measurements.signedIn) return null;
   return (
     <Button
       className={classes.fetch}
-      // Mantine sets the text colour on the element itself, past the class.
-      vars={() => ({ root: { "--button-color": "#DDE1E5" } })}
+      // Mantine sets the colours on the element itself, past the class. The
+      // button is the surface turned around: its text colour, its background.
+      vars={() => ({
+        root: {
+          "--button-bg": colours.ink,
+          "--button-hover": colours.ink,
+          "--button-color": colours.surface,
+        },
+      })}
       onClick={measurements.fetchData}
     >
       Daten abrufen
@@ -151,120 +219,4 @@ function reason(error: GoogleHealthError): string {
     case "revokeFailed":
       return "Google hat den Zugriff nicht widerrufen.";
   }
-}
-
-/** What went wrong on the page, and in doing what. */
-interface Problem {
-  action: "fetch" | "revoke";
-  error: GoogleHealthError;
-}
-
-/** The measurements on the page and what the person can do with them. */
-interface Measurements {
-  /** The cached measurements; `null` before the first fetch. */
-  cache: MeasurementCache | null;
-  fetching: boolean;
-  /** Whether this visit holds an access token; without one a fetch signs in. */
-  signedIn: boolean;
-  problem: Problem | null;
-  /** Signs in where needed and fetches. Call it straight from the click. */
-  fetchData(): void;
-  /** Clears the cache, discards the token and revokes the page's access. */
-  logOut(): void;
-}
-
-/**
- * The measurements of the page, read from the cache in this browser once the
- * page is mounted - `null` until then - and fetched from Google Health. The
- * access token lives here, in memory only.
- */
-function useMeasurements(): Measurements | null {
-  const [cache, setCache] = useState<MeasurementCache | null | undefined>();
-  const [token, setToken] = useState<AccessToken | null>(null);
-  const [fetching, setFetching] = useState(false);
-  const [problem, setProblem] = useState<Problem | null>(null);
-  // Counts the log-outs, so a fetch that outlives one is dropped rather than
-  // filling the cache it just cleared.
-  const logOuts = useRef(0);
-
-  useEffect(() => {
-    loadGoogleSignIn();
-    setCache(loadCache());
-  }, []);
-
-  if (cache === undefined) return null;
-
-  async function fetchData(cached: MeasurementCache | null) {
-    const started = logOuts.current;
-    const isCurrent = () => logOuts.current === started;
-    setFetching(true);
-    setProblem(null);
-
-    // signIn runs before the first await, so the popup still counts as
-    // opened by the click.
-    const access = token === null ? await signIn() : signedInWith(token);
-    if (!isCurrent()) return;
-    if (!access.ok) {
-      setFetching(false);
-      setProblem({ action: "fetch", error: access.error });
-      return;
-    }
-    setToken(access.value);
-
-    const period = periodToFetch(cached, new Date());
-    const fetched = await fetchMeasurements(access.value, period.from);
-    if (!isCurrent()) return;
-    setFetching(false);
-    if (!fetched.ok) {
-      if (fetched.error.kind === "tokenRejected") setToken(null);
-      setProblem({ action: "fetch", error: fetched.error });
-      return;
-    }
-    const replaced = replaceFetchedPeriod(cached, period, fetched.value);
-    saveCache(replaced);
-    setCache(replaced);
-  }
-
-  async function revoke(held: AccessToken | null) {
-    const started = logOuts.current;
-    const access = held === null ? await signIn() : signedInWith(held);
-    const revoked = access.ok ? await revokeAccess(access.value) : access;
-    if (!revoked.ok && logOuts.current === started) {
-      setProblem({ action: "revoke", error: revoked.error });
-    }
-  }
-
-  return {
-    cache,
-    fetching,
-    signedIn: token !== null,
-    problem,
-    fetchData: () => void fetchData(cache),
-    logOut: () => {
-      logOuts.current += 1;
-      removeCache();
-      setCache(null);
-      setToken(null);
-      setFetching(false);
-      setProblem(null);
-      void revoke(token);
-    },
-  };
-}
-
-/** The sign-in this visit already holds, as a sign-in would yield it. */
-function signedInWith(token: AccessToken): GoogleHealthResult<AccessToken> {
-  return { ok: true, value: token };
-}
-
-function loadCache(): MeasurementCache | null {
-  return parseCache(localStorage.getItem(CACHE_KEY));
-}
-
-function saveCache(cache: MeasurementCache): void {
-  localStorage.setItem(CACHE_KEY, serializeCache(cache));
-}
-
-function removeCache(): void {
-  localStorage.removeItem(CACHE_KEY);
 }
