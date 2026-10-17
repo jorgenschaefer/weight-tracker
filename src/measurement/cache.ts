@@ -1,4 +1,5 @@
 import { MS_PER_DAY } from "./calendar-day";
+import { isRecord, parseJson } from "./json";
 import { byTime, type Measurement } from "./measurement";
 
 /**
@@ -103,15 +104,6 @@ function daysBefore(instant: Date, days: number): Date {
   return new Date(instant.getTime() - days * MS_PER_DAY);
 }
 
-function parseJson(stored: string): unknown {
-  try {
-    return JSON.parse(stored);
-  } catch {
-    // JSON.parse of a string throws only a SyntaxError: the entry is no JSON.
-    return null;
-  }
-}
-
 function parseMeasurement(stored: unknown): Measurement | null {
   if (!isRecord(stored) || typeof stored.kg !== "number") return null;
   const time = parseTime(stored.time);
@@ -126,8 +118,4 @@ function parseTime(stored: unknown): Date | null {
     return null;
   }
   return time;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

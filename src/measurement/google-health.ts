@@ -1,3 +1,4 @@
+import { isRecord, parseJson } from "./json";
 import type { Measurement } from "./measurement";
 
 /**
@@ -144,13 +145,7 @@ async function fetchPage(
 
 /** The page of data points Google sent as `body`, or `null` if it is none. */
 function parsePage(body: string): Page | null {
-  let page: unknown;
-  try {
-    page = JSON.parse(body);
-  } catch {
-    // JSON.parse of a string throws only a SyntaxError: the body is no JSON.
-    return null;
-  }
+  const page = parseJson(body);
   if (!isRecord(page)) return null;
 
   // Google leaves an empty list out of the answer altogether.
@@ -209,10 +204,6 @@ function failure(kind: Exclude<GoogleHealthError["kind"], "failed">): {
   error: GoogleHealthError;
 } {
   return { ok: false, error: { kind } };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** The part of Google Identity Services' token client this module uses. */
