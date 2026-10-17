@@ -10,6 +10,18 @@ It type-checks (`tsc --noEmit`), lints and checks formatting (Biome), runs
 the tests (Vitest) including the structural checks, and builds (`next build`),
 stopping at the first failure. The work is done when it is green.
 
+## Code layout
+
+- Domain code lives in feature directories under `src/` named after the
+  glossary, starting with `src/measurement/`. It is pure: no React, Next.js,
+  Mantine or browser API, and "now" comes in as a parameter.
+- Domain directories import only downwards - `src/verdict/` from
+  `src/trend/` and `src/measurement/`, `src/trend/` from `src/measurement/` -
+  and never from `src/app/`; tests may also import from `src/test/`. Only
+  `src/app/` reads the clock, and no test outside it does.
+  `src/test/domain-boundaries.test.ts` enforces this, and each of its messages
+  names the file and the fix.
+
 ## Running
 
 - `npm run dev` serves the app on http://localhost:3000.

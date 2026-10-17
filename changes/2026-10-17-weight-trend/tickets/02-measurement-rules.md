@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    
 advances:  AC-2, AC-9, AC-18
 after:     01-project-setup
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -69,3 +69,26 @@ The cache keeps all raw measurements; the counting rule is applied in code, on r
 - Mehrere Nutzer; Import der alten CSV-Historie.
 
 ## Left standing
+
+**Departure from a nudge: gaps live in `src/measurement/gap.ts`, not `src/verdict/gap.ts`.** The nudge puts the gap rule in `src/verdict/`. But `src/trend/` breaks its line at gaps too, and it must not import from `src/verdict/`. So `findGaps` and the type `Gap` (`lastDayBefore`, `firstDayAfter`, `days`) live in `src/measurement/`, as Context asked.
+
+**Decisions that would be costly to reverse:**
+- *Calendar day.* `CalendarDay` (`src/measurement/calendar-day.ts`) is a branded string `YYYY-MM-DD`. `berlinDay(instant)` makes one, and `daysBetween(from, to)` counts the days between two of them. A `CountingMeasurement` is a `Measurement` (`time: Date`, `kg`) plus its `day`. Tickets 04, 05 and 07 will write their day arithmetic against these. `MS_PER_DAY` is exported from the same file.
+- *Cache API* (`src/measurement/cache.ts`): `CACHE_KEY = "gewicht:v1"`, `MeasurementCache` (`fetchedAt: Date`, `measurements: Measurement[]`), `serializeCache` and `parseCache(stored: string | null)`. `parseCache` returns `null` for "no valid cache". Two choices here are mine:
+  - A time is valid only in exactly the form `toISOString` writes. Anything else, even a valid ISO time with an offset, makes the whole entry invalid, so the page fetches again.
+  - The version lives only in the key. A `gewicht:v2` entry is never read as v1. Removing old keys is left to the `localStorage` adapter in ticket 03.
+- *Fetch period* (also in `cache.ts`): `periodToFetch(cache, now)` returns `FetchPeriod { from, to }`, with both ends included and `to = now`. `replaceFetchedPeriod(cache, period, fetched)` keeps the cached measurements outside the period. Of the fetched ones it uses only those inside the period, sorts the result by time, and dates the fetch to `period.to`.
+  - The period is measured in instants: "14 days" means 14 × 24 h before now, not 14 Berlin calendar days. So a fetch can begin in the middle of a day. The earlier measurements of that day stay cached and still count first.
+  - Ticket 03 hands `from` and `to` to Google.
+- *Structural check:* `src/test/domain-boundaries.ts` scans source text with regexes; TypeScript 7 offers no parser API from JavaScript.
+  - `DOMAIN_IMPORTS` holds only `measurement: []`. Tickets 04 and 07 add `trend: ["measurement"]` and `verdict: ["trend", "measurement"]`. Ticket 03 adds the Google module's exemption.
+  - React, Next.js, Mantine and browser globals are checked in domain code that is not a test.
+  - The clock is checked in every `.ts`/`.tsx` file outside `src/app/`, tests included, so the suite runs the same on every day.
+  - Known holes: a browser global reached through `window.` or `self.` (other than `globalThis.`) is not caught. A local variable named like a browser global (`location`, `history`) is reported anyway.
+  - `CLAUDE.md` has a new section "Code layout" that states these rules.
+
+**Review findings not fixed:**
+- Nit (first round): get names for `MeasurementCache` and `FetchPeriod` from the user and add them to `UBIQUITOUS_LANGUAGE.md`. This was an unattended run, so nobody could be asked; the glossary is unchanged. The names follow the ticket's own words, "cache" and "period", and the user should confirm or rename them before ticket 03 spreads them.
+- Not counted as a finding by the reviewer: if the app is not opened for more than 90 days, the measurements between the last fetch and the 90-day window are never fetched, and the page will show that time as a gap. AC-18 says "höchstens aber 90 Tage", so this is what was asked.
+
+**Checks:** `npm run check` passes (122 tests). Every criterion this ticket advances is proven by tests in `src/measurement/*.test.ts`.
