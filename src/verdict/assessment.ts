@@ -97,7 +97,7 @@ function assessLastDay(
   }
   if (trendOfLast === undefined) return noVerdictYet(last.kg, series);
   return {
-    status: trendVerdict(everyTrend, last.day),
+    status: trendVerdict(everyTrend, counting),
     trendKg: trendOfLast.kg,
     ...figures,
   };

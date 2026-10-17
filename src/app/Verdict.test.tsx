@@ -71,11 +71,11 @@ describe("the verdict", () => {
     },
   );
 
-  it("is „Seit mindestens N Tagen kein Abnehmen“ from the first day with a trend where no trend fell, with no day it fell until", async () => {
+  it("is „Seit mindestens N Tagen kein Abnehmen“ from the first measurement where no trend fell, with no day it fell until", async () => {
     openOn("2026-10-17", steady("2026-10-17", 17, 0.5));
 
     expect(await headline()).toHaveTextContent(
-      "Seit mindestens 12 Tagen kein Abnehmen",
+      "Seit mindestens 16 Tagen kein Abnehmen",
     );
     expect(screen.queryByText(/Zuletzt abgenommen/)).not.toBeInTheDocument();
   });

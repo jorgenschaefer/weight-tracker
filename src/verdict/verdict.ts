@@ -1,10 +1,13 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
+import { findGaps } from "@/measurement/gap";
+import type { CountingMeasurement } from "@/measurement/measurement";
 import type { Trend } from "@/trend/trend";
 
 /**
  * What the trend says: „Nimmt ab“, or no decrease for `days` days `since` the
- * last day with a falling trend - „at least“, since the first day with a
- * trend, where no trend in the history fell - on its {@link Level}.
+ * last day with a falling trend - „at least“, since the first counting
+ * measurement or the first after the last gap, where no trend fell since -
+ * on its {@link Level}.
  */
 export type TrendVerdict =
   | { kind: "losing" }
@@ -20,26 +23,41 @@ export type TrendVerdict =
 export type Level = 1 | 2 | 3;
 
 /**
- * The verdict on `lastDay`, the day of the last counting measurement, from
- * `trends` up to it (ordered by day, the trend of `lastDay` among them).
+ * The verdict on the day of the last of `counting` (ordered by day), from
+ * `trends` up to it (ordered by day, the trend of that day among them).
  *
- * The days without a falling trend count from the last day whose trend fell,
- * or, where none did, from the first day with a trend. Under 3 such days the
- * verdict stays „Nimmt ab“.
+ * Only the days from the first counting measurement after the last gap on
+ * count: the comparison after the gap has judged the days before it. The days
+ * without a falling trend count from the last day whose trend fell; under 3
+ * such days the verdict stays „Nimmt ab“. Where none fell, they count „at
+ * least“ from the first of those days, from the first day with a trend on.
  */
 export function trendVerdict(
   trends: Trend[],
-  lastDay: CalendarDay,
+  counting: CountingMeasurement[],
 ): TrendVerdict {
-  const lastFalling = trends.findLast(isFalling);
-  const since = lastFalling ?? trends[0];
-  const days = daysBetween(since.day, lastDay);
+  const lastDay = lastOf(counting).day;
+  const firstCounted = firstCountedDay(counting);
+  const lastFalling = trends.findLast(
+    (trend) => daysBetween(firstCounted, trend.day) >= 0 && isFalling(trend),
+  );
+  if (lastFalling === undefined) {
+    const days = daysBetween(firstCounted, lastDay);
+    return {
+      kind: "noDecrease",
+      days,
+      atLeast: true,
+      since: firstCounted,
+      level: level(days),
+    };
+  }
+  const days = daysBetween(lastFalling.day, lastDay);
   if (days < CONFIRMATION_DAYS) return { kind: "losing" };
   return {
     kind: "noDecrease",
     days,
-    atLeast: lastFalling === undefined,
-    since: since.day,
+    atLeast: false,
+    since: lastFalling.day,
     level: level(days),
   };
 }
@@ -47,6 +65,19 @@ export function trendVerdict(
 /** Whether the trend falls faster than 0.2 kg per week over its fortnight. */
 function isFalling(trend: Trend): boolean {
   return trend.slopePerWeek < FALLING_KG_PER_WEEK - ROUNDING_ERROR;
+}
+
+function lastOf(counting: CountingMeasurement[]): CountingMeasurement {
+  const last = counting.at(-1);
+  if (last === undefined) {
+    throw new Error("trendVerdict needs at least one counting measurement");
+  }
+  return last;
+}
+
+/** The first counting measurement's day, or after a gap the first after the last one. */
+function firstCountedDay(counting: CountingMeasurement[]): CalendarDay {
+  return findGaps(counting).at(-1)?.firstDayAfter ?? counting[0].day;
 }
 
 function level(days: number): Level {

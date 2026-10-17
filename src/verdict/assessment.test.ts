@@ -147,6 +147,28 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
   it("gives the verdict again from the 5th on, 5.10.", () => {
     expect(assessOn("2026-10-05").status).toEqual({ kind: "losing" });
   });
+  it("counts no decrease after a gap only from the first day after it", () => {
+    const fastLossThenFlat = countingMeasurements([
+      ...Array.from({ length: 15 }, (_, i) => ({
+        time: new Date(Date.UTC(2026, 7, 18 + i, 5)),
+        kg: 98.0 - i * 0.15,
+      })),
+      ...Array.from({ length: 5 }, (_, i) => ({
+        time: new Date(Date.UTC(2026, 9, 1 + i, 5)),
+        kg: 95.9,
+      })),
+    ]);
+
+    expect(
+      assess(fastLossThenFlat, "2026-10-05" as CalendarDay).status,
+    ).toEqual({
+      kind: "noDecrease",
+      days: 4,
+      atLeast: true,
+      since: "2026-10-01",
+      level: 1,
+    });
+  });
 });
 
 describe("assess: no verdict yet", () => {
