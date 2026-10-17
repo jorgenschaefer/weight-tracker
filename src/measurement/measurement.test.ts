@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countingMeasurements } from "./measurement";
+import { countingMeasurements, latestMeasurement } from "./measurement";
 
 const at = (time: string, kg: number) => ({ time: new Date(time), kg });
 
@@ -96,5 +96,30 @@ describe("countingMeasurements", () => {
       ["2026-03-29", 98.0],
       ["2026-03-30", 97.0],
     ]);
+  });
+});
+
+describe("latestMeasurement", () => {
+  it("is the newest measurement, whatever order they come in", () => {
+    expect(
+      latestMeasurement([
+        at("2026-10-16T05:00:00Z", 98.8),
+        at("2026-10-17T05:30:00Z", 98.6),
+        at("2026-10-15T06:00:00Z", 99.0),
+      ]),
+    ).toEqual(at("2026-10-17T05:30:00Z", 98.6));
+  });
+
+  it("is the newest measurement even where a day's first one counts", () => {
+    expect(
+      latestMeasurement([
+        at("2026-10-17T05:30:00Z", 98.6),
+        at("2026-10-17T18:00:00Z", 99.4),
+      ]),
+    ).toEqual(at("2026-10-17T18:00:00Z", 99.4));
+  });
+
+  it("is absent without measurements", () => {
+    expect(latestMeasurement([])).toBeNull();
   });
 });

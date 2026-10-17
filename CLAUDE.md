@@ -14,7 +14,10 @@ stopping at the first failure. The work is done when it is green.
 
 - Domain code lives in feature directories under `src/` named after the
   glossary, starting with `src/measurement/`. It is pure: no React, Next.js,
-  Mantine or browser API, and "now" comes in as a parameter.
+  Mantine or browser API, and "now" comes in as a parameter. The one
+  exception is `src/measurement/google-health.ts`, the only code that talks
+  to Google: it may use the browser, though still no React, Next.js or
+  Mantine.
 - Domain directories import only downwards - `src/verdict/` from
   `src/trend/` and `src/measurement/`, `src/trend/` from `src/measurement/` -
   and never from `src/app/`; tests may also import from `src/test/`. Only

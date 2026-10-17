@@ -13,8 +13,9 @@ export interface SourceFile {
  *
  * A domain directory imports only from itself, from the directories below it
  * in {@link DOMAIN_IMPORTS}, and in its tests from `src/test/`. Its code, tests
- * aside, uses no React, Next.js, Mantine or browser API. Only `src/app/` reads
- * the clock; not even a test does, so it runs the same on every day.
+ * aside, uses no React, Next.js, Mantine or browser API, except that
+ * {@link GOOGLE_MODULE} talks to Google from the browser. Only `src/app/`
+ * reads the clock; not even a test does, so it runs the same on every day.
  */
 export function checkDomainBoundaries(files: SourceFile[]): string[] {
   return files.flatMap((file) => [
@@ -32,6 +33,9 @@ export function checkDomainBoundaries(files: SourceFile[]): string[] {
 const DOMAIN_IMPORTS: Record<string, string[]> = {
   measurement: [],
 };
+
+/** The one module that talks to Google; it alone may use the browser. */
+const GOOGLE_MODULE = "src/measurement/google-health.ts";
 
 const TEST_FILE = /\.test\.tsx?$/;
 
@@ -75,7 +79,9 @@ function frameworksInTheDomain({ path, source }: SourceFile): string[] {
 
 function browserInTheDomain({ path, source }: SourceFile): string[] {
   const directory = domainDirectory(path);
-  if (directory === null || TEST_FILE.test(path)) return [];
+  if (directory === null || TEST_FILE.test(path) || path === GOOGLE_MODULE) {
+    return [];
+  }
 
   const code = globalCode(source);
   const names = new Set(

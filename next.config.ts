@@ -7,6 +7,21 @@ const nextConfig: NextConfig = {
   // than `.env`, which is local and kept out of git and the image; `next dev`,
   // `next build` and `next start` all run from the repository root.
   env: { NEXT_PUBLIC_GOOGLE_CLIENT_ID: googleClientId() },
+  // The gateway's default `same-origin` cuts the page off from the Google
+  // sign-in popup, so the token never arrives; the app sends its own.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-18, AC-19, AC-20
 advances:  AC-14, AC-15, AC-16, AC-17, AC-24
 after:     02-measurement-rules
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -94,3 +94,45 @@ The tests drive everything behind the Google module through a stand-in for it; t
 - Dunkler Modus.
 
 ## Left standing
+
+**Checks not run, and what no automated test proves:**
+- **Real Google, end to end.** Signing in, fetching from the Health API and revoking were not run against the user's account; that is for acceptance. The tests drive the page through an in-memory stand-in for the Google module, and they test the module against stand-ins for Google Identity Services and `fetch`.
+- **The script loader.** `loadGoogleSignIn` adds the GIS `<script>` tag and has no test, because it is a thin adapter. The reviewer drove `npm run dev` in headless Chromium. The popup opened straight from the click with only the read-only scope. Closing the popup, and blocking accounts.google.com, each showed their error. The response carried `Cross-Origin-Opener-Policy: same-origin-allow-popups`.
+- **A console warning.** GIS logs "Cross-Origin-Opener-Policy policy would block the window.closed call" for each popup. Noticing a closed popup still works.
+- **AC-19.** It is proven by tests: the only scope asked for is `…health_metrics_and_measurements.readonly`, and every request is a `GET`.
+- **The design.** The reviewer checked it in the browser at 360 px and 1440 px: Archivo, the neutral colours, and the button at 48 px in `#20262C` on `#DDE1E5`. Nothing overflowed.
+- **Not deployed.** `bin/deploy-prod` was not run.
+
+**Review findings not fixed:**
+- **Should-fix, second round: `src/app/page.test.tsx` was over 500 lines.** I shortened it to 440 lines, keeping every case, with shared setup and assertion helpers. That is still above the "about 400" the standard aims for. Ticket 05 adds to this file, so it should split the page first.
+- **Nit, first round: no button after a fetch fails while a token is held.** This happens when Google is unreachable, answers 5xx, or answers unexpectedly. Then the page offers no retry; only reloading the page helps. The button shows exactly when this visit holds no token. That matches AC-16 ("braucht die Seite eine Anmeldung") and the error state in `Zustaende.dc.html`, which has no button. The criteria do not settle whether a retry should be offered, so the user decides.
+- **Nit, second round: a self-contradicting message.** Suppose that during „Abmelden“ without a token, the person unticks the scope at Google. The page then says „Widerruf fehlgeschlagen: Der Zugriff auf die Gewichtsmessungen wurde nicht erlaubt.“ and next „Die Seite darf deine Gewichtsmessungen weiter lesen.“ Google rarely shows the checkbox again for a scope it has already granted, so I left it.
+
+**Decisions that would be costly to reverse:**
+- **The Google module's API** (`src/measurement/google-health.ts`):
+  - Functions: `loadGoogleSignIn()`, `signIn()`, `fetchMeasurements(token, from)` and `revokeAccess(token)`.
+  - Each call returns `GoogleHealthResult<T>` (`{ ok: true, value } | { ok: false, error }`). The error is a `GoogleHealthError` union with the kinds `signInUnavailable`, `signInFailed`, `accessNotGranted`, `tokenRejected`, `unreachable`, `failed` (with `status`), `unexpectedResponse` and `revokeFailed`.
+  - `AccessToken` is a plain string alias.
+  - `signIn` has to be called before anything is awaited in the click handler, or the browser blocks the popup.
+  - `CLAUDE.md` and `src/test/domain-boundaries.ts` name this file as the one module in `src/measurement/` that may use the browser.
+- **The request.** It filters only `weight.sample_time.physical_time >= "<from>"`; no upper bound is sent, because only `>=` was confirmed against the real API. `replaceFetchedPeriod` already drops anything outside the period. Pages are followed through `nextPageToken`. An absent `dataPoints` counts as an empty list.
+- **Weights in the cache are not rounded.** `kg = weightGrams / 1000` is cached as is (for example 98.599), and only the display rounds.
+- **German formatting.** It lives in `src/app/format.ts`: `formatKg` (`98,6`), `formatDay` (`5.8.`) and `formatTime` (`7:12`), all on Berlin time. Tickets 05 and 06 extend this file.
+- **Page state.**
+  - The hook `useMeasurements` lives in `src/app/page.tsx` beside the view, so the page keeps one test file; it returns `null` until the cache has been read after mounting.
+  - The `localStorage` adapter is three small functions at the bottom of the same file.
+  - A counter of log-outs makes a fetch that outlives „Abmelden“ drop its result.
+- **„Abmelden“.**
+  - It clears the cache and the token at once, before it signs in or revokes, so the cache is gone even if Google fails.
+  - If revoking fails, the first-visit page says so. It then says the page can still read the weights and links to https://myaccount.google.com/connections.
+- **Where things stand and what they say.**
+  - On the first visit, an error stands under the button. In the cached state it stands under „Letzte Messung“, and the button comes after it.
+  - A cache with no measurements shows „Noch keine Messung in Google Health in den letzten 90 Tagen“.
+  - The error texts are in `reason()` in `page.tsx`.
+- **The font.** Archivo comes from `next/font/google` with the `wdth` axis. It is downloaded at build time, so `next build` and the Docker build need network, and the browser never asks Google Fonts. Vitest cannot run `next/font`, so `src/app/layout.test.ts` replaces it with a stand-in.
+- **New names not in `UBIQUITOUS_LANGUAGE.md`:** `latestMeasurement` („Letzte Messung“), `GoogleHealthError`, `Problem` and `AccessToken`. The glossary is unchanged, since nobody could be asked during the run; the user should confirm them, along with ticket 02's `MeasurementCache` and `FetchPeriod`.
+
+**Departures from the nudges and from earlier tickets' Left standing:**
+- **No Mantine loader.** The nudge names a Mantine loading indicator. The design draws the busy line as text only, so „Wird aktualisiert …“ is a `Text` with no `Loader`.
+- **No old cache keys removed.** Ticket 02 left removing old cache keys to the `localStorage` adapter. `gewicht:v1` is the first version, so there is nothing to remove, and the adapter does not try.
+

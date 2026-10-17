@@ -29,6 +29,13 @@ export function countingMeasurements(
   return counting;
 }
 
+/** The newest of `measurements`, counting or not; `null` where there is none. */
+export function latestMeasurement(
+  measurements: Measurement[],
+): Measurement | null {
+  return measurements.toSorted(byTime).at(-1) ?? null;
+}
+
 /** Orders measurements from the earliest to the latest. */
 export function byTime(a: Measurement, b: Measurement): number {
   return a.time.getTime() - b.time.getTime();

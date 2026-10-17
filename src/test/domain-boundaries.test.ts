@@ -155,6 +155,31 @@ describe("checkDomainBoundaries: React, Next.js and the browser", () => {
     ).toEqual([]);
   });
 
+  it("leaves the browser to the Google module, which talks to Google from it", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/measurement/google-health.ts",
+          source:
+            "document.head.append(script);\nconst response = await fetch(url);",
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("keeps React, Next.js and Mantine out of the Google module", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/measurement/google-health.ts",
+          source: 'import { useState } from "react";',
+        },
+      ]),
+    ).toEqual([
+      'src/measurement/google-health.ts: imports "react" - code in src/measurement/ uses no React, Next.js or Mantine; move what needs it into src/app/',
+    ]);
+  });
+
   it("leaves React, Next.js and the browser to src/app/ and to tests", () => {
     expect(
       checkDomainBoundaries([
