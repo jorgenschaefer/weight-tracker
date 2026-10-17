@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
 import {
@@ -125,6 +125,21 @@ describe("opening the page with a cache", () => {
     );
     expect(screen.getByText(/^Letzte Messung 17\.10\./)).toBeInTheDocument();
     expect(fetchMeasurements).not.toHaveBeenCalled();
+  });
+
+  it("judges on the day it is when the page comes back into view", async () => {
+    storeLoss();
+    renderPage();
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Nimmt ab",
+    );
+
+    vi.setSystemTime(daysAgo(-4));
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(verdict()).toHaveTextContent("Letzte Messung vor 4 Tagen");
   });
 
   it("offers the button at the verdict, which stays, and fetches with one click", async () => {

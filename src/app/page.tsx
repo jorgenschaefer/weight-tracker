@@ -1,6 +1,7 @@
 "use client";
 
 import { Anchor, Button, Text, UnstyledButton } from "@mantine/core";
+import { useEffect, useState } from "react";
 import type { MeasurementCache } from "@/measurement/cache";
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
 import type { GoogleHealthError } from "@/measurement/google-health";
@@ -27,6 +28,7 @@ import { WeightGraph } from "./WeightGraph";
 
 export default function Page() {
   const measurements = useMeasurements();
+  const today = useToday();
   if (measurements === null) return <Surface colours={NEUTRAL} />;
   if (measurements.cache === null) {
     return (
@@ -35,7 +37,6 @@ export default function Page() {
       </Surface>
     );
   }
-  const today = berlinDay(new Date());
   const assessment = assess(
     countingMeasurements(measurements.cache.measurements),
     today,
@@ -52,6 +53,20 @@ export default function Page() {
       />
     </Surface>
   );
+}
+
+/**
+ * Today in Berlin, read again whenever the page comes back into view: a tab
+ * left open overnight judges on the day it is shown, not the day it opened.
+ */
+function useToday(): CalendarDay {
+  const [today, setToday] = useState(() => berlinDay(new Date()));
+  useEffect(() => {
+    const readClock = () => setToday(berlinDay(new Date()));
+    document.addEventListener("visibilitychange", readClock);
+    return () => document.removeEventListener("visibilitychange", readClock);
+  }, []);
+  return today;
 }
 
 /** The colour field: the whole screen, its content in the middle. */
