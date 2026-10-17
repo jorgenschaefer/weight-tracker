@@ -17,7 +17,7 @@ AC-22 is proven as far as a build can: the Docker image builds; started from `co
 
 Besides that, this ticket leaves in place:
 
-- `CLAUDE.md` with the check command on a line of its own, in exactly this form: ``Check: `npm run check` `` (the English word `Check:` at the start of the line, the command in backticks, nothing after it). The command builds, type-checks, lints, tests and runs the structural checks, and exits non-zero on any failure.
+- `CLAUDE.md` with the check command on a line of its own (it is `npm run check` already; the script behind it becomes the real check), in exactly this form: ``Check: `npm run check` `` (the English word `Check:` at the start of the line, the command in backticks, nothing after it). The command builds, type-checks, lints, tests and runs the structural checks, and exits non-zero on any failure.
 - A structural check, run by the check command, holding einsatz's test-file rule: every test file sits next to the source file it is named after, and no source file has more than one test file. Its messages name the file and the fix.
 - `npm run dev` serves a page on `http://localhost:3000`, and how to start the app is written in `CLAUDE.md` or the README.
 
@@ -40,7 +40,7 @@ Besides that, this ticket leaves in place:
 > Bei technisch verschiedenen Optionen mit ähnlichem Aufwand die wählen, die den späteren Server (`changes/backlog/server-mit-webhook.md`) besser vorbereitet.
 
 ## Context
-The repository holds no code yet: only the change's paper (`changes/`), `UBIQUITOUS_LANGUAGE.md`, the test fixture `src/test/fixtures/gewicht-2026-07-bis-10.csv` (tickets 04 to 07 use it), a `.gitignore` that so far holds only `.env`, and an untracked `.env` from the user's OAuth setup with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. That `.env` is the user's: it stays untracked and out of the image, `.gitignore` keeps covering it as this ticket extends the file, and no code reads, copies or relies on it. The app needs no client secret. This ticket comes before every other one, and each of them runs the check command it declares.
+The repository holds no code yet: only the change's paper (`changes/`), `UBIQUITOUS_LANGUAGE.md`, placeholders so the runner can start - a `package.json` from `npm init -y` whose only script is a `check` that just prints a line, and a `CLAUDE.md` holding only the `Check:` line - which this ticket replaces with the real ones, keeping the command `npm run check`, the test fixture `src/test/fixtures/gewicht-2026-07-bis-10.csv` (tickets 04 to 07 use it), a `.gitignore` that so far holds only `.env`, and an untracked `.env` from the user's OAuth setup with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. That `.env` is the user's: it stays untracked and out of the image, `.gitignore` keeps covering it as this ticket extends the file, and no code reads, copies or relies on it. The app needs no client secret. This ticket comes before every other one, and each of them runs the check command it declares.
 
 Google Health was confirmed on the user's real account before the tickets were written (ticket 03 carries the details); nothing here talks to Google or needs the user.
 
