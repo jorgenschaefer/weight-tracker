@@ -51,13 +51,20 @@ function stubGoogleSignIn(
 }
 
 const granted = (config: TokenClientConfig) =>
-  config.callback({ access_token: "token-1", scope: HEALTH_SCOPE });
+  config.callback({
+    access_token: "token-1",
+    scope: HEALTH_SCOPE,
+    expires_in: "3599",
+  });
 
 describe("signIn", () => {
   it("yields the access token Google grants", async () => {
     stubGoogleSignIn(granted);
 
-    expect(await signIn()).toEqual({ ok: true, value: "token-1" });
+    expect(await signIn()).toEqual({
+      ok: true,
+      value: { token: "token-1", expiresInSeconds: 3599 },
+    });
   });
 
   it("asks only to read the health metrics and measurements", async () => {
@@ -68,6 +75,24 @@ describe("signIn", () => {
     expect(configs.map((c) => c.scope)).toEqual([
       "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
     ]);
+  });
+
+  it.each([
+    ["leaves out how long the token lasts", {}],
+    ["says the token lasts no number of seconds", { expires_in: "abc" }],
+  ])("reports an unexpected response where Google %s", async (_, lifetime) => {
+    stubGoogleSignIn((config) =>
+      config.callback({
+        access_token: "token-1",
+        scope: HEALTH_SCOPE,
+        ...lifetime,
+      }),
+    );
+
+    expect(await signIn()).toEqual({
+      ok: false,
+      error: { kind: "unexpectedResponse" },
+    });
   });
 
   it("reports access not granted where the scope was left unticked", async () => {

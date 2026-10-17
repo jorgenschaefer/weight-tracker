@@ -50,7 +50,7 @@ export function loadGoogleSignIn(): void {
  * straight from the click, before anything is awaited, or the browser blocks
  * the popup.
  */
-export function signIn(): Promise<GoogleHealthResult<AccessToken>> {
+export function signIn(): Promise<GoogleHealthResult<SignedIn>> {
   const oauth2 = globalThis.google?.accounts.oauth2;
   if (oauth2 === undefined)
     return Promise.resolve(failure("signInUnavailable"));
@@ -104,6 +104,12 @@ export function revokeAccess(
 
 /** An OAuth access token for the Google Health API. */
 export type AccessToken = string;
+
+/** A sign-in: the access token, and how long Google will accept it. */
+export interface SignedIn {
+  token: AccessToken;
+  expiresInSeconds: number;
+}
 
 const SCRIPT_ID = "google-identity-services";
 
@@ -198,16 +204,22 @@ function answeredInTime<T>(
 /** Long enough for a slow mobile connection, short enough to still be looking. */
 const ANSWER_WITHIN_MS = 20_000;
 
-function grantedToken(
-  response: TokenResponse,
-): GoogleHealthResult<AccessToken> {
+function grantedToken(response: TokenResponse): GoogleHealthResult<SignedIn> {
   if (response.error !== undefined || response.access_token === undefined) {
     return failure("signInFailed");
   }
   // The consent screen lets the person untick the scope and still go on.
   const scopes = (response.scope ?? "").split(" ");
   if (!scopes.includes(HEALTH_SCOPE)) return failure("accessNotGranted");
-  return { ok: true, value: response.access_token };
+  // Google Identity Services types it as a string of seconds.
+  const expiresInSeconds = Number(response.expires_in);
+  if (!(expiresInSeconds > 0)) {
+    return failure("unexpectedResponse");
+  }
+  return {
+    ok: true,
+    value: { token: response.access_token, expiresInSeconds },
+  };
 }
 
 function clientId(): string {
@@ -231,6 +243,7 @@ function failure(kind: Exclude<GoogleHealthError["kind"], "failed">): {
 /** The part of Google Identity Services' token client this module uses. */
 interface TokenResponse {
   access_token?: string;
+  expires_in?: string;
   scope?: string;
   error?: string;
 }

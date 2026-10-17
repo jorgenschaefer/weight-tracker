@@ -49,7 +49,7 @@ export function standInForGoogle(now: Date) {
   vi.mocked(signIn).mockImplementation(async () => {
     const token = `token-${++google.tokensIssued}`;
     google.grants.push(token);
-    return { ok: true, value: token };
+    return { ok: true, value: { token, expiresInSeconds: TOKEN_LIFETIME_S } };
   });
   vi.mocked(fetchMeasurements).mockImplementation(async (token, from) => {
     if (!google.grants.includes(token))
@@ -64,6 +64,9 @@ export function standInForGoogle(now: Date) {
     return { ok: true, value: null };
   });
 }
+
+/** How long Google accepts an access token: an hour, less a second. */
+export const TOKEN_LIFETIME_S = 3599;
 
 export function leavePage() {
   vi.useRealTimers();

@@ -1,5 +1,5 @@
 // The hook is tested where the person uses it: on the page.
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
 import {
@@ -24,10 +24,12 @@ import {
   MORNING_SHOWN,
   NOW,
   openAndClick,
+  renderPage,
   standInForGoogle,
   storeCache,
   storedCache,
   storeMorning,
+  TOKEN_LIFETIME_S,
 } from "@/test/open-page";
 
 vi.mock("@/measurement/google-health", () => ({
@@ -108,6 +110,108 @@ describe("fetching", () => {
   });
 });
 
+describe("coming back into view", () => {
+  const LATER = at("2026-10-17T08:05:00Z", 98.2);
+  const LATER_SHOWN = "Letzte Messung 17.10. um 10:05 Uhr: 98,2 kg";
+
+  /** Fetches once, then weighs again in Google Health `minutes` later. */
+  async function fetchThenWeighAgain(minutes: number) {
+    google.measurements = [MORNING];
+    await openAndClick(fetchButton);
+    await isShown(MORNING_SHOWN);
+    google.measurements = [MORNING, LATER];
+    vi.setSystemTime(new Date(NOW.getTime() + minutes * 60_000));
+  }
+
+  it("fetches by itself, with the token it holds", async () => {
+    await fetchThenWeighAgain(10);
+
+    await comeIntoView();
+
+    await isShown(LATER_SHOWN);
+    expect(google.tokensIssued).toBe(1);
+  });
+
+  it("does not fetch again within 5 minutes of the last fetch", async () => {
+    await fetchThenWeighAgain(4.9);
+
+    await comeIntoView();
+
+    isNotShown(LATER_SHOWN);
+  });
+
+  it("does not fetch while the page goes out of view", async () => {
+    await fetchThenWeighAgain(10);
+
+    await changeVisibility("hidden");
+
+    isNotShown(LATER_SHOWN);
+  });
+
+  it("does not sign in by itself where it holds no token", async () => {
+    storeMorning();
+    renderPage();
+    await fetchButton();
+
+    await comeIntoView();
+
+    expect(google.tokensIssued).toBe(0);
+    await fetchButton();
+  });
+
+  it("shows just the button, without asking Google, once the token has expired", async () => {
+    await fetchThenWeighAgain(TOKEN_LIFETIME_S / 60);
+
+    await comeIntoView();
+
+    await fetchButton();
+    isNotShown(/Abruf fehlgeschlagen/);
+    isNotShown(LATER_SHOWN);
+  });
+
+  it("fetches with the token up to just before it expires", async () => {
+    await fetchThenWeighAgain(TOKEN_LIFETIME_S / 60 - 0.1);
+
+    await comeIntoView();
+
+    await isShown(LATER_SHOWN);
+  });
+
+  it("does not fetch again while a fetch still runs", async () => {
+    storeMorning();
+    const firstAnswer = deferred<GoogleHealthResult<Measurement[]>>();
+    vi.mocked(fetchMeasurements).mockReturnValueOnce(firstAnswer.promise);
+    await openAndClick(fetchButton);
+    google.measurements = [MORNING, LATER];
+    vi.setSystemTime(new Date(NOW.getTime() + 10 * 60_000));
+
+    await comeIntoView();
+
+    isNotShown(LATER_SHOWN);
+    await isShown("Vorläufig, wird aktualisiert …");
+  });
+
+  it("shows the button again where Google rejects the token before it expires", async () => {
+    await fetchThenWeighAgain(10);
+    google.grants = [];
+
+    await comeIntoView();
+
+    await isShown("Abruf fehlgeschlagen: Die Anmeldung ist abgelaufen.");
+    await fetchButton();
+  });
+});
+
+const comeIntoView = () => changeVisibility("visible");
+
+/** The page goes into or out of view, as on switching tabs or apps. */
+async function changeVisibility(state: DocumentVisibilityState) {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
 describe("a failed fetch", () => {
   it("signs in anew on the next click where Google rejected the token", async () => {
     google.measurements = [MORNING];
@@ -157,6 +261,20 @@ describe("„Abmelden“", () => {
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
     await waitFor(() => expect(google.tokensIssued).toBe(1));
     expect(google.grants).toEqual([]);
+  });
+
+  it("signs in anew to revoke the access where its token has expired", async () => {
+    google.measurements = [MORNING];
+    const user = await openAndClick(fetchButton);
+    await isShown(MORNING_SHOWN);
+    vi.setSystemTime(new Date(NOW.getTime() + TOKEN_LIFETIME_S * 1000));
+
+    await user.click(await logoutButton());
+
+    await isShown(FIRST_VISIT);
+    await waitFor(() => expect(google.tokensIssued).toBe(2));
+    // Revoking the new token withdraws the page's access at Google.
+    await waitFor(() => expect(google.grants).not.toContain("token-2"));
   });
 
   it("drops what a fetch still running brings back", async () => {
