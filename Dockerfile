@@ -5,6 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Next.js reports usage to Vercel from every build unless told not to.
+ENV NEXT_TELEMETRY_DISABLED=1
 # .next/cache is build cache that `next start` does not need. Copied into the
 # image, it changes with every build and is carried over on every deploy.
 RUN npm run build && rm -rf .next/cache
