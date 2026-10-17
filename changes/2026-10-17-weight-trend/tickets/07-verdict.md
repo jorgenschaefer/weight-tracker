@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    
 advances:  AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-11, AC-23
 after:     04-trend
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -87,3 +87,32 @@ Toward the ACs below, this ticket makes true, in the domain code and its tests, 
 - Mehrere Nutzer; Import der alten CSV-Historie.
 
 ## Left standing
+
+**Checks.** `npm run check` passes: 20 test files, 322 tests. Nothing is rendered yet, so the app was not driven. Every criterion this ticket advances is proven by tests in `src/verdict/*.test.ts`, except one absence. AC-11's "no other pace" is proven by reading the code instead: `Assessment` carries one pace, `pace` from `src/trend/pace.ts`. The trend's 14-day `slopePerWeek` is used only for the "falling" rule.
+
+**Review findings not fixed.** Both are should-fix findings from the second round. Each is behaviour the user sees that the criteria do not settle, so the user has to decide it.
+- **„Nimmt ab“ for a trend that never fell, in its first 2 days.** Suppose no trend has fallen yet and the first day with a trend lies less than 3 days back, e.g. 90.0, 90.2, 90.4, 90.6, 90.8 kg on 1.–5.10. The verdict is then „Nimmt ab“, though the weight rises. This applies one rule to both cases of AC-4: under 3 days without a falling trend it stays „Nimmt ab“. That is also what the specimens' script does (`lastFall == null` gives level 0, „Nimmt ab“). AC-4 forbids „Seit 1/2 Tagen“ but does not say what stands instead in the "mindestens" case. „Noch kein Urteil“ would be the alternative, but it contradicts „Ein Urteil gibt es ab der 5. Messung.“ The rule is in `trendVerdict`, `src/verdict/verdict.ts`, and the test „stays „Nimmt ab“ for the first 2 days with a trend“ pins it.
+- **"No decrease" counts across a gap.** From the 5th measurement after a gap, N counts from the last falling day, even if that day lies before the gap. The gap's days count too. Example from the reviewer: a fast loss up to 1.9., a 30-day gap, then 5 flat measurements. On 4.10. the page shows the comparison "clear decrease". On 5.10. it shows "no decrease since 34 days" on the highest level. This is AC-4 read literally. Counting only from the first day after the gap would be the other reading.
+
+**Decisions that would be costly to reverse.** Ticket 05 writes against these:
+- **The result.** `assess(counting, today): Assessment` in `src/verdict/assessment.ts`. The type is a union by `status`, and each status carries only the figures it can have:
+  - `status` is one of these:
+    - `{ kind: "losing" }`
+    - `{ kind: "noDecrease", days, atLeast, level: 1 | 2 | 3 }`
+    - `{ kind: "gapComparison", gapDays, differenceKg, variation: "clearIncrease" | "clearDecrease" | "withinNormalVariation" }`
+    - `{ kind: "lastMeasurementTooOld", days }`
+    - `{ kind: "noVerdictYet" }`
+  - Beside it come `measuredKg` („Gemessen“), `trendKg` and `pace` (ticket 04's `Pace` with band), all for the last day with a measurement, and `sixWeekSeries`, ticket 04's series up to `today`.
+  - `differenceKg` is not rounded, and the comparison with 2 · s / √n uses the unrounded value. Rounding is for the page.
+- **Too old keeps the figures.** Under `lastMeasurementTooOld`, trend, pace and series stay as they were on the last day. If the measurements do not suffice for a trend, they stay without a trend.
+- **„Noch kein Urteil“ also clears the graph.** Under `noVerdictYet` the series has no trend line, and no point is marked an outlier. AC-23 says „der Graph zeigt nur die Punkte“. After a gap with no trend before it, a trend after the gap can exist, and this removes it as well.
+- **No measurement at all** gives `noVerdictYet` with `measuredKg: null`.
+- **The spread s.** It is the root mean square of (counting measurement − trend of its day) over the days from 27 days before the last day before the gap up to that day. Days without a trend are left out. It is measured around the trend, not around the mean of the deviations, and the divisor is n, not n − 1. The specimen fixes only the outcome (3.10. clear at about +1.0 kg, 4.10. within at about +0.3 kg), and both readings give it.
+- **The gap under comparison** is only the last gap, and only while fewer than 5 counting measurements follow it.
+- **"Falling"** means a slope of less than −0.2 kg per week. It allows 1e-9 for floating-point error, as `src/trend/outlier.ts` does, so exactly 0.2 kg in 7 days does not count as falling.
+- **Other changes outside `src/verdict/`:**
+  - `median` is now exported from `src/trend/trend.ts`, so the gap comparison does not compute the median a second way.
+  - `DOMAIN_IMPORTS` holds `verdict: ["trend", "measurement"]`.
+- **New names not in `UBIQUITOUS_LANGUAGE.md`.** Nobody could be asked during the run, so the glossary is unchanged. The user should confirm or rename these before ticket 05 spreads them: `Assessment`/`assess`, `AssessmentStatus`, `TrendVerdict`/`trendVerdict`, `GapComparison`/`compareAfterGap`/`gapUnderComparison`, and the values `losing` („Nimmt ab“), `noDecrease`, `atLeast`, `lastMeasurementTooOld` („Letzte Messung vor N Tagen“), `noVerdictYet` („Noch kein Urteil“), `measuredKg` („Gemessen“), and `variation` with its three values. `Level` is the glossary's `level`, written as the numbers 1–3 rather than as names.
+
+**Departure from a nudge.** The nudge names `src/verdict/gap.ts`. The comparison lives in `src/verdict/gap-comparison.ts`, because `src/measurement/gap.ts` already holds the gap itself (ticket 02), and a second `gap.ts` would come up in every search for it.

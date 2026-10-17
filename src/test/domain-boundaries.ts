@@ -33,6 +33,7 @@ export function checkDomainBoundaries(files: SourceFile[]): string[] {
 const DOMAIN_IMPORTS: Record<string, string[]> = {
   measurement: [],
   trend: ["measurement"],
+  verdict: ["trend", "measurement"],
 };
 
 /** The one module that talks to Google; it alone may use the browser. */

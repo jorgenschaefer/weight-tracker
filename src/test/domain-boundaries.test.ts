@@ -122,6 +122,44 @@ describe("checkDomainBoundaries: imports between directories", () => {
     ).toEqual([]);
   });
 
+  it("refuses an import of src/app/ from src/verdict/, naming src/trend/ and src/measurement/ as allowed", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/verdict/verdict.ts",
+          source: 'import { page } from "@/app/page";',
+        },
+      ]),
+    ).toEqual([
+      'src/verdict/verdict.ts: imports "@/app/page" from src/app/ - src/verdict/ may import only from itself, src/trend/, src/measurement/; move what it needs into src/verdict/',
+    ]);
+  });
+
+  it("refuses an import of src/verdict/ from src/trend/, which lies below it", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/trend/trend.ts",
+          source: 'import { assess } from "@/verdict/assessment";',
+        },
+      ]),
+    ).toEqual([
+      'src/trend/trend.ts: imports "@/verdict/assessment" from src/verdict/ - src/trend/ may import only from itself, src/measurement/; move what it needs into src/trend/',
+    ]);
+  });
+
+  it("accepts imports of src/trend/ and src/measurement/ from src/verdict/", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/verdict/verdict.ts",
+          source:
+            'import { trends } from "@/trend/trend";\nimport { findGaps } from "@/measurement/gap";',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("accepts imports of the domain from src/app/ and from outside src/", () => {
     expect(
       checkDomainBoundaries([
@@ -185,6 +223,20 @@ describe("checkDomainBoundaries: React, Next.js and the browser", () => {
     ).toEqual([
       'src/trend/trend.ts: imports "react" - code in src/trend/ uses no React, Next.js or Mantine; move what needs it into src/app/',
       "src/trend/trend.ts: uses the browser's localStorage - code in src/trend/ uses no browser API; move what needs it into src/app/ and pass in what it yields",
+    ]);
+  });
+
+  it("keeps React, Next.js, Mantine and the browser out of src/verdict/ too", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/verdict/verdict.ts",
+          source: 'import { useState } from "react";\nlocalStorage.clear();',
+        },
+      ]),
+    ).toEqual([
+      'src/verdict/verdict.ts: imports "react" - code in src/verdict/ uses no React, Next.js or Mantine; move what needs it into src/app/',
+      "src/verdict/verdict.ts: uses the browser's localStorage - code in src/verdict/ uses no browser API; move what needs it into src/app/ and pass in what it yields",
     ]);
   });
 

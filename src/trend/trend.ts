@@ -48,7 +48,7 @@ function pairwiseSlopes(fortnight: CountingMeasurement[]): number[] {
   );
 }
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   const sorted = values.toSorted((a, b) => a - b);
   const middle = sorted.length >> 1;
   return sorted.length % 2 === 1
