@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    
 advances:  AC-2, AC-10, AC-11, AC-12
 after:     02-measurement-rules
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -73,3 +73,42 @@ Toward the ACs below, this ticket makes true, in the domain code and its tests, 
 - Zeiträume über 90 Tage im Graphen (`changes/backlog/langzeitansicht.md`).
 
 ## Left standing
+
+**Checks.** `npm run check` passes: 16 test files, 236 tests. Nothing is rendered yet, so the app was not driven.
+
+**What no automated test proves.** AC-11's "no other pace is" is an absence, so no test proves it. I checked it by reading the code: `src/trend/` exports one pace, `pace()`, over 4 weeks. The trend's 14-day slope (`slopePerWeek`) is meant for ticket 07's "falling" rule, not for display.
+
+**Review findings not fixed:**
+- **Should-fix, first round: the names need the user.** `UBIQUITOUS_LANGUAGE.md` gives `paceBand` but no identifiers for its five values. Nobody could be asked during the run, so the glossary is unchanged. The user should confirm or rename these names before tickets 05–07 spread them:
+  - `gain` → „Zunahme“
+  - `maintained` → „Gewicht gehalten“
+  - `slowLoss` → „Langsames Abnehmen“
+  - `moderateLoss` → „Moderates Abnehmen“
+  - `fastLoss` → „Schnelles Abnehmen“
+  - `slopePerWeek` (the slope of the trend, „Steigung“)
+  - `SixWeekSeries` (what the graph draws)
+
+  Each band's German name and bounds are written at the type in `src/trend/pace.ts`.
+
+**Decisions that would be costly to reverse.** Tickets 05–07 will write against these:
+- **The trend.** `trends(counting): Trend[]` (`src/trend/trend.ts`) gives a `Trend { day, kg, slopePerWeek }` for each counting day that has at least 5 counting measurements in its fortnight (the day and the 13 days before it).
+  - Days with fewer measurements get no entry, so `trends(...).at(-1)` is not necessarily the latest counting day.
+  - The minimum stays at 5, as the sentence „Ein Urteil gibt es ab der 5. Messung.“ assumes.
+  - There is no `trendOn(day)` helper. Ticket 07 finds a day's trend in the list by `day`.
+- **The pace.** `pace(trends, day): Pace | null` with `Pace { kgPerWeek, band }` (`src/trend/pace.ts`). It is `null` where the day has no trend or no trend lies 28 days back.
+  - `kgPerWeek` is already rounded to hundredths, half up, and never −0. The band is taken from that rounded value, so the band always fits the number shown, as long as the page shows two decimals like the specimen.
+  - `paceBand(kgPerWeek)` is exported too.
+- **Outliers.** `isOutlier(measurement, trendOfItsDay)` (`src/trend/outlier.ts`) allows 1e-9 kg for floating-point error, so a value exactly 0.9 kg off is not an outlier. A measurement whose day has no trend is never an outlier.
+- **The 6-week series.** `sixWeekSeries(counting, today): SixWeekSeries` (`src/trend/six-week-series.ts`) returns `{ measurements: { measurement, outlier }[], trendLine: Trend[][] }`.
+  - It covers `today` and the 41 days before it, and leaves out anything after `today`.
+  - `trendLine` is in pieces, broken at every gap from `findGaps`.
+  - It computes the trends itself from all counting measurements, because earlier ones shape the trend inside the window.
+- **The fixture helper.** `weightHistory(): Measurement[]` (`src/test/weight-history-fixture.ts`) gives one measurement a day at 07:00+02:00 (Berlin summer time, true for the whole extract).
+  - It finds the CSV through `import.meta.dirname`, because under jsdom `import.meta.url` is not a file URL. Checked under jsdom.
+- **The structural check.** `DOMAIN_IMPORTS` now holds `trend: ["measurement"]`.
+
+**Departures from the specimen:**
+- **The band.** The specimen takes the band from the unrounded pace. On 15.10. of the fixture the pace is −0.50375: the specimen shows „−0,50“ with „Moderates Abnehmen“, and this build gives `slowLoss`, which is AC-10 applied to the number shown.
+- **The end of the chart window.** The specimen ends its window at the selected measurement day. Here it ends at the `today` passed in, as the ticket's Context says.
+
+Otherwise the trend, the pace and the outliers match the specimen's script on the fixture: trend 97.75 and pace −0.42 on 17.10., and the same 8 outlier days in the last 6 weeks.

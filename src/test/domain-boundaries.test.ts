@@ -85,6 +85,43 @@ describe("checkDomainBoundaries: imports between directories", () => {
     ).toEqual([]);
   });
 
+  it("refuses an import of src/app/ from src/trend/, naming src/measurement/ as allowed", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/trend/trend.ts",
+          source: 'import { page } from "@/app/page";',
+        },
+      ]),
+    ).toEqual([
+      'src/trend/trend.ts: imports "@/app/page" from src/app/ - src/trend/ may import only from itself, src/measurement/; move what it needs into src/trend/',
+    ]);
+  });
+
+  it("refuses an import of src/trend/ from src/measurement/, which lies below it", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/measurement/gap.ts",
+          source: 'import { trends } from "@/trend/trend";',
+        },
+      ]),
+    ).toEqual([
+      'src/measurement/gap.ts: imports "@/trend/trend" from src/trend/ - src/measurement/ may import only from itself; move what it needs into src/measurement/',
+    ]);
+  });
+
+  it("accepts an import of src/measurement/ from src/trend/", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/trend/trend.ts",
+          source: 'import { findGaps } from "@/measurement/gap";',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("accepts imports of the domain from src/app/ and from outside src/", () => {
     expect(
       checkDomainBoundaries([
@@ -134,6 +171,20 @@ describe("checkDomainBoundaries: React, Next.js and the browser", () => {
       checkDomainBoundaries([{ path: "src/measurement/gap.ts", source }]),
     ).toEqual([
       `src/measurement/gap.ts: uses the browser's ${name} - code in src/measurement/ uses no browser API; move what needs it into src/app/ and pass in what it yields`,
+    ]);
+  });
+
+  it("keeps React, Next.js, Mantine and the browser out of src/trend/ too", () => {
+    expect(
+      checkDomainBoundaries([
+        {
+          path: "src/trend/trend.ts",
+          source: 'import { useState } from "react";\nlocalStorage.clear();',
+        },
+      ]),
+    ).toEqual([
+      'src/trend/trend.ts: imports "react" - code in src/trend/ uses no React, Next.js or Mantine; move what needs it into src/app/',
+      "src/trend/trend.ts: uses the browser's localStorage - code in src/trend/ uses no browser API; move what needs it into src/app/ and pass in what it yields",
     ]);
   });
 
