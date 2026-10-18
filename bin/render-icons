@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# Renders the icons from their SVG sources, after a change to either:
+#   src/app/app-icon.svg  the app's scale, full-bleed, for the manifest
+#   src/app/icon.svg      the favicon, the scale on a tile, without the pointer
+# Needs Inkscape and ImageMagick 7; `npm run check` does not run this.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+for tool in inkscape magick; do
+  command -v "$tool" >/dev/null ||
+    { echo "$0: $tool not found - install Inkscape and ImageMagick 7" >&2; exit 1; }
+done
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+png() { # <svg> <size> <out>
+  inkscape "$1" --export-type=png --export-width="$2" --export-height="$2" \
+    --export-filename="$3" >/dev/null
+}
+
+# The launcher cuts the maskable icon to its own shape; the scale stays inside
+# the safe zone: the circle around the middle whose radius is 40 % of the
+# width, 80 % across.
+png src/app/app-icon.svg 512 public/icon-maskable-512.png
+
+# Where Android does not mask, the icon is the same scale on a grey circle.
+for size in 192 512; do
+  png src/app/app-icon.svg "$size" "$work/square.png"
+  magick "$work/square.png" \
+    \( -size "${size}x${size}" xc:black -fill white \
+       -draw "circle $((size / 2)),$((size / 2)) $((size / 2)),0" \) \
+    -alpha off -compose copy-opacity -composite "public/icon-$size.png"
+done
+
+for size in 16 32 48; do
+  png src/app/icon.svg "$size" "$work/favicon-$size.png"
+done
+magick "$work"/favicon-{16,32,48}.png src/app/favicon.ico

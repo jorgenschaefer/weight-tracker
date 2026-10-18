@@ -30,6 +30,7 @@ import {
   openAndClick,
   renderPage,
   standInForGoogle,
+  steady,
   storeCache,
   storedCache,
   storeLoss,
@@ -169,6 +170,43 @@ describe("opening the page with a cache", () => {
     renderPage();
 
     expect(await logoutButton()).toBeInTheDocument();
+  });
+});
+
+describe("the colour of the browser around the page", () => {
+  const themeColours = () =>
+    Array.from(
+      document.head.querySelectorAll<HTMLMetaElement>(
+        'meta[name="theme-color"]',
+      ),
+      (meta) => meta.content,
+    );
+
+  it("is the neutral surface on the first visit", async () => {
+    renderPage();
+    await fetchButton();
+
+    expect(themeColours()).toEqual(["#DDE1E5"]);
+  });
+
+  it("is the surface of the verdict from the cache", async () => {
+    const august30 = new Date("2026-08-30T18:00:00+02:00");
+    vi.setSystemTime(august30);
+    storeCache(
+      august30,
+      weightHistory().filter((m) => m.time <= august30),
+    );
+    renderPage();
+    await fetchButton();
+
+    expect(themeColours()).toEqual(["#8A380A"]);
+  });
+
+  it("follows the surface when a fetch changes it, without reloading", async () => {
+    google.measurements = steady("2026-10-17", 35, -0.5);
+    await openAndClick(fetchButton);
+
+    await waitFor(() => expect(themeColours()).toEqual(["#D5E4F1"]));
   });
 });
 

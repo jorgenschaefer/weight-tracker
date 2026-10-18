@@ -31,6 +31,9 @@ stopping at the first failure. The work is done when it is green.
 - `npm run build` / `npm start` build and start it for production.
 - `npm run format` applies the Biome formatter.
 - `npm run test:watch` runs Vitest in watch mode.
+- `bin/render-icons` renders the manifest's PNGs in `public/` and
+  `src/app/favicon.ico` from `src/app/app-icon.svg` and `src/app/icon.svg`;
+  run it after changing either SVG.
 
 The public Google OAuth client ID is in `google-client-id.env`, which
 `next.config.ts` reads for every build. A local `.env` is the user's own: it

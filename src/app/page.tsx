@@ -69,7 +69,10 @@ function useToday(): CalendarDay {
   return today;
 }
 
-/** The colour field: the whole screen, its content in the middle. */
+/**
+ * The colour field: the whole screen, its content in the middle. The browser
+ * around the page, Android's status bar and address bar, takes its colour.
+ */
 function Surface({
   colours,
   children,
@@ -82,6 +85,8 @@ function Surface({
       className={classes.surface}
       style={{ backgroundColor: colours.surface, color: colours.ink }}
     >
+      {/* React moves it into <head> and keeps it there in step. */}
+      <meta name="theme-color" content={colours.surface} />
       <div className={classes.content}>{children}</div>
     </main>
   );

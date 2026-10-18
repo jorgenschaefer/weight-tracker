@@ -17,6 +17,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=builder --chown=node:node /app/.next ./.next
+# The manifest's icons, served at fixed paths.
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts /app/google-client-id.env ./
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
