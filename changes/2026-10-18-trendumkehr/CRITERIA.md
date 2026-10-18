@@ -66,3 +66,9 @@ Der Fall: Der Trend steigt seit dem 11.10.2026 von 96,80 auf 98,36 kg. Am 18.10.
 - **„Nimmt zu“ als Zusatzzeile oder eine Stufe auffälliger** - die Überschrift ist plakativer.
 - **„Nimmt zu“ erst nach den 3 Tagen Bestätigung** - warnt einen Tag später, obwohl „Nimmt zu“ bei echtem Abnehmen kaum fälschlich vorkommt.
 - **„Nimmt zu“ mit Haltezeit, bevor es wieder verschwindet** - als Frühwarnung soll es kommen und gehen, wie das 4-Tage-Tempo es sagt; die Farbe folgt ohnehin der Dauer.
+
+## Left standing
+
+- **Review: „Nimmt zu“ direkt nach einer Lücke.** Nach einer Lücke mit einem Sprung steht „Nimmt zu“ ein bis zwei Tage nach dem Ende des Vergleichs, obwohl jede Messung seit der Lücke fällt, weil die 14 Tage des Trends noch über die Lücke zurückreichen. So belassen, wie AC-1 und AC-2 es sagen; festgehalten in `changes/backlog/nimmt-zu-nach-luecke.md`.
+- **AC-7** prüft kein automatischer Test vollständig; jsdom legt nichts aus, und `src/app/page.test.tsx` prüft nur die Längen in den Stylesheets. Die Prüfung im Review hat die echte Seite bei 360 × 640 px und 1280 px mit dem Skill `run` an den Tagen aus AC-4 und am 3.10. gezeigt: kein horizontales Scrollen, Überschrift, Satz, Ampel und Zahlen über 640 px (bei „Nimmt zu“ mit dem langen Satz enden die Zahlen bei 446 px), auf breitem Bildschirm dieselbe Aufteilung wie vorher.
+- **AC-6** für den Vergleich nach einer Lücke und „Noch kein Urteil“ hat keinen eigenen Test gegen „Nimmt zu“: `assess` entscheidet beide vor dem Urteil, wie bisher. „Letzte Messung vor N Tagen“ statt „Nimmt zu“ ist getestet.

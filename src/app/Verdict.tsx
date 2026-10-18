@@ -1,5 +1,6 @@
 import type { PaceBand } from "@/trend/pace";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
+import { CONFIRMATION_DAYS, type DaysWithoutDecrease } from "@/verdict/verdict";
 import {
   formatCalendarDay,
   formatKg,
@@ -60,14 +61,15 @@ export const NEUTRAL: SurfaceColours = { surface: "#DDE1E5", ink: "#20262C" };
 
 /**
  * The colours of the surface under `status`: blue while losing, escalating
- * with the level of no decrease, orange too for a clear increase after a gap,
- * neutral for everything else.
+ * with the level of no decrease, under „Nimmt zu“ too, orange for a clear
+ * increase after a gap, neutral for everything else.
  */
 export function surfaceColours(status: AssessmentStatus): SurfaceColours {
   switch (status.kind) {
     case "losing":
       return { surface: "#D5E4F1", ink: "#10355A" };
     case "noDecrease":
+    case "gaining":
       return LEVEL_COLOURS[status.level];
     case "gapComparison":
       return status.variation === "clearIncrease" ? LEVEL_COLOURS[2] : NEUTRAL;
@@ -88,9 +90,9 @@ function headline(status: AssessmentStatus): string {
     case "losing":
       return "Nimmt ab";
     case "noDecrease":
-      return status.atLeast
-        ? `Seit mindestens ${status.days} Tagen kein Abnehmen`
-        : `Seit ${status.days} Tagen kein Abnehmen`;
+      return noDecreaseFor(status);
+    case "gaining":
+      return "Nimmt zu";
     case "gapComparison":
       return `Nach ${status.gapDays} Tagen ohne Messung: ${formatKgChange(status.differenceKg)} kg gegenüber vorher`;
     case "lastMeasurementTooOld":
@@ -104,7 +106,8 @@ function headline(status: AssessmentStatus): string {
 function emphasis(status: AssessmentStatus): string {
   switch (status.kind) {
     case "losing":
-      return "losing";
+    case "gaining":
+      return "short";
     case "noDecrease":
       return `level${status.level}`;
     case "gapComparison":
@@ -121,6 +124,8 @@ function explanation(status: AssessmentStatus): string | null {
       // Where no trend fell, there is no day it fell until.
       if (status.atLeast) return null;
       return `Zuletzt abgenommen bis ${formatCalendarDay(status.since)}`;
+    case "gaining":
+      return gainingExplanation(status);
     case "gapComparison":
       return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder ab der 5. Messung nach der Lücke.`;
     case "noVerdictYet":
@@ -131,12 +136,25 @@ function explanation(status: AssessmentStatus): string | null {
   }
 }
 
+/** Under „Nimmt zu“, the days without a decrease that would otherwise be the headline. */
+function gainingExplanation(status: DaysWithoutDecrease): string {
+  if (status.atLeast) return noDecreaseFor(status);
+  const until = `abgenommen bis ${formatCalendarDay(status.since)}`;
+  if (status.days < CONFIRMATION_DAYS) return `Zuletzt ${until}`;
+  return `${noDecreaseFor(status)}, zuletzt ${until}`;
+}
+
+/** „Seit (mindestens) N Tagen kein Abnehmen“. */
+function noDecreaseFor(status: DaysWithoutDecrease): string {
+  return status.atLeast
+    ? `Seit mindestens ${status.days} Tagen kein Abnehmen`
+    : `Seit ${status.days} Tagen kein Abnehmen`;
+}
+
 const BAND_NAMES: Record<PaceBand, string> = {
-  gain: "Zunahme",
-  maintained: "Gewicht gehalten",
-  slowLoss: "Langsames Abnehmen",
-  moderateLoss: "Moderates Abnehmen",
-  fastLoss: "Schnelles Abnehmen",
+  loss: "4 Wochen: nimmt ab",
+  stagnation: "4 Wochen: stagniert",
+  gain: "4 Wochen: nimmt zu",
 };
 
 function Figure({

@@ -316,7 +316,7 @@ describe("the layout", () => {
     });
     const inOrder = [
       verdict(),
-      screen.getByText("Langsames Abnehmen"),
+      screen.getByText("4 Wochen: nimmt ab"),
       screen.getByText("Trend", { selector: "dt" }),
       graph,
     ];

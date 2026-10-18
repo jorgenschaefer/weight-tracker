@@ -7,18 +7,14 @@ export interface Pace {
   band: PaceBand;
 }
 
-/** The five bands of the pace, with the band the page names for each. */
+/** The three bands of the pace, with the band the page names for each. */
 export type PaceBand =
-  /** „Zunahme“: over +0.1 kg per week. */
+  /** „4 Wochen: nimmt zu“: over +0.2 kg per week. */
   | "gain"
-  /** „Gewicht gehalten“: from −0.1 to +0.1 kg per week. */
-  | "maintained"
-  /** „Langsames Abnehmen“: under −0.1 down to −0.5 kg per week. */
-  | "slowLoss"
-  /** „Moderates Abnehmen“: under −0.5 down to −1.0 kg per week. */
-  | "moderateLoss"
-  /** „Schnelles Abnehmen“: under −1.0 kg per week. */
-  | "fastLoss";
+  /** „4 Wochen: stagniert“: from −0.2 to +0.2 kg per week. */
+  | "stagnation"
+  /** „4 Wochen: nimmt ab“: under −0.2 kg per week. */
+  | "loss";
 
 /**
  * The pace on `day`: from the latest trend at least 28 days before it to the
@@ -37,13 +33,11 @@ export function pace(trends: Trend[], day: CalendarDay): Pace | null {
   return { kgPerWeek, band: paceBand(kgPerWeek) };
 }
 
-/** The band of a pace of `kgPerWeek`; a boundary belongs to the band nearer 0. */
+/** The band of a pace of `kgPerWeek`; a boundary belongs to „stagniert“. */
 export function paceBand(kgPerWeek: number): PaceBand {
-  if (kgPerWeek > 0.1) return "gain";
-  if (kgPerWeek >= -0.1) return "maintained";
-  if (kgPerWeek >= -0.5) return "slowLoss";
-  if (kgPerWeek >= -1.0) return "moderateLoss";
-  return "fastLoss";
+  if (kgPerWeek > 0.2) return "gain";
+  if (kgPerWeek >= -0.2) return "stagnation";
+  return "loss";
 }
 
 const PACE_DAYS = 28;

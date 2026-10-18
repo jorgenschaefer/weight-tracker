@@ -8,11 +8,11 @@ import type { CountingMeasurement } from "@/measurement/measurement";
 import type { Trend } from "@/trend/trend";
 import { trendVerdict } from "./verdict";
 
-/** A trend on `day` with `slopePerWeek`; its weight plays no part in the verdict. */
-const trend = (day: string, slopePerWeek: number): Trend => ({
+/** A trend on `day` with `slopePerWeek`, of `kg` for its 4-day pace. */
+const trend = (day: string, slopePerWeek: number, kg = 98.0): Trend => ({
   // Safe: every day these tests write is a valid `YYYY-MM-DD`.
   day: day as CalendarDay,
-  kg: 98.0,
+  kg,
   slopePerWeek,
 });
 
@@ -23,6 +23,41 @@ describe("trendVerdict", () => {
     expect(trendVerdict(history, measuredOn(history, "2026-10-17"))).toEqual({
       kind: "losing",
     });
+  });
+
+  it("is „Nimmt ab“ while the 4-day pace falls faster than 0.2 kg per week too", () => {
+    const history = [
+      trend("2026-10-13", -0.5, 98.4),
+      trend("2026-10-17", -0.5, 98.0),
+    ];
+
+    expect(trendVerdict(history, measuredOn(history, "2026-10-17"))).toEqual({
+      kind: "losing",
+    });
+  });
+
+  it("does not count a falling slope as falling where the 4-day pace does not fall", () => {
+    const history = [
+      trend("2026-10-10", -0.5),
+      trend("2026-10-14", -0.5),
+      trend("2026-10-17", -0.5),
+    ];
+
+    expect(
+      trendVerdict(history, measuredOn(history, "2026-10-17")),
+    ).toMatchObject({ kind: "noDecrease", days: 7, since: "2026-10-10" });
+  });
+
+  it("does not count a 4-day pace of exactly -0.2 kg per week as falling, though it comes out a hair below", () => {
+    const history = [
+      trend("2026-10-09", -0.5),
+      trend("2026-10-10", -0.5, 98.0),
+      trend("2026-10-17", -0.5, 97.8),
+    ];
+
+    expect(
+      trendVerdict(history, measuredOn(history, "2026-10-17")),
+    ).toMatchObject({ kind: "noDecrease", days: 7, since: "2026-10-10" });
   });
 
   it("is no decrease since N days, from the last day with a falling trend", () => {
@@ -73,8 +108,11 @@ describe("trendVerdict", () => {
     });
   });
 
-  it("does not count a trend falling at exactly 0.2 kg per week as falling", () => {
-    const history = [trend("2026-10-10", -0.21), trend("2026-10-17", -0.2)];
+  it("does not count a trend falling at exactly 0.2 kg per week as falling, though its 4-day pace falls", () => {
+    const history = [
+      trend("2026-10-10", -0.21, 98.0),
+      trend("2026-10-17", -0.2, 97.0),
+    ];
 
     expect(
       trendVerdict(history, measuredOn(history, "2026-10-17")),
@@ -87,8 +125,8 @@ describe("trendVerdict", () => {
   it("does not count 0.2 kg in 7 days as falling, though the slope comes out a hair below -0.2", () => {
     const slopeOfTwoTenthsInAWeek = ((98.6 - 98.8) / 7) * 7;
     const history = [
-      trend("2026-10-10", -0.21),
-      trend("2026-10-17", slopeOfTwoTenthsInAWeek),
+      trend("2026-10-10", -0.21, 98.0),
+      trend("2026-10-17", slopeOfTwoTenthsInAWeek, 97.0),
     ];
 
     expect(slopeOfTwoTenthsInAWeek).toBeLessThan(-0.2);
@@ -185,6 +223,98 @@ describe("trendVerdict", () => {
         level: 1,
       },
     ]);
+  });
+});
+
+describe("trendVerdict: „Nimmt zu“", () => {
+  it("is „Nimmt zu“ where the 4-day pace of the last day is over +1.0 kg per week, with the days without a decrease", () => {
+    const history = [
+      trend("2026-10-10", -0.5, 97.0),
+      trend("2026-10-11", -0.5, 97.0),
+      trend("2026-10-15", 0.1, 97.7),
+    ];
+
+    expect(trendVerdict(history, measuredOn(history, "2026-10-15"))).toEqual({
+      kind: "gaining",
+      days: 4,
+      atLeast: false,
+      since: "2026-10-11",
+      level: 1,
+    });
+  });
+
+  it("is „Nimmt zu“ before the 3 days of confirmation are up, on the first level", () => {
+    const history = [
+      trend("2026-10-10", -0.5, 97.0),
+      trend("2026-10-12", -0.5, 97.0),
+      trend("2026-10-14", 0.1, 97.7),
+    ];
+
+    expect(trendVerdict(history, measuredOn(history, "2026-10-14"))).toEqual({
+      kind: "gaining",
+      days: 2,
+      atLeast: false,
+      since: "2026-10-12",
+      level: 1,
+    });
+  });
+
+  it("is „Nimmt zu“ on the level of its days without a decrease", () => {
+    const history = [
+      trend("2026-10-10", -0.5, 97.0),
+      trend("2026-10-13", 0.1, 97.0),
+      trend("2026-10-17", 0.1, 97.7),
+    ];
+
+    expect(
+      trendVerdict(history, measuredOn(history, "2026-10-17")),
+    ).toMatchObject({ kind: "gaining", days: 7, level: 2 });
+  });
+
+  it("is „Nimmt zu“ since at least N days where no trend fell", () => {
+    const history = [
+      trend("2026-10-10", 0.5, 97.0),
+      trend("2026-10-14", 0.5, 97.7),
+    ];
+
+    expect(trendVerdict(history, measuredOn(history, "2026-10-14"))).toEqual({
+      kind: "gaining",
+      days: 4,
+      atLeast: true,
+      since: "2026-10-10",
+      level: 1,
+    });
+  });
+
+  it("compares the 4-day pace only with days after the last gap", () => {
+    const history = [
+      trend("2026-09-21", -0.5, 96.9),
+      trend("2026-09-25", -0.5, 98.0),
+      trend("2026-09-28", -0.5, 98.0),
+    ];
+    const counting = [
+      ...measuredEveryDay("2026-09-15", "2026-09-21"),
+      ...measuredEveryDay("2026-09-25", "2026-09-28"),
+    ];
+
+    expect(trendVerdict(history, counting)).toEqual({ kind: "losing" });
+  });
+
+  it("is not „Nimmt zu“ at a 4-day pace of +1.0 kg per week, though it comes out a hair above", () => {
+    const sixDaysOfAKiloAWeek = 98.0 + 6 / 7;
+    const history = [
+      trend("2026-10-09", -0.5, 98.0),
+      trend("2026-10-15", 0.1, sixDaysOfAKiloAWeek),
+    ];
+
+    expect(((sixDaysOfAKiloAWeek - 98.0) / 6) * 7).toBeGreaterThan(1.0);
+    expect(trendVerdict(history, measuredOn(history, "2026-10-15"))).toEqual({
+      kind: "noDecrease",
+      days: 6,
+      atLeast: false,
+      since: "2026-10-09",
+      level: 1,
+    });
   });
 });
 

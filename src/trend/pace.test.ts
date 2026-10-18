@@ -19,7 +19,7 @@ describe("pace", () => {
 
     expect(pace(history, "2026-10-17" as CalendarDay)).toEqual({
       kgPerWeek: -0.5,
-      band: "slowLoss",
+      band: "loss",
     });
   });
   it("measures from the latest trend at least 28 days back, over the weeks between", () => {
@@ -38,7 +38,7 @@ describe("pace", () => {
 
     expect(pace(history, "2026-10-17" as CalendarDay)).toEqual({
       kgPerWeek: -0.5,
-      band: "slowLoss",
+      band: "loss",
     });
   });
 
@@ -53,11 +53,11 @@ describe("pace", () => {
 
     expect(pace(history, "2026-10-17" as CalendarDay)).toEqual({
       kgPerWeek: -0.42,
-      band: "slowLoss",
+      band: "loss",
     });
     expect(pace(history, "2026-10-12" as CalendarDay)).toEqual({
       kgPerWeek: -0.74,
-      band: "moderateLoss",
+      band: "loss",
     });
   });
 
@@ -89,15 +89,12 @@ describe("pace", () => {
 
 describe("paceBand", () => {
   it.each([
-    [0.11, "gain"],
-    [0.1, "maintained"],
-    [0, "maintained"],
-    [-0.1, "maintained"],
-    [-0.11, "slowLoss"],
-    [-0.5, "slowLoss"],
-    [-0.51, "moderateLoss"],
-    [-1.0, "moderateLoss"],
-    [-1.01, "fastLoss"],
+    [0.21, "gain"],
+    [0.2, "stagnation"],
+    [0, "stagnation"],
+    [-0.2, "stagnation"],
+    [-0.21, "loss"],
+    [-1.4, "loss"],
   ])("puts %d kg per week in %s", (kgPerWeek, band) => {
     expect(paceBand(kgPerWeek)).toBe(band);
   });
