@@ -1,10 +1,12 @@
 ---
 effort: M
-utility: M
+utility: L
 ---
 
 # Gewicht hier eingeben statt in Google Fit
 
-Die erste Version liest die Werte nur aus der Google Health API (`changes/2026-10-17-weight-trend/`, AC-19: die Seite schreibt nie etwas in Google Health). Eingetragen wird weiterhin in der Google-App, danach wechselt man auf die Seite.
+Eingetragen wird bisher in der Google-App; die Seite liest die Werte nur aus der Google Health API (`changes/2026-10-17-weight-trend/`, AC-19: die Seite schreibt nie etwas in Google Health). Danach dauert es ca. 10 Minuten, bis der Wert in Google Health ankommt. Wer gleich nach dem Wiegen auf die Seite schaut, sieht noch den alten Stand.
 
-Gewünscht: Die App erlaubt die Gewichtseingabe und überträgt den Wert an die Google Health API, statt nur von dort zu lesen.
+Die Seite holt nur auf Klick oder von selbst, wenn sie wieder sichtbar wird, und dann frühestens 5 Minuten nach dem letzten Abruf (`REFETCH_AFTER_MS`, `src/app/useMeasurements.ts`). Bleibt sie offen und sichtbar, holt sie nicht nach. Dass ein Wert noch unterwegs sein kann, sagt sie nicht.
+
+Gewünscht: Die App erlaubt die Gewichtseingabe und überträgt den Wert an die Google Health API, statt nur von dort zu lesen. Damit fällt der Wechsel zwischen zwei Apps weg, und der neue Wert ist sofort auf der Seite.
