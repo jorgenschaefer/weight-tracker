@@ -65,7 +65,7 @@ Ein Web-App-Manifest mit Symbolen, ohne Service Worker; Chrome bietet die Instal
 
 ## Left standing
 
-- **Checked only on a real Android device after `bin/deploy-prod`, not yet done:** AC-1 to AC-4, the status bar in AC-6, AC-7 to AC-9. No automated test proves them. The review saw the manifest, its three icons and the favicon links served correctly, and the PNGs match the specimen, the maskable one with the scale inside the safe zone.
+- **Checked by hand on an Android phone after `bin/deploy-prod` on 2026-10-19, all passed:** AC-1 to AC-4, the status bar in AC-6, AC-7 to AC-9. No automated test proves them. The review saw the manifest, its three icons and the favicon links served correctly, and the PNGs match the specimen, the maskable one with the scale inside the safe zone.
 - **AC-5 favicon in the tab, bookmarks and history** was not seen in a browser's tab strip; the links in `<head>` and the files are checked by tests and in the built page.
 - **AC-10** was checked by the review in Chrome at 360 × 640 and 1440 × 900: nothing about installing, layout unchanged, still `noindex`.
 - **Three PNGs, not two:** besides the maskable 512 px icon there are a 192 and a 512 px icon with the scale on a grey circle and transparent corners, for where Android does not mask (install dialog, app switcher); all three come from the one source `src/app/app-icon.svg`.
