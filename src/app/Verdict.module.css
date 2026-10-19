@@ -40,44 +40,35 @@
   line-height: 1.4;
 }
 
-.band {
-  margin: 14px 0 0;
-  font-size: 21px;
-  font-weight: 600;
-}
-
 .figures {
-  margin: 28px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.label,
-.unit {
-  display: block;
+.label {
   font-size: 13px;
   font-weight: 500;
   opacity: 0.85;
 }
 
+/* The unit beside the value, on its line. */
 .figure {
-  margin: 0;
-}
-
-.value {
-  display: block;
-  margin-top: 2px;
+  margin: 2px 0 0;
   font-size: 28px;
   font-weight: 600;
   font-stretch: 88%;
   font-variant-numeric: tabular-nums;
 }
 
-/* The wide screen of page.module.css: the headline beside the figures. The
-   verdict's headline keeps roughly its proportions across the levels. */
+.unit {
+  font-size: 13px;
+}
+
+/* The wide screen of page.module.css: the headline beside „Langfristig“
+   and the figures. The verdict's headline keeps roughly its proportions
+   across the levels. */
 @media (min-width: 65em) {
   .headline {
     margin-top: 0;
@@ -103,13 +94,7 @@
     font-size: 48px;
   }
 
-  .band {
-    margin-top: 16px;
-    font-size: 26px;
-  }
-
   .figures {
-    margin-top: 0;
     gap: 24px;
   }
 
@@ -118,7 +103,7 @@
     font-size: 14px;
   }
 
-  .value {
+  .figure {
     font-size: 36px;
   }
 }

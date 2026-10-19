@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
+import {
+  berlinDay,
+  type CalendarDay,
+  calendarDayBefore,
+} from "@/measurement/calendar-day";
 import {
   type CountingMeasurement,
   countingMeasurements,
@@ -83,6 +87,22 @@ describe("assess: the figures", () => {
     expect(assessment.measuredKg).toBe(98.6);
     expect(assessment.trendKg).toBeCloseTo(97.75);
     expect(assessment.pace).toEqual({ kgPerWeek: -0.42, band: "loss" });
+  });
+
+  it("sorts the 4-week pace by the threshold of the scatter of the last day", () => {
+    // On a straight line the scatter is 0: so is the threshold, and a loss of
+    // 0.15 kg per week is a loss.
+    const slowLoss = countingFrom(
+      Array.from({ length: 40 }, (_, i): [string, number] => [
+        calendarDayBefore("2026-10-17" as CalendarDay, 39 - i),
+        100 - (0.15 / 7) * i,
+      ]),
+    );
+
+    expect(assess(slowLoss, "2026-10-17" as CalendarDay).pace).toEqual({
+      kgPerWeek: -0.15,
+      band: "loss",
+    });
   });
 
   it("carries the 6-week series up to today", () => {
@@ -276,28 +296,38 @@ describe("assess: no verdict yet", () => {
     expect(assessment.sixWeekSeries.measurements).toHaveLength(4);
   });
 
-  it("after a gap with no trend before it, without the trend after it either", () => {
-    const fewBefore = countingFrom([
-      ["2026-09-21", 99.0],
-      ["2026-09-22", 99.2],
-      ["2026-09-26", 99.4],
-      ["2026-09-27", 99.6],
-      ["2026-09-28", 99.8],
-      ["2026-09-29", 103.0],
+  it("after a gap with no trend before it, with the trend, the pace, the trend line and the outliers of the last day", () => {
+    // A trend from 5.9. on; 21.9. alone, without one; after it, 4.10. the
+    // first day with a trend again, the 4th measurement after the gap, and 2 kg
+    // over it an outlier.
+    const noTrendBeforeTheGap = countingFrom([
+      ["2026-09-01", 99.0],
+      ["2026-09-02", 99.0],
+      ["2026-09-03", 99.0],
+      ["2026-09-04", 99.0],
+      ["2026-09-05", 99.0],
+      ["2026-09-06", 99.0],
+      ["2026-09-07", 99.0],
+      ["2026-09-21", 98.0],
+      ["2026-10-01", 97.0],
+      ["2026-10-02", 97.0],
+      ["2026-10-03", 97.0],
+      ["2026-10-04", 99.0],
     ]);
 
-    const assessment = assess(fewBefore, "2026-09-29" as CalendarDay);
+    const assessment = assess(noTrendBeforeTheGap, "2026-10-04" as CalendarDay);
 
     expect(assessment).toMatchObject({
       status: { kind: "noVerdictYet" },
-      measuredKg: 103.0,
-      trendKg: null,
-      pace: null,
+      measuredKg: 99.0,
+      trendKg: 97.0,
+      pace: { kgPerWeek: -0.5, band: "loss" },
     });
-    expect(assessment.sixWeekSeries.trendLine).toEqual([]);
-    expect(
-      assessment.sixWeekSeries.measurements.map(({ outlier }) => outlier),
-    ).toEqual([false, false, false, false, false, false]);
+    expect(assessment.sixWeekSeries).toEqual(
+      sixWeekSeries(noTrendBeforeTheGap, "2026-10-04" as CalendarDay),
+    );
+    expect(assessment.sixWeekSeries.trendLine).not.toEqual([]);
+    expect(assessment.sixWeekSeries.measurements.at(-1)?.outlier).toBe(true);
   });
 
   it("wins over „Nimmt zu“ after a gap with no trend before it", () => {

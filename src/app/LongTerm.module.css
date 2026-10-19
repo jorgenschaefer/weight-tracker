@@ -1,0 +1,43 @@
+/* „Langfristig · 4 Wochen“ above the figures, in the surface's text colour. */
+.longTerm {
+  margin-bottom: 20px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 13px;
+  line-height: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* On a phone the pace fits one line and the bracket the next, whatever the
+   numbers; at the specimen's 26px „Woche“ and a 4-digit bracket take a
+   third. */
+.pace {
+  margin: 4px 0 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* Breaks before the bracket, never inside it. */
+.calories {
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.character {
+  margin: 2px 0 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* The wide screen of page.module.css. */
+@media (min-width: 65em) {
+  .pace {
+    font-size: 26px;
+  }
+}

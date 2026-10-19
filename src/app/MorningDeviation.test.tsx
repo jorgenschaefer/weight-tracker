@@ -82,7 +82,7 @@ describe("the card of the morning", () => {
     },
   );
 
-  it("stands under the headline, before the pace band", async () => {
+  it("stands under the headline, before „Langfristig“", async () => {
     openHistoryOn("2026-10-12");
 
     const shown = await screen.findByText("Heute · 2,6 kg über dem Trend");
@@ -91,8 +91,9 @@ describe("the card of the morning", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      shown.compareDocumentPosition(screen.getByText(/^4 Wochen: /)) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      shown.compareDocumentPosition(
+        screen.getByText("Langfristig · 4 Wochen"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

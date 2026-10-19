@@ -348,7 +348,7 @@ describe("the button to enter a weight", () => {
 });
 
 describe("the layout", () => {
-  it("puts the verdict, the pace band and the figures before the graph", async () => {
+  it("puts the verdict, „Langfristig“ and the figures before the graph", async () => {
     storeLoss();
     renderPage();
 
@@ -357,7 +357,7 @@ describe("the layout", () => {
     });
     const inOrder = [
       verdict(),
-      screen.getByText("4 Wochen: nimmt ab"),
+      screen.getByText("Langfristig · 4 Wochen"),
       screen.getByText("Trend", { selector: "dt" }),
       graph,
     ];

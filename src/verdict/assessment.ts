@@ -15,10 +15,10 @@ import { type TrendVerdict, trendVerdict } from "./verdict";
 /**
  * Everything the page shows about the weight: exactly one status, and beside
  * it the figures of the last day with a measurement and the 6-week series.
- * Each status carries the figures it can have: under „Noch kein Urteil“
- * there is no trend - no trend, no pace and no trend line - and without any
- * measurement no „Gemessen“ either. Only the verdict of the trend carries the
- * deviation of the morning, where the last day with a measurement has one.
+ * Each status carries the figures that day has; without any measurement there
+ * are none, and no „Gemessen“ either. Only the verdict of the trend carries
+ * the deviation of the morning, where the last day with a measurement has
+ * one.
  */
 export type Assessment =
   | (Figures & {
@@ -27,12 +27,15 @@ export type Assessment =
       morningDeviation: MorningDeviation | null;
     })
   | (Figures & {
-      status: GapComparison | { kind: "lastMeasurementTooOld"; days: number };
+      status:
+        | GapComparison
+        | { kind: "lastMeasurementTooOld"; days: number }
+        | { kind: "noVerdictYet" };
       morningDeviation: null;
     })
   | {
       status: { kind: "noVerdictYet" };
-      measuredKg: number | null;
+      measuredKg: null;
       trendKg: null;
       pace: null;
       sixWeekSeries: SixWeekSeries;
@@ -91,55 +94,41 @@ function assessLastDay(
   const everyTrend = trends(counting);
   const series = sixWeekSeries(counting, today);
   const last = counting.at(-1);
-  if (last === undefined) return noVerdictYet(null, series);
+  if (last === undefined) {
+    return {
+      status: { kind: "noVerdictYet" },
+      measuredKg: null,
+      trendKg: null,
+      pace: null,
+      sixWeekSeries: series,
+      morningDeviation: null,
+    };
+  }
 
   const trendOfLast = everyTrend.find((trend) => trend.day === last.day);
+  const scatterOfLast = scatter(counting, everyTrend, last.day);
   const figures = {
     measuredKg: last.kg,
-    pace: pace(everyTrend, last.day),
+    trendKg: trendOfLast?.kg ?? null,
+    pace: pace(everyTrend, last.day, scatterOfLast),
     sixWeekSeries: series,
+    morningDeviation: null,
   };
+  const noVerdictYet = {
+    status: { kind: "noVerdictYet" },
+    ...figures,
+  } as const;
   const gap = gapUnderComparison(counting);
   if (gap !== null) {
     const comparison = compareAfterGap(counting, everyTrend, gap);
-    if (comparison === null) return noVerdictYet(last.kg, series);
-    return {
-      status: comparison,
-      trendKg: trendOfLast?.kg ?? null,
-      morningDeviation: null,
-      ...figures,
-    };
+    if (comparison === null) return noVerdictYet;
+    return { status: comparison, ...figures };
   }
-  if (trendOfLast === undefined) return noVerdictYet(last.kg, series);
+  if (trendOfLast === undefined) return noVerdictYet;
   return {
+    ...figures,
     status: trendVerdict(everyTrend, counting),
     trendKg: trendOfLast.kg,
-    morningDeviation: morningDeviation(
-      last,
-      trendOfLast,
-      scatter(counting, everyTrend, last.day),
-    ),
-    ...figures,
-  };
-}
-
-/** „Noch kein Urteil“: only „Gemessen“, and the graph only the points, none marked an outlier. */
-function noVerdictYet(
-  measuredKg: number | null,
-  series: SixWeekSeries,
-): Assessment {
-  return {
-    status: { kind: "noVerdictYet" },
-    measuredKg,
-    trendKg: null,
-    pace: null,
-    sixWeekSeries: {
-      measurements: series.measurements.map(({ measurement }) => ({
-        measurement,
-        outlier: false,
-      })),
-      trendLine: [],
-    },
-    morningDeviation: null,
+    morningDeviation: morningDeviation(last, trendOfLast, scatterOfLast),
   };
 }

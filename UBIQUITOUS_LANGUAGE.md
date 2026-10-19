@@ -12,12 +12,12 @@ Code in English, page in German.
 | Lücke | `gap` | Two consecutive days with a measurement more than 3 days apart (1st → 5th is a gap). Its length in days is that difference: 22.9. → 1.10. is a gap of 9 days. |
 | Steigung | `slopePerWeek` | How fast the trend changes over its 14 days, in kg per week. The trend falls where it is below -0.2 and the 4-day pace is too, or the day has none. |
 | 4-Tage-Tempo | `fourDayPace` | The trend of a day against the trend of the last day 4 to 7 days before it, in kg per week; compared only with days from the first after the last gap on. Not on the page; it decides with the slope whether the trend falls, and "Nimmt zu". |
-| Tempo | `pace` | Change of the trend in kg per week over 4 weeks ("Tempo 4 Wochen"), sorted into three bands: "nimmt ab", "stagniert", "nimmt zu". |
+| Tempo | `pace` | Change of the trend in kg per week over 4 weeks, also across gaps, rounded to hundredths: the 28-day pace, in the block „Langfristig · 4 Wochen“ (`LongTerm`) with its band and the calories a day it stands for, `kcalPerDay`: its amount × 7700 / 7, rounded down to tens, „Defizit“ under 0, „Überschuss“ over 0, none at 0,00. |
 | Letzte Messung | `latestMeasurement` | The newest measurement, counting or not. |
 | Gemessen | `measuredKg` | The counting measurement of the last day with a measurement. |
 | Zählende Messung | `countingMeasurement` | The first measurement of a calendar day (Europe/Berlin); the only one trend, pace and verdict use. |
 | Stufe | `level` | How alarming a "kein Abnehmen" verdict is: 3–6, 7–13, or 14 and more days. It colours "Nimmt zu" by its days without a decrease too, under 3 days on the first. |
-| Tempo-Stufe | `paceBand` | One of the three bands of the pace, the Ampel under the verdict: "4 Wochen: nimmt ab" `loss` (under -0.2), "4 Wochen: stagniert" `stagnation` (-0.2 to +0.2), "4 Wochen: nimmt zu" `gain` (over +0.2). |
+| Tempo-Stufe | `paceBand` | One of the three bands of the pace by the threshold of the 28-day pace, 1.25 × 0.20 × the Streuung of its day kg per week: „Nimmt ab“ `loss` (under minus it), „Stagniert“ `stagnation` (from minus it to it), „Nimmt zu“ `gain` (over it). |
 | Streuung | `scatter` | How far the counting measurements lie from their day's trend: on a day, the root mean square of "counting measurement minus the trend of its day" over the days with a trend in the 28 days before it, 0.7 kg with fewer than 10 of them. Each threshold is 1.25 times what noise alone makes of its value at this Streuung; a value exactly on it is no deviation. |
 | Ausreißer | `outlier` | A counting measurement more than 1.25 × the Streuung of its day away from the trend of its day, above or below. |
 | Abweichung am Morgen | `morningDeviation` | The counting measurement of the last day with a measurement where it is an Ausreißer: the card „Heute · X kg über/unter dem Trend“ under the verdict of the trend. |

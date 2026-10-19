@@ -6,6 +6,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Measurement } from "@/measurement/measurement";
 import {
+  at,
   evening,
   leavePage,
   NOW,
@@ -131,7 +132,9 @@ describe("the verdict with the user's weight and 18.10.", () => {
     openFixtureOn("2026-10-18");
 
     await headline();
-    expect(screen.getByText("4 Wochen: nimmt ab")).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Nimmt ab, −0,\d\d kg pro Woche/),
+    ).toBeInTheDocument();
   });
 
   it("counts on 8.8. up to the last measurement on 7.8.", async () => {
@@ -248,39 +251,20 @@ function figure(label: string): string | null {
   return term?.nextElementSibling?.textContent ?? null;
 }
 
-describe("the pace band", () => {
-  it.each([
-    [0.3, "4 Wochen: nimmt zu"],
-    [0, "4 Wochen: stagniert"],
-    [-0.3, "4 Wochen: nimmt ab"],
-  ])(
-    "at %d kg per week is „%s“, under the verdict",
-    async (kgPerWeek, band) => {
-      openOn("2026-10-17", steady("2026-10-17", 35, kgPerWeek));
-
-      const verdict = await headline();
-      const shown = screen.getByText(band);
-      expect(verdict.compareDocumentPosition(shown)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    },
-  );
-});
-
 describe("the figures", () => {
-  it("are the trend, „Gemessen“ and the 4-week pace, in German", async () => {
+  it("are the trend and „Gemessen“, in German", async () => {
     openFixtureOn("2026-10-17");
 
     await headline();
     expect(figure("Trend")).toBe("97,8 kg");
     expect(figure("Gemessen")).toBe("98,6 kg");
-    expect(figure("Tempo 4 Wochen")).toBe("−0,42 kg pro Woche");
   });
 
-  it("hold no other pace", async () => {
+  it("hold no pace, which „Langfristig“ says alone", async () => {
     openFixtureOn("2026-10-17");
 
     await headline();
+    expect(figure("Tempo 4 Wochen")).toBeNull();
     expect(screen.getAllByText(/kg pro Woche/)).toHaveLength(1);
     expect(screen.getAllByText(/−0,42/)).toHaveLength(1);
   });
@@ -296,13 +280,15 @@ describe("the figures", () => {
     expect(await headline()).toHaveTextContent("Nimmt ab");
     expect(figure("Trend")).toBe("95,0 kg");
     expect(figure("Gemessen")).toBe("95,0 kg");
-    expect(figure("Tempo 4 Wochen")).toBe("−0,70 kg pro Woche");
+    expect(
+      screen.getByText(/^Nimmt ab, −0,70 kg pro Woche/),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/^Letzte Messung 17\.10\. um 12:00 Uhr: 98,0 kg$/),
     ).toBeInTheDocument();
   });
 
-  it("are only „Gemessen“ under „Noch kein Urteil“, and the graph only the points", async () => {
+  it("are only „Gemessen“ under „Noch kein Urteil“ without a trend, and the graph only the points", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     await headline();
@@ -316,6 +302,23 @@ describe("the figures", () => {
     });
     expect(graph.querySelectorAll("circle")).toHaveLength(4);
     expect(graph.querySelectorAll("polyline")).toHaveLength(0);
+  });
+
+  it("are the trend and „Gemessen“ under „Noch kein Urteil“ with a trend, and the graph draws the trend line", async () => {
+    // No trend on 21.9. before the gap; 4.10. after it has one.
+    openOn("2026-10-04", [
+      ...steady("2026-09-07", 7, 0, 99),
+      at("2026-09-21T07:00:00+02:00", 98),
+      ...steady("2026-10-04", 4, 0, 97),
+    ]);
+
+    expect(await headline()).toHaveTextContent("Noch kein Urteil");
+    expect(figure("Trend")).toBe("97,0 kg");
+    expect(figure("Gemessen")).toBe("97,0 kg");
+    const graph = await screen.findByRole("img", {
+      name: "Messungen und Trend der letzten sechs Wochen",
+    });
+    expect(graph.querySelectorAll("polyline").length).toBeGreaterThan(0);
   });
 });
 

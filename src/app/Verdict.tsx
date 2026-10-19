@@ -1,21 +1,15 @@
 import type { CalendarDay } from "@/measurement/calendar-day";
-import type { PaceBand } from "@/trend/pace";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
 import { CONFIRMATION_DAYS, type DaysWithoutDecrease } from "@/verdict/verdict";
-import {
-  formatCalendarDay,
-  formatKg,
-  formatKgChange,
-  formatPace,
-} from "./format";
+import { formatCalendarDay, formatKg, formatKgChange } from "./format";
 import { MorningDeviationCard } from "./MorningDeviation";
 import classes from "./Verdict.module.css";
 
 /**
  * The verdict, or why there is none, from `assessment` on `today`: the
- * headline, the sentence under it where it has one, the card of the
- * morning's deviation where there is one, and the pace band. The headline
- * grows wider and heavier with the level of a no-decrease verdict.
+ * headline, the sentence under it where it has one, and the card of the
+ * morning's deviation where there is one. The headline grows wider and
+ * heavier with the level of a no-decrease verdict.
  */
 export function Verdict({
   assessment,
@@ -24,7 +18,7 @@ export function Verdict({
   assessment: Assessment;
   today: CalendarDay;
 }) {
-  const { status, pace, morningDeviation } = assessment;
+  const { status, morningDeviation } = assessment;
   const sentence = explanation(status);
   return (
     <>
@@ -39,30 +33,17 @@ export function Verdict({
           colours={surfaceColours(status)}
         />
       )}
-      {pace !== null && <p className={classes.band}>{BAND_NAMES[pace.band]}</p>}
     </>
   );
 }
 
-/** Trend, „Gemessen“ and the 4-week pace of `assessment`, each where it has one. */
+/** Trend and „Gemessen“ of `assessment`, each where it has one. */
 export function Figures({ assessment }: { assessment: Assessment }) {
-  const { trendKg, measuredKg, pace } = assessment;
-  if (trendKg === null && measuredKg === null && pace === null) return null;
+  const { trendKg, measuredKg } = assessment;
   return (
     <dl className={classes.figures}>
-      {trendKg !== null && (
-        <Figure label="Trend" value={formatKg(trendKg)} unit="kg" />
-      )}
-      {measuredKg !== null && (
-        <Figure label="Gemessen" value={formatKg(measuredKg)} unit="kg" />
-      )}
-      {pace !== null && (
-        <Figure
-          label="Tempo 4 Wochen"
-          value={formatPace(pace.kgPerWeek)}
-          unit="kg pro Woche"
-        />
-      )}
+      {trendKg !== null && <Figure label="Trend" kg={trendKg} />}
+      {measuredKg !== null && <Figure label="Gemessen" kg={measuredKg} />}
     </dl>
   );
 }
@@ -167,27 +148,12 @@ function noDecreaseFor(status: DaysWithoutDecrease): string {
     : `Seit ${status.days} Tagen kein Abnehmen`;
 }
 
-const BAND_NAMES: Record<PaceBand, string> = {
-  loss: "4 Wochen: nimmt ab",
-  stagnation: "4 Wochen: stagniert",
-  gain: "4 Wochen: nimmt zu",
-};
-
-function Figure({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-}) {
+function Figure({ label, kg }: { label: string; kg: number }) {
   return (
     <div>
       <dt className={classes.label}>{label}</dt>
       <dd className={classes.figure}>
-        <span className={classes.value}>{value}</span>{" "}
-        <span className={classes.unit}>{unit}</span>
+        {formatKg(kg)} <span className={classes.unit}>kg</span>
       </dd>
     </div>
   );

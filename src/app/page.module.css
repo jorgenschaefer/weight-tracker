@@ -55,6 +55,14 @@
   opacity: 0.45;
 }
 
+/* „Langfristig“ and the figures, under the verdict and beside it on the
+   wide screen. */
+.overview {
+  margin-top: 28px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+}
+
 .busy {
   margin-top: 12px;
   font-size: 15px;
@@ -104,8 +112,8 @@
   opacity: 0.8;
 }
 
-/* The wide screen: the verdict on the left, the figures beside it, the
-   graph under both. Verdict.module.css switches at the same width. */
+/* The wide screen: the verdict on the left, „Langfristig“ and the figures
+   beside it, the graph under both. Verdict.module.css switches at the same width. */
 @media (min-width: 65em) {
   .surface {
     padding-top: 40px;
@@ -121,6 +129,10 @@
     grid-template-columns: minmax(0, 1fr) 420px;
     gap: 48px;
     align-items: end;
+  }
+
+  .overview {
+    margin-top: 0;
   }
 
   .graph {

@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-8
 advances:  AC-2, AC-9, AC-10, AC-12
 after:     01-streuung-und-ausreisser
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -68,3 +68,8 @@ Look and words: `specimens/Main.dc.html` beside `CRITERIA.md` (its source shows 
 - Out of scope: Der Rest von `changes/backlog/hauptseite-abwaegen.md`: ob jede übrige Angabe der Hauptseite ihren Platz verdient. Only the paragraph on the calorie deficit goes.
 
 ## Left standing
+- **Review finding not fixed (should-fix, first round):** on 360 × 640 the figures still fall below the screen in the tallest states of the headline as it is now. The reviewer measured these with made-up data, for example „Seit mindestens 46 Tagen kein Abnehmen“ on four lines at level 3, plus the card and „Daten abrufen“; the figures ended at 685 px before the fix below. The block's own share was fixed: on a phone the pace line is now always two lines, even with a 4-digit kcal value. What is left comes from the level-3 headline. The Context of this ticket keeps that headline as it is, and ticket 03 replaces it with the Frühwarnung, so the remainder is ticket 03's. On every date of the test data, at 360 × 640 with „Daten abrufen“, everything fits: the tallest is 23.8., where the figures end at 628 of 640 px.
+- **Review finding not fixed (should-fix, second round):** `changes/backlog/code-wie-beschreibung.md` (its appendix: the Ampel at ±0,2, the figure „Tempo 4 Wochen“, „Noch kein Urteil“ without trend line, plan step 2 on the deleted `noVerdictYet` helper) and the first paragraph of `changes/backlog/hauptseite-abwaegen.md` still describe the page before this change. Left because both are other backlog items and the ticket puts the rest of `hauptseite-abwaegen.md` out of scope; whoever picks up either item needs to check it against the page first.
+- **Not proved by an automated test:** the layout of AC-12. That covers fitting 360 × 640 with nothing scrolling sideways, and „Langfristig“ with the figures in the right column on a wide screen. It also covers the look against `specimens/Main.dc.html`. I checked it in headless Chrome against `next start` on every date from 1.7. to 21.10. of the test data at 360 × 640, and on 17.10. and 23.8. at 1280 × 800. The two reviewers drove the page too, including a made-up steady gain with a 4-digit kcal value. The order verdict, „Langfristig“, figures is proved by `LongTerm.test.tsx` and `page.test.tsx`. „Vorläufig, wird aktualisiert …“ was not driven, because it needs a running fetch. It is shorter than „Daten abrufen“, and the two never stand together.
+- **Departure from the specimen:** the pace line is 22 px on a phone, not the specimen's 26 px; from the wide-screen breakpoint it is 26 px. At 360 px and 26 px, „Woche“ and a 4-digit bracket wrap onto a third line, and the tall states above overflow further. The figures now set the unit „kg“ beside the value, as the specimen does, in place of on a line of its own, and they show two columns.
+- **Costly to reverse:** `pace(trends, day, scatterKg)` and `paceBand(kgPerWeek, scatterKg)` now take the Streuung, and `kcalPerDay(kgPerWeek)` sits beside them in `src/trend/pace.ts`. The block is `LongTerm` in `src/app/LongTerm.tsx`, and the glossary names it under „Tempo“. „Noch kein Urteil“ with a measurement now shares the `Figures` branch of `Assessment` with the comparison after a gap and „Letzte Messung vor N Tagen“: it has trend, pace and series wherever the last day has them. Only the branch without any measurement has `measuredKg: null`.
