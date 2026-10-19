@@ -94,7 +94,7 @@
    height. */
 @media (max-height: 45em) {
   .overview {
-    margin-top: 16px;
+    margin-top: 12px;
   }
 
   .verdict .fetch {

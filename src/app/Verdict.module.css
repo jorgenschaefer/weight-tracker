@@ -21,13 +21,14 @@
   margin-top: 4px;
 }
 
-/* A screen as short as 360 × 640: with „Daten abrufen“, an error line and a
-   card of three lines, the specimen's 28px above the kicker push the
-   figures below the screen. page.module.css narrows its gaps at the same
-   height. */
+/* A screen as short as 360 × 640: with „Daten abrufen“, an error line of
+   two lines, a sentence of two and a card of three, the specimen's 28px
+   above the kicker push the figures below the screen.
+   MorningDeviation.module.css and page.module.css narrow their gaps at the
+   same height. */
 @media (max-height: 45em) {
   .kicker {
-    margin-top: 16px;
+    margin-top: 12px;
   }
 }
 

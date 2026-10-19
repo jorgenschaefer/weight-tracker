@@ -6,6 +6,14 @@
   border-radius: 10px;
 }
 
+/* A screen as short as 360 × 640, as in Verdict.module.css. */
+@media (max-height: 45em) {
+  .card {
+    margin-top: 12px;
+    padding-block: 10px;
+  }
+}
+
 .distance {
   margin: 0;
   font-size: 13px;
