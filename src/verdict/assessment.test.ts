@@ -7,7 +7,15 @@ import {
 } from "@/measurement/measurement";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
+import { trends } from "@/trend/trend";
 import { assess } from "./assessment";
+import { trendVerdict } from "./verdict";
+
+/** Counting measurements of [day, kg] pairs, each at 05:00 UTC. */
+const countingFrom = (days: [string, number][]) =>
+  countingMeasurements(
+    days.map(([day, kg]) => ({ time: new Date(`${day}T05:00:00Z`), kg })),
+  );
 
 /** The counting measurements of the fixture up to `day`, as the page has them on that day. */
 const historyUntil = (day: string, extra: Measurement[] = []) =>
@@ -209,6 +217,25 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
     );
   });
 
+  it("wins over „Nimmt zu“", () => {
+    const risingAcrossGap = countingFrom([
+      ...Array.from({ length: 20 }, (_, i): [string, number] => [
+        `2026-09-${String(i + 1).padStart(2, "0")}`,
+        95.0 + i * 0.3,
+      ]),
+      ["2026-09-25", 102.0],
+      ["2026-09-27", 103.0],
+      ["2026-09-29", 104.0],
+    ]);
+    expect(trendVerdict(trends(risingAcrossGap), risingAcrossGap).kind).toEqual(
+      "gaining",
+    );
+
+    expect(
+      assess(risingAcrossGap, "2026-09-29" as CalendarDay).status,
+    ).toMatchObject({ kind: "gapComparison", gapDays: 5 });
+  });
+
   it("gives the verdict again from the 5th on, 5.10.", () => {
     expect(assessOn("2026-10-05").status).toEqual({ kind: "losing" });
   });
@@ -250,19 +277,14 @@ describe("assess: no verdict yet", () => {
   });
 
   it("after a gap with no trend before it, without the trend after it either", () => {
-    const fewBefore = countingMeasurements(
-      [
-        ["2026-09-21", 99.0],
-        ["2026-09-22", 99.2],
-        ["2026-09-26", 99.4],
-        ["2026-09-27", 99.6],
-        ["2026-09-28", 99.8],
-        ["2026-09-29", 103.0],
-      ].map(([day, kg]) => ({
-        time: new Date(`${day}T05:00:00Z`),
-        kg: Number(kg),
-      })),
-    );
+    const fewBefore = countingFrom([
+      ["2026-09-21", 99.0],
+      ["2026-09-22", 99.2],
+      ["2026-09-26", 99.4],
+      ["2026-09-27", 99.6],
+      ["2026-09-28", 99.8],
+      ["2026-09-29", 103.0],
+    ]);
 
     const assessment = assess(fewBefore, "2026-09-29" as CalendarDay);
 
@@ -276,6 +298,25 @@ describe("assess: no verdict yet", () => {
     expect(
       assessment.sixWeekSeries.measurements.map(({ outlier }) => outlier),
     ).toEqual([false, false, false, false, false, false]);
+  });
+
+  it("wins over „Nimmt zu“ after a gap with no trend before it", () => {
+    const fewBeforeThenRising = countingFrom([
+      ["2026-09-18", 99.0],
+      ["2026-09-19", 99.1],
+      ["2026-09-20", 99.2],
+      ["2026-09-21", 99.3],
+      ["2026-09-25", 100.0],
+      ["2026-09-27", 101.0],
+      ["2026-09-29", 102.0],
+    ]);
+    expect(
+      trendVerdict(trends(fewBeforeThenRising), fewBeforeThenRising).kind,
+    ).toEqual("gaining");
+
+    expect(
+      assess(fewBeforeThenRising, "2026-09-29" as CalendarDay).status,
+    ).toEqual({ kind: "noVerdictYet" });
   });
 
   it("without any measurement, nor „Gemessen“ then", () => {
