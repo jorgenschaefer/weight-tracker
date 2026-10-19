@@ -39,13 +39,17 @@ describe("the button to enter a weight", () => {
     expect(enterButton()).toBeInTheDocument();
   });
 
-  it("stays 20 px from the bottom right corner of the window while the page scrolls", () => {
+  it("stays 20 px above the bottom of the window and level with the content's right edge while the page scrolls", () => {
     renderSheet();
 
     expect(enterButton()).toHaveClass(classes.enter);
     const rule = cssRule("enter");
     expect(rule).toMatch(/position:\s*fixed/);
-    expect(rule).toMatch(/right:\s*20px/);
+    // page.module.css: the content is at most 960 px wide, in the middle,
+    // and at least 20 px from the window's edge.
+    expect(rule).toMatch(
+      /right:\s*max\(20px,\s*calc\(\(100% - 960px\) \/ 2\)\)/,
+    );
     expect(rule).toMatch(/bottom:\s*20px/);
   });
 
@@ -335,11 +339,9 @@ describe("the sheet on a wide screen", () => {
     expect(cssRule("part")).toMatch(/margin-inline:\s*auto/);
   });
 
-  it("sets nothing wider than a 360 px screen, but the limit", () => {
+  it("sets nothing wider than a 360 px screen, but the content's width", () => {
     const lengths = [
-      ...stylesheet
-        .replace(/max-width:\s*960px/, "")
-        .matchAll(/(\d+(?:\.\d+)?)px/g),
+      ...stylesheet.replaceAll("960px", "").matchAll(/(\d+(?:\.\d+)?)px/g),
     ].map((match) => Number(match[1]));
 
     expect(lengths.filter((px) => px > 360)).toEqual([]);

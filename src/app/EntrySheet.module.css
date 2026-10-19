@@ -1,9 +1,10 @@
-/* The button to enter a weight: in the bottom right corner of the window,
-   over the page as it scrolls. page.module.css leaves room below the page
-   for it. */
+/* The button to enter a weight: at the bottom of the window, level with the
+   right edge of page.module.css's content (at most 960 px wide, in the
+   middle, 20 px from the window's edge), over the page as it scrolls.
+   page.module.css leaves room below the page for it. */
 .enter {
   position: fixed;
-  right: 20px;
+  right: max(20px, calc((100% - 960px) / 2));
   bottom: 20px;
   z-index: 100;
   box-shadow: 0 3px 10px rgb(32 38 44 / 30%);
