@@ -120,8 +120,8 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 
 /**
  * The page from the measurements `shown`, the cached ones and those entered
- * in this visit: the verdict on `today` with its figures, and the graph
- * under them.
+ * that Google Health has not returned yet: the verdict on `today` with its
+ * figures, and the graph under them.
  */
 function CachedMeasurements({
   shown,

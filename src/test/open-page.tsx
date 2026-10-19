@@ -1,5 +1,5 @@
 import { MantineProvider } from "@mantine/core";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 import Page from "@/app/page";
@@ -136,6 +136,16 @@ export function renderPage(width = 320) {
     </MantineProvider>,
   );
   return userEvent.setup();
+}
+
+export const comeIntoView = () => changeVisibility("visible");
+
+/** The page goes into or out of view, as on switching tabs or apps. */
+export async function changeVisibility(state: DocumentVisibilityState) {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
 }
 
 /** Opens the page and clicks `button`; returns the user to click on with. */

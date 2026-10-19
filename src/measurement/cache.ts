@@ -68,10 +68,7 @@ export function replaceFetchedPeriod(
 export function serializeCache(cache: MeasurementCache): string {
   return JSON.stringify({
     fetchedAt: cache.fetchedAt.toISOString(),
-    measurements: cache.measurements.map(({ time, kg }) => ({
-      time: time.toISOString(),
-      kg,
-    })),
+    measurements: cache.measurements.map(toStoredMeasurement),
   });
 }
 
@@ -86,7 +83,7 @@ export function parseCache(stored: string | null): MeasurementCache | null {
   if (!isRecord(entry) || !Array.isArray(entry.measurements)) return null;
 
   const fetchedAt = parseTime(entry.fetchedAt);
-  const measurements = entry.measurements.map(parseMeasurement);
+  const measurements = entry.measurements.map(parseStoredMeasurement);
   if (fetchedAt === null || !measurements.every((m) => m !== null)) {
     return null;
   }
@@ -104,7 +101,22 @@ function daysBefore(instant: Date, days: number): Date {
   return new Date(instant.getTime() - days * MS_PER_DAY);
 }
 
-function parseMeasurement(stored: unknown): Measurement | null {
+/**
+ * The stored form of one measurement, its time as `toISOString` writes it,
+ * as the cache and the entered measurements keep it.
+ */
+export function toStoredMeasurement({ time, kg }: Measurement): {
+  time: string;
+  kg: number;
+} {
+  return { time: time.toISOString(), kg };
+}
+
+/**
+ * The measurement stored as `stored` by {@link toStoredMeasurement}, or
+ * `null` where it is not one.
+ */
+export function parseStoredMeasurement(stored: unknown): Measurement | null {
   if (!isRecord(stored) || typeof stored.kg !== "number") return null;
   const time = parseTime(stored.time);
   return time === null ? null : { time, kg: stored.kg };

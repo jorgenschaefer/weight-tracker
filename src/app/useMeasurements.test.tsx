@@ -1,5 +1,5 @@
 // The hook is tested where the person uses it: on the page.
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
 import {
@@ -12,6 +12,8 @@ import {
 import type { Measurement } from "@/measurement/measurement";
 import {
   at,
+  changeVisibility,
+  comeIntoView,
   daysAgo,
   ENTERED_SHOWN,
   enterWeight,
@@ -191,16 +193,6 @@ describe("coming back into view", () => {
   });
 });
 
-const comeIntoView = () => changeVisibility("visible");
-
-/** The page goes into or out of view, as on switching tabs or apps. */
-async function changeVisibility(state: DocumentVisibilityState) {
-  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
-  await act(async () => {
-    document.dispatchEvent(new Event("visibilitychange"));
-  });
-}
-
 describe("a failed fetch", () => {
   it("signs in anew on the next click where Google rejected the token", async () => {
     google.measurements = [MORNING];
@@ -266,19 +258,6 @@ describe("„Abmelden“", () => {
     await waitFor(() => expect(google.grants).not.toContain("token-2"));
   });
 
-  it("discards the weights entered in this visit", async () => {
-    vi.mocked(fetchMeasurements).mockResolvedValue({ ok: true, value: [] });
-    const user = renderPage();
-    await enterWeight(user);
-    await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
-
-    await user.click(await logoutButton());
-
-    await isShown(FIRST_VISIT);
-    isNotShown(/Letzte Messung/);
-    await waitFor(() => expect(google.grants).toEqual([]));
-  });
-
   it("drops what a fetch still running brings back", async () => {
     storeMorning();
     const answer = holdFetch();
@@ -304,10 +283,6 @@ const readOnlySignIn = () =>
 
 describe("entering a weight", () => {
   const ENTERED = at(NOW, 98.6);
-  /** Google takes the weight, but leaves it out of fetches for now. */
-  const googleLags = () =>
-    vi.mocked(enterMeasurement).mockResolvedValue({ ok: true, value: null });
-
   it("signs in, writes the weight at this moment into Google Health, shows it at once and then fetches with the same sign-in", async () => {
     const answer = holdFetch();
     const user = renderPage();
@@ -336,21 +311,6 @@ describe("entering a weight", () => {
     expect(screen.getByText("Gemessen").nextElementSibling).toHaveTextContent(
       "98,0 kg",
     );
-  });
-
-  it("keeps the weight on the page after a fetch that does not hold it yet, and shows it once when one does", async () => {
-    googleLags();
-    const user = renderPage();
-    await enterWeight(user);
-    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(1));
-    await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
-
-    google.measurements = [at(new Date(NOW.getTime() + 30_000), 98.64)];
-    vi.setSystemTime(NOW.getTime() + 10 * 60_000);
-    await comeIntoView();
-
-    await isShown(ENTERED_SHOWN);
-    isNotShown(/noch nicht/);
   });
 
   it.each<[string, GoogleHealthResult<Measurement[]>]>([
@@ -447,18 +407,6 @@ describe("entering a weight", () => {
       expect(google.tokensIssued).toBe(signIns);
     },
   );
-
-  it("keeps the weight on the page where only the fetch after it fails", async () => {
-    vi.mocked(fetchMeasurements).mockResolvedValueOnce(
-      failure({ kind: "unreachable" }),
-    );
-    const user = renderPage();
-
-    await enterWeight(user);
-
-    await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
-    await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
-  });
 
   it("signs in anew on the next tap where Google rejected the sign-in the visit holds", async () => {
     vi.mocked(enterMeasurement).mockResolvedValueOnce(

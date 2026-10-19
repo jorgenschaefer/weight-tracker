@@ -9,7 +9,6 @@ import {
   replaceFetchedPeriod,
   serializeCache,
 } from "@/measurement/cache";
-import { notYetFetched } from "@/measurement/entered-measurement";
 import {
   type AccessToken,
   enterMeasurement,
@@ -22,6 +21,7 @@ import {
   signIn,
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
+import { useEnteredMeasurements } from "./useEnteredMeasurements";
 
 /** What went wrong on the page, and in doing what. */
 export interface Problem {
@@ -33,7 +33,7 @@ export interface Problem {
 export interface Measurements {
   /** The cached measurements; `null` before the first fetch. */
   cache: MeasurementCache | null;
-  /** The measurements entered in this visit that no fetch has held yet. */
+  /** The measurements entered that Google Health has not returned yet. */
   enteredMeasurements: Measurement[];
   fetching: boolean;
   /** Whether this visit holds an access token; without one a fetch signs in. */
@@ -55,15 +55,14 @@ export interface Measurements {
 }
 
 /**
- * The measurements of the page, read from the cache in this browser once the
- * page is mounted - `null` until then - and fetched from Google Health. The
- * access token lives here, in memory only.
+ * The measurements of the page, read from the cache and the entered
+ * measurements in this browser once the page is mounted - `null` until then -
+ * and fetched from Google Health. The access token lives here, in memory
+ * only.
  */
 export function useMeasurements(): Measurements | null {
   const [cache, setCache] = useState<MeasurementCache | null | undefined>();
-  const [enteredMeasurements, setEnteredMeasurements] = useState<Measurement[]>(
-    [],
-  );
+  const entered = useEnteredMeasurements();
   const [token, setToken] = useState<HeldToken | null>(null);
   const [fetching, setFetching] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
@@ -105,7 +104,8 @@ export function useMeasurements(): Measurements | null {
       document.removeEventListener("visibilitychange", fetchOnReturn);
   });
 
-  if (cache === undefined) return null;
+  const enteredMeasurements = entered.measurements;
+  if (cache === undefined || enteredMeasurements === null) return null;
 
   async function fetchData(
     cached: MeasurementCache | null,
@@ -143,14 +143,14 @@ export function useMeasurements(): Measurements | null {
     const replaced = replaceFetchedPeriod(cached, period, fetched.value);
     saveCache(replaced);
     setCache(replaced);
-    setEnteredMeasurements((entered) => notYetFetched(entered, fetched.value));
+    entered.dropAfterFetch(fetched.value, period.to);
   }
 
   async function enter(
     kg: number,
     cached: MeasurementCache | null,
   ): Promise<GoogleHealthResult<null>> {
-    const entered: Measurement = { time: new Date(), kg };
+    const measurement: Measurement = { time: new Date(), kg };
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
     const access = maySave(token) ? signedInWith(token) : held(await signIn());
@@ -159,12 +159,12 @@ export function useMeasurements(): Measurements | null {
       return { ok: false, error: { kind: "writeNotGranted" } };
     }
 
-    const saved = await enterMeasurement(access.value.token, entered);
+    const saved = await enterMeasurement(access.value.token, measurement);
     if (!saved.ok) {
       if (saved.error.kind === "tokenRejected") setToken(null);
       return saved;
     }
-    setEnteredMeasurements((earlier) => [...earlier, entered]);
+    entered.add(measurement);
     // The fetch holds the sign-in from here on. One whose save failed is not
     // held: it has fetched nothing, and holding it would take „Daten abrufen“
     // away.
@@ -194,7 +194,7 @@ export function useMeasurements(): Measurements | null {
       logOuts.current += 1;
       removeCache();
       setCache(null);
-      setEnteredMeasurements([]);
+      entered.clear();
       setToken(null);
       setFetching(false);
       setProblem(null);

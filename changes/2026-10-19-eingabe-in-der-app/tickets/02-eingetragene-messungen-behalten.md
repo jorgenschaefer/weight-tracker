@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-7, AC-9, AC-11, AC-13
 advances:  
 after:     01-eintragen
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -43,3 +43,11 @@ Der Cache `gewicht:v1` ist das Muster für den neuen Schlüssel: `src/measuremen
 - Der Server aus `changes/backlog/server-mit-webhook.md`.
 
 ## Left standing
+- **The page was not driven in a browser, in either review.** Round 1 had no Chrome tools, and the permission check refused headless Chromium. Round 2 found no Chrome tools either. So the AC-13 view after a reload (full view, „Noch kein Urteil“, no greeting) and the AC-7 reload are proven only by jsdom tests in `src/app/useEnteredMeasurements.test.tsx`. The layout at 360 × 640 and on a wide window was not looked at. The view itself is the same full view that 01 and 03 checked in the browser. Not tried against the real Google either.
+- **Beyond the ticket: a split.** `useMeasurements.test.tsx` had 479 lines and had been shortened once already (01's Left standing). So the entered measurements moved out of `useMeasurements.ts` into their own hook, `src/app/useEnteredMeasurements.ts` (`measurements`, `add`, `dropAfterFetch`, `clear`). Three tests moved with it into `useEnteredMeasurements.test.tsx`. `comeIntoView` and `changeVisibility` moved to `src/test/open-page.tsx`.
+- **Decisions later code builds on:**
+  - `enteredAfterFetch(entered, fetched, startedAt)` in `src/measurement/entered-measurement.ts` replaces `notYetFetched`. A fetch that starts exactly one hour after the entry drops it. The fetch's start is `period.to`: the moment after sign-in, just before the request goes out.
+  - Every change to the entered measurements starts from what `localStorage` holds, not from the page's copy, so one tab does not overwrite what another entered (the round-1 blocker). Another open tab's page shows the new value only after its own next change or a reload.
+  - No entered measurements means no key: the list is removed, never stored as `[]`. An entry that is not valid reads as none, like the cache.
+  - The stored form of one measurement is `toStoredMeasurement` / `parseStoredMeasurement`, now exported from `src/measurement/cache.ts` and shared by both keys. A round-1 nit asked where it should live; it stays in the cache module, and its comment says it serves both.
+- **A review finding not fixed (round 2, dropped by the reviewer as out of scope):** if „Abmelden“ runs in another tab while this tab is still saving, this tab can store the value again afterwards. This tab's cache and token are not cleared by another tab's „Abmelden“ either, so the gap existed before this change.
