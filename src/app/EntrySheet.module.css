@@ -74,6 +74,13 @@
   font-weight: 600;
 }
 
+/* Why saving failed, under the form, like the hint. */
+.failure {
+  font-size: 14px;
+  font-weight: 600;
+  padding-bottom: 8px;
+}
+
 .unit {
   color: #20262c;
   font-size: 15px;
@@ -89,6 +96,13 @@
   margin-top: 23px;
   flex-shrink: 0;
   font-weight: 600;
+}
+
+/* While saving, in its own colours: Mantine's grey for a disabled button
+   leaves „Wird gespeichert …“ hard to read on the light sheet. */
+.submit:disabled {
+  background: var(--button-bg);
+  color: var(--button-color);
 }
 
 .submit:focus-visible {

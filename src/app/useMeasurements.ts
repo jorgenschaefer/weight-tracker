@@ -9,8 +9,10 @@ import {
   replaceFetchedPeriod,
   serializeCache,
 } from "@/measurement/cache";
+import { notYetFetched } from "@/measurement/entered-measurement";
 import {
   type AccessToken,
+  enterMeasurement,
   fetchMeasurements,
   type GoogleHealthError,
   type GoogleHealthResult,
@@ -19,6 +21,7 @@ import {
   type SignedIn,
   signIn,
 } from "@/measurement/google-health";
+import type { Measurement } from "@/measurement/measurement";
 
 /** What went wrong on the page, and in doing what. */
 export interface Problem {
@@ -30,13 +33,24 @@ export interface Problem {
 export interface Measurements {
   /** The cached measurements; `null` before the first fetch. */
   cache: MeasurementCache | null;
+  /** The measurements entered in this visit that no fetch has held yet. */
+  enteredMeasurements: Measurement[];
   fetching: boolean;
   /** Whether this visit holds an access token; without one a fetch signs in. */
   signedIn: boolean;
   problem: Problem | null;
   /** Signs in where needed and fetches. Call it straight from the click. */
   fetchData(): void;
-  /** Clears the cache, discards the token and revokes the page's access. */
+  /**
+   * Enters `kg` at this moment: signs in where the visit holds no sign-in
+   * that may write, writes it into Google Health, shows it and fetches. Call
+   * it straight from the click.
+   */
+  enter(kg: number): Promise<GoogleHealthResult<null>>;
+  /**
+   * Clears the cache and the entered measurements, discards the token and
+   * revokes the page's access.
+   */
   logOut(): void;
 }
 
@@ -47,12 +61,19 @@ export interface Measurements {
  */
 export function useMeasurements(): Measurements | null {
   const [cache, setCache] = useState<MeasurementCache | null | undefined>();
+  const [enteredMeasurements, setEnteredMeasurements] = useState<Measurement[]>(
+    [],
+  );
   const [token, setToken] = useState<HeldToken | null>(null);
   const [fetching, setFetching] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
   // Counts the log-outs, so a fetch that outlives one is dropped rather than
   // filling the cache it just cleared.
   const logOuts = useRef(0);
+  // Counts the fetches started, so a fetch that a later one has overtaken -
+  // „Eintragen“ fetches even while one runs - is dropped rather than
+  // overwriting the later one's result.
+  const fetchesStarted = useRef(0);
 
   // When the last fetch started, so coming back into view soon after it does
   // not fetch again.
@@ -77,7 +98,7 @@ export function useMeasurements(): Measurements | null {
       }
       const since = Date.now() - (lastFetchStarted.current ?? 0);
       if (since < REFETCH_AFTER_MS) return;
-      void fetchData(cache);
+      void fetchData(cache, token);
     };
     document.addEventListener("visibilitychange", fetchOnReturn);
     return () =>
@@ -86,16 +107,22 @@ export function useMeasurements(): Measurements | null {
 
   if (cache === undefined) return null;
 
-  async function fetchData(cached: MeasurementCache | null) {
+  async function fetchData(
+    cached: MeasurementCache | null,
+    heldToken: HeldToken | null,
+  ) {
     lastFetchStarted.current = Date.now();
     const started = logOuts.current;
-    const isCurrent = () => logOuts.current === started;
+    const thisFetch = ++fetchesStarted.current;
+    const isCurrent = () =>
+      logOuts.current === started && fetchesStarted.current === thisFetch;
     setFetching(true);
     setProblem(null);
 
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
-    const access = token === null ? held(await signIn()) : signedInWith(token);
+    const access =
+      heldToken === null ? held(await signIn()) : signedInWith(heldToken);
     if (!isCurrent()) return;
     if (!access.ok) {
       setFetching(false);
@@ -116,6 +143,33 @@ export function useMeasurements(): Measurements | null {
     const replaced = replaceFetchedPeriod(cached, period, fetched.value);
     saveCache(replaced);
     setCache(replaced);
+    setEnteredMeasurements((entered) => notYetFetched(entered, fetched.value));
+  }
+
+  async function enter(
+    kg: number,
+    cached: MeasurementCache | null,
+  ): Promise<GoogleHealthResult<null>> {
+    const entered: Measurement = { time: new Date(), kg };
+    // signIn runs before the first await, so the popup still counts as
+    // opened by the click.
+    const access = maySave(token) ? signedInWith(token) : held(await signIn());
+    if (!access.ok) return access;
+    if (!access.value.writeGranted) {
+      return { ok: false, error: { kind: "writeNotGranted" } };
+    }
+
+    const saved = await enterMeasurement(access.value.token, entered);
+    if (!saved.ok) {
+      if (saved.error.kind === "tokenRejected") setToken(null);
+      return saved;
+    }
+    setEnteredMeasurements((earlier) => [...earlier, entered]);
+    // The fetch holds the sign-in from here on. One whose save failed is not
+    // held: it has fetched nothing, and holding it would take „Daten abrufen“
+    // away.
+    void fetchData(cached, access.value);
+    return saved;
   }
 
   async function revoke(heldToken: HeldToken | null) {
@@ -130,14 +184,17 @@ export function useMeasurements(): Measurements | null {
 
   return {
     cache,
+    enteredMeasurements,
     fetching,
     signedIn: token !== null,
     problem,
-    fetchData: () => void fetchData(cache),
+    fetchData: () => void fetchData(cache, token),
+    enter: (kg) => enter(kg, cache),
     logOut: () => {
       logOuts.current += 1;
       removeCache();
       setCache(null);
+      setEnteredMeasurements([]);
       setToken(null);
       setFetching(false);
       setProblem(null);
@@ -149,11 +206,20 @@ export function useMeasurements(): Measurements | null {
 
 const REFETCH_AFTER_MS = 5 * 60_000;
 
-/** The access token this visit holds, and when Google stops accepting it. */
+/**
+ * The access token this visit holds, when Google stops accepting it, and
+ * whether it may enter measurements.
+ */
 interface HeldToken {
   token: AccessToken;
   /** Milliseconds since the epoch, as `Date.now()` counts them. */
   expiresAt: number;
+  writeGranted: boolean;
+}
+
+/** Whether `token` is held, not expired and may enter measurements. */
+function maySave(token: HeldToken | null): token is HeldToken {
+  return token?.writeGranted === true && !hasExpired(token);
 }
 
 function hasExpired(token: HeldToken): boolean {
@@ -165,10 +231,14 @@ function held(
   signedIn: GoogleHealthResult<SignedIn>,
 ): GoogleHealthResult<HeldToken> {
   if (!signedIn.ok) return signedIn;
-  const { token, expiresInSeconds } = signedIn.value;
+  const { token, expiresInSeconds, writeGranted } = signedIn.value;
   return {
     ok: true,
-    value: { token, expiresAt: Date.now() + expiresInSeconds * 1000 },
+    value: {
+      token,
+      expiresAt: Date.now() + expiresInSeconds * 1000,
+      writeGranted,
+    },
   };
 }
 

@@ -17,6 +17,7 @@ import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
+  enterMeasurement: vi.fn(),
   signIn: vi.fn(),
   fetchMeasurements: vi.fn(),
   revokeAccess: vi.fn(),

@@ -3,15 +3,27 @@ import { join } from "node:path";
 import { MantineProvider } from "@mantine/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import { EntrySheet } from "./EntrySheet";
+import { describe, expect, it, vi } from "vitest";
+import type {
+  GoogleHealthError,
+  GoogleHealthResult,
+} from "@/measurement/google-health";
+import { deferred } from "@/test/open-page";
+import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import classes from "./EntrySheet.module.css";
 import { NEUTRAL, type SurfaceColours } from "./Verdict";
 
-function renderSheet(colours = NEUTRAL) {
+type Saved = GoogleHealthResult<null>;
+const SAVED: Saved = { ok: true, value: null };
+
+/** Renders the sheet, saving with `onEnter`; by default every save succeeds. */
+function renderSheet(
+  colours = NEUTRAL,
+  onEnter: EnterWeight = async () => SAVED,
+) {
   render(
     <MantineProvider>
-      <EntrySheet colours={colours} />
+      <EntrySheet colours={colours} onEnter={onEnter} />
     </MantineProvider>,
   );
   return userEvent.setup();
@@ -49,8 +61,8 @@ describe("the button to enter a weight", () => {
 });
 
 /** Opens the page's sheet; returns the user to type and click with. */
-async function openSheet(colours = NEUTRAL) {
-  const user = renderSheet(colours);
+async function openSheet(colours = NEUTRAL, onEnter?: EnterWeight) {
+  const user = renderSheet(colours, onEnter);
   await user.click(enterButton());
   await screen.findByRole("dialog", { name: "Gewicht eintragen" });
   return user;
@@ -142,23 +154,31 @@ describe("closing the sheet", () => {
 const HINT =
   "Bitte ein Gewicht von 30 bis 250 kg eingeben, mit höchstens einer Nachkommastelle.";
 
-/** Types `input` into the open sheet's field and clicks „Eintragen“. */
-async function enter(input: string) {
-  const user = await openSheet();
+const submitButton = () =>
+  screen.getByRole("button", { name: /Eintragen|Wird gespeichert/ });
+
+/**
+ * Types `input` into the open sheet's field and clicks „Eintragen“, saving
+ * with `onEnter`.
+ */
+async function enter(input: string, onEnter?: EnterWeight) {
+  const user = await openSheet(NEUTRAL, onEnter);
   if (input !== "") await user.type(field(), input);
-  await user.click(screen.getByRole("button", { name: "Eintragen" }));
+  await user.click(submitButton());
   return user;
 }
 
 describe("„Eintragen“", () => {
   it.each(["", "29,9", "98,65", "abc"])(
-    "shows the hint under the field for %j, and keeps the sheet open",
+    "shows the hint under the field for %j, keeps the sheet open and saves nothing",
     async (input) => {
-      await enter(input);
+      const onEnter = vi.fn(async (_kg: number) => SAVED);
+      await enter(input, onEnter);
 
       expect(field()).toHaveAccessibleDescription(HINT);
       expect(field()).toBeInvalid();
       expect(sheet()).toBeInTheDocument();
+      expect(onEnter).not.toHaveBeenCalled();
     },
   );
 
@@ -170,21 +190,23 @@ describe("„Eintragen“", () => {
     );
   });
 
-  it("shows no hint for a weight it takes, and keeps the sheet open", async () => {
-    await enter("98,6");
+  it("saves a weight it takes, and closes the sheet once it is saved", async () => {
+    const onEnter = vi.fn(async (_kg: number) => SAVED);
+    await enter("98,6", onEnter);
 
-    expect(screen.queryByText(HINT)).not.toBeInTheDocument();
-    expect(field()).toBeValid();
-    expect(sheet()).toBeInTheDocument();
+    expect(onEnter.mock.calls).toEqual([[98.6]]);
+    await waitFor(() => expect(sheet()).not.toBeInTheDocument());
   });
 
   it("takes the hint away once the weight is right", async () => {
-    const user = await enter("9");
+    const answer = deferred<Saved>();
+    const user = await enter("9", async () => answer.promise);
 
     await user.type(field(), "8.6");
-    await user.click(screen.getByRole("button", { name: "Eintragen" }));
+    await user.click(submitButton());
 
     expect(screen.queryByText(HINT)).not.toBeInTheDocument();
+    expect(field()).toBeValid();
   });
 
   it("checks on the Enter key as well", async () => {
@@ -196,14 +218,94 @@ describe("„Eintragen“", () => {
   });
 });
 
+/** Longer than the sheet takes to slide away, 200 ms by Mantine's default. */
+const SLID_AWAY_MS = 500;
+
+describe("saving", () => {
+  /** Enters 98,6 with a save that has not yet been answered. */
+  async function enterWhileSaving() {
+    const answer = deferred<Saved>();
+    // Saves after the first are never answered.
+    const onEnter = vi
+      .fn((_kg: number) => new Promise<Saved>(() => {}))
+      .mockReturnValueOnce(answer.promise);
+    const user = await enter("98,6", onEnter);
+    return { user, onEnter, answer };
+  }
+
+  it("shows „Wird gespeichert …“ on the button, which takes no further tap, and saves once", async () => {
+    const { user, onEnter } = await enterWhileSaving();
+
+    expect(submitButton()).toHaveTextContent("Wird gespeichert …");
+    expect(submitButton()).toBeDisabled();
+    await user.click(submitButton());
+    await user.type(field(), "{Enter}");
+
+    expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the button in its colours while saving, past Mantine's grey for a disabled one", () => {
+    const rule = cssRule("submit:disabled");
+
+    expect(rule).toMatch(/background(-color)?:\s*var\(--button-bg\)/);
+    expect(rule).toMatch(/color:\s*var\(--button-color\)/);
+  });
+
+  it("does not close on the X, Escape or a tap beside the sheet", async () => {
+    const { user } = await enterWhileSaving();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await user.keyboard("{Escape}");
+    await user.click(overlay());
+
+    // Closing would leave the sheet in place until it has slid away.
+    await new Promise((done) => setTimeout(done, SLID_AWAY_MS));
+    expect(sheet()).toBeInTheDocument();
+  });
+
+  it.each<[GoogleHealthError, string]>([
+    [{ kind: "unreachable" }, "Google antwortet nicht."],
+    [
+      { kind: "writeNotGranted" },
+      "Das Speichern in Google Health wurde nicht erlaubt.",
+    ],
+  ])(
+    "keeps the sheet open with the weight where saving fails with %o, and says why",
+    async (error, reason) => {
+      const { answer } = await enterWhileSaving();
+
+      answer.resolve({ ok: false, error });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        `Speichern fehlgeschlagen: ${reason}`,
+      );
+      expect(field()).toHaveValue("98,6");
+      expect(submitButton()).toHaveTextContent("Eintragen");
+      expect(submitButton()).toBeEnabled();
+      expect(sheet()).toBeInTheDocument();
+    },
+  );
+
+  it("saves again on the next tap after a failure, and takes the failure away", async () => {
+    const { user, onEnter, answer } = await enterWhileSaving();
+    answer.resolve({ ok: false, error: { kind: "unreachable" } });
+    await screen.findByRole("alert");
+
+    await user.click(submitButton());
+
+    expect(onEnter).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
 describe("the colours of the sheet", () => {
-  const submitButton = async (colours: SurfaceColours) => {
+  const coloured = async (colours: SurfaceColours) => {
     await openSheet(colours);
-    return screen.getByRole("button", { name: "Eintragen" });
+    return submitButton();
   };
 
   it("draws „Eintragen“ and the field's border in the surface's text colour, as the design does", async () => {
-    const button = await submitButton({ surface: "#F5E1CB", ink: "#5A2C06" });
+    const button = await coloured({ surface: "#F5E1CB", ink: "#5A2C06" });
 
     expect(button.style.getPropertyValue("--button-bg")).toBe("#5A2C06");
     expect(button.style.getPropertyValue("--button-color")).toBe("#F5E1CB");
@@ -211,7 +313,7 @@ describe("the colours of the sheet", () => {
   });
 
   it("draws them in the surface's colour where its text is the lighter one, so they stand out on the light sheet", async () => {
-    const button = await submitButton({ surface: "#8A380A", ink: "#FFF3E8" });
+    const button = await coloured({ surface: "#8A380A", ink: "#FFF3E8" });
 
     expect(button.style.getPropertyValue("--button-bg")).toBe("#8A380A");
     expect(button.style.getPropertyValue("--button-color")).toBe("#FFF3E8");

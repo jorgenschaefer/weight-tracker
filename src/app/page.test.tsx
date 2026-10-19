@@ -5,21 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
 import {
   fetchMeasurements,
-  type GoogleHealthError,
-  type GoogleHealthResult,
   revokeAccess,
   signIn,
 } from "@/measurement/google-health";
-import type { Measurement } from "@/measurement/measurement";
 import {
   at,
   daysAgo,
-  deferred,
   FIRST_VISIT,
   failure,
   fetchButton,
   google,
   hasNoButton,
+  holdFetch,
   isNotShown,
   isShown,
   leavePage,
@@ -40,6 +37,7 @@ import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
+  enterMeasurement: vi.fn(),
   signIn: vi.fn(),
   fetchMeasurements: vi.fn(),
   revokeAccess: vi.fn(),
@@ -213,8 +211,7 @@ describe("the colour of the browser around the page", () => {
 describe("fetching", () => {
   it("marks the verdict from the cache provisional while the fetch runs, and not after", async () => {
     storeLoss();
-    const answer = deferred<GoogleHealthResult<Measurement[]>>();
-    vi.mocked(fetchMeasurements).mockReturnValueOnce(answer.promise);
+    const answer = holdFetch();
     await openAndClick(fetchButton);
 
     await isShown("Vorläufig, wird aktualisiert …");
@@ -227,7 +224,7 @@ describe("fetching", () => {
   });
 
   it("shows „Wird aktualisiert …“ on the first visit too", async () => {
-    vi.mocked(fetchMeasurements).mockReturnValueOnce(new Promise(() => {}));
+    holdFetch();
     await openAndClick(fetchButton);
 
     await isShown("Wird aktualisiert …");
@@ -266,40 +263,18 @@ describe("a failed fetch", () => {
     expect(error.previousElementSibling).toHaveTextContent(/^Letzte Messung/);
   });
 
-  it.each<[GoogleHealthError, string]>([
-    [{ kind: "unreachable" }, "Google antwortet nicht."],
-    [{ kind: "failed", status: 503 }, "Google meldet den Fehler 503."],
-    [{ kind: "unexpectedResponse" }, "Google antwortet unerwartet."],
-    [{ kind: "tokenRejected" }, "Die Anmeldung ist abgelaufen."],
-  ])("explains a fetch failing with %o: %s", async (error, reason) => {
+  it("explains a sign-in failing, and offers it again", async () => {
     storeMorning();
-    vi.mocked(fetchMeasurements).mockResolvedValueOnce(failure(error));
+    vi.mocked(signIn).mockResolvedValueOnce(
+      failure({ kind: "accessNotGranted" }),
+    );
     await openAndClick(fetchButton);
 
-    await isShown(`Abruf fehlgeschlagen: ${reason}`);
+    await isShown(
+      "Abruf fehlgeschlagen: Der Zugriff auf die Gewichtsmessungen wurde nicht erlaubt.",
+    );
+    expect(await fetchButton()).toBeInTheDocument();
   });
-
-  it.each<[GoogleHealthError, string]>([
-    [{ kind: "signInFailed" }, "Die Anmeldung bei Google wurde abgebrochen."],
-    [
-      { kind: "accessNotGranted" },
-      "Der Zugriff auf die Gewichtsmessungen wurde nicht erlaubt.",
-    ],
-    [
-      { kind: "signInUnavailable" },
-      "Die Anmeldung bei Google ist nicht geladen.",
-    ],
-  ])(
-    "explains a sign-in failing with %o, and offers it again",
-    async (error, reason) => {
-      storeMorning();
-      vi.mocked(signIn).mockResolvedValueOnce(failure(error));
-      await openAndClick(fetchButton);
-
-      await isShown(`Abruf fehlgeschlagen: ${reason}`);
-      expect(await fetchButton()).toBeInTheDocument();
-    },
-  );
 
   it("shows the error on the first visit too, with the button to try again", async () => {
     vi.mocked(signIn).mockResolvedValueOnce(failure({ kind: "signInFailed" }));
@@ -336,7 +311,7 @@ describe("„Abmelden“", () => {
       "Widerruf fehlgeschlagen: Google hat den Zugriff nicht widerrufen.",
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Die Seite darf deine Gewichtsmessungen weiter lesen. Den Zugriff entfernst du in deinem Google-Konto.",
+      "Die Seite darf deine Gewichtsmessungen weiter lesen und eintragen. Den Zugriff entfernst du in deinem Google-Konto.",
     );
     expect(
       screen.getByRole("link", { name: "deinem Google-Konto" }),

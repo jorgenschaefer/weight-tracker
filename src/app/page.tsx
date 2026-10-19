@@ -2,15 +2,15 @@
 
 import { Anchor, Button, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useState } from "react";
-import type { MeasurementCache } from "@/measurement/cache";
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
-import type { GoogleHealthError } from "@/measurement/google-health";
 import {
   countingMeasurements,
   latestMeasurement,
+  type Measurement,
 } from "@/measurement/measurement";
 import { type Assessment, assess } from "@/verdict/assessment";
-import { EntrySheet } from "./EntrySheet";
+import { type EnterWeight, EntrySheet } from "./EntrySheet";
+import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
 import classes from "./page.module.css";
 import {
@@ -30,23 +30,24 @@ import { WeightGraph } from "./WeightGraph";
 export default function Page() {
   const measurements = useMeasurements();
   const today = useToday();
-  if (measurements === null) return <Surface colours={NEUTRAL} />;
-  if (measurements.cache === null) {
+  if (measurements === null) {
+    return <Surface colours={NEUTRAL} onEnter={null} />;
+  }
+  const { cache, enteredMeasurements } = measurements;
+  if (cache === null && enteredMeasurements.length === 0) {
     return (
-      <Surface colours={NEUTRAL}>
+      <Surface colours={NEUTRAL} onEnter={measurements.enter}>
         <FirstVisit measurements={measurements} />
       </Surface>
     );
   }
-  const assessment = assess(
-    countingMeasurements(measurements.cache.measurements),
-    today,
-  );
+  const shown = [...(cache?.measurements ?? []), ...enteredMeasurements];
+  const assessment = assess(countingMeasurements(shown), today);
   const colours = surfaceColours(assessment.status);
   return (
-    <Surface colours={colours}>
+    <Surface colours={colours} onEnter={measurements.enter}>
       <CachedMeasurements
-        cache={measurements.cache}
+        shown={shown}
         assessment={assessment}
         today={today}
         colours={colours}
@@ -73,13 +74,17 @@ function useToday(): CalendarDay {
 /**
  * The colour field: the whole screen, its content in the middle, and the
  * button to enter a weight in every state of the page. The browser around the
- * page, Android's status bar and address bar, takes its colour.
+ * page, Android's status bar and address bar, takes its colour. `onEnter` is
+ * `null` for the moment before the page has read its cache, in which the
+ * button opens nothing.
  */
 function Surface({
   colours,
+  onEnter,
   children,
 }: {
   colours: SurfaceColours;
+  onEnter: EnterWeight | null;
   children?: React.ReactNode;
 }) {
   return (
@@ -90,7 +95,7 @@ function Surface({
       {/* React moves it into <head> and keeps it there in step. */}
       <meta name="theme-color" content={colours.surface} />
       <div className={classes.content}>{children}</div>
-      <EntrySheet colours={colours} />
+      <EntrySheet colours={colours} onEnter={onEnter} />
     </main>
   );
 }
@@ -100,8 +105,8 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
   return (
     <>
       <Text className={classes.intro}>
-        Diese Seite liest deine Gewichtsmessungen aus Google Health und zeigt
-        dir, ob du noch abnimmst.
+        Diese Seite liest deine Gewichtsmessungen aus Google Health, trägt neue
+        ein und zeigt dir, ob du noch abnimmst.
       </Text>
       {measurements.fetching ? (
         <Text className={classes.busy}>Wird aktualisiert …</Text>
@@ -114,17 +119,18 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 }
 
 /**
- * The page from the cached measurements: the verdict on `today` with its
- * figures, and the graph under them.
+ * The page from the measurements `shown`, the cached ones and those entered
+ * in this visit: the verdict on `today` with its figures, and the graph
+ * under them.
  */
 function CachedMeasurements({
-  cache,
+  shown,
   assessment,
   today,
   colours,
   measurements,
 }: {
-  cache: MeasurementCache;
+  shown: Measurement[];
   assessment: Assessment;
   today: CalendarDay;
   colours: SurfaceColours;
@@ -132,7 +138,10 @@ function CachedMeasurements({
 }) {
   return (
     <>
-      <LatestMeasurement cache={cache} />
+      <LatestMeasurement
+        shown={shown}
+        enteredMeasurements={measurements.enteredMeasurements}
+      />
       <ProblemLine problem={measurements.problem} />
       <div className={classes.summary}>
         <section className={classes.verdict} aria-busy={measurements.fetching}>
@@ -154,14 +163,31 @@ function CachedMeasurements({
   );
 }
 
-/** „Letzte Messung“: the newest measurement, counting or not. */
-function LatestMeasurement({ cache }: { cache: MeasurementCache }) {
-  const latest = latestMeasurement(cache.measurements);
+/**
+ * „Letzte Messung“: the newest measurement `shown`, counting or not, and
+ * whether it is one entered that no fetch has held yet.
+ */
+function LatestMeasurement({
+  shown,
+  enteredMeasurements,
+}: {
+  shown: Measurement[];
+  enteredMeasurements: Measurement[];
+}) {
+  const latest = latestMeasurement(shown);
+  if (latest === null) {
+    return (
+      <Text className={classes.latest}>
+        Noch keine Messung in Google Health in den letzten 90 Tagen
+      </Text>
+    );
+  }
+  const notYetFetched = enteredMeasurements.includes(latest)
+    ? ", noch nicht aus Google Health abgerufen"
+    : "";
   return (
     <Text className={classes.latest}>
-      {latest === null
-        ? "Noch keine Messung in Google Health in den letzten 90 Tagen"
-        : `Letzte Messung ${formatDay(latest.time)} um ${formatTime(latest.time)} Uhr: ${formatKg(latest.kg)} kg`}
+      {`Letzte Messung ${formatDay(latest.time)} um ${formatTime(latest.time)} Uhr: ${formatKg(latest.kg)} kg${notYetFetched}`}
     </Text>
   );
 }
@@ -199,16 +225,18 @@ function ProblemLine({ problem }: { problem: Problem | null }) {
   if (problem.action === "fetch") {
     return (
       <Text className={classes.problem} role="alert">
-        {`Abruf fehlgeschlagen: ${reason(problem.error)}`}
+        {`Abruf fehlgeschlagen: ${failureReason(problem.error)}`}
       </Text>
     );
   }
   return (
     <div className={classes.problem} role="alert">
-      <Text inherit>{`Widerruf fehlgeschlagen: ${reason(problem.error)}`}</Text>
+      <Text
+        inherit
+      >{`Widerruf fehlgeschlagen: ${failureReason(problem.error)}`}</Text>
       <Text inherit>
-        Die Seite darf deine Gewichtsmessungen weiter lesen. Den Zugriff
-        entfernst du in{" "}
+        Die Seite darf deine Gewichtsmessungen weiter lesen und eintragen. Den
+        Zugriff entfernst du in{" "}
         <Anchor
           inherit
           underline="always"
@@ -221,25 +249,4 @@ function ProblemLine({ problem }: { problem: Problem | null }) {
       </Text>
     </div>
   );
-}
-
-function reason(error: GoogleHealthError): string {
-  switch (error.kind) {
-    case "signInUnavailable":
-      return "Die Anmeldung bei Google ist nicht geladen.";
-    case "signInFailed":
-      return "Die Anmeldung bei Google wurde abgebrochen.";
-    case "accessNotGranted":
-      return "Der Zugriff auf die Gewichtsmessungen wurde nicht erlaubt.";
-    case "tokenRejected":
-      return "Die Anmeldung ist abgelaufen.";
-    case "unreachable":
-      return "Google antwortet nicht.";
-    case "failed":
-      return `Google meldet den Fehler ${error.status}.`;
-    case "unexpectedResponse":
-      return "Google antwortet unerwartet.";
-    case "revokeFailed":
-      return "Google hat den Zugriff nicht widerrufen.";
-  }
 }

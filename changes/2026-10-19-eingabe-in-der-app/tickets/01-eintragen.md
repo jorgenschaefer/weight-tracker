@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-3, AC-4, AC-5, AC-6, AC-8, AC-12, AC-14
 advances:  AC-7, AC-9, AC-11, AC-13
 after:     03-blatt
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -72,3 +72,32 @@ Den Schreib-Scope trägt die Person selbst im OAuth-Zustimmungsbildschirm ein; b
 - Speichern ohne Verbindung; es schlägt nach AC-6 fehl.
 
 ## Left standing
+- **A review finding not fixed: `src/app/useMeasurements.test.tsx` has 479 lines, not under 420 (should-fix, both rounds).** The Context asks for under 420 so that 02 can add without splitting.
+  - It went past 500 on the way, and I shortened it by turning repeated cases into tables. No case was dropped.
+  - Getting to 420 would mean merging cases that read clearly now, or splitting `useMeasurements.ts`. I found no clean split: entering needs the held sign-in and the fetch, and the fetch drops the entered measurements, so they change together.
+  - 02 will probably have to split the hook and its tests first. `page.test.tsx` has 418 lines.
+- **Fixed after the second review and not reviewed again; two rounds is the limit:**
+  - A fetch that a later one has overtaken is now dropped (`fetchesStarted` in `useMeasurements.ts`). It was the second round's blocker: „Eintragen“ can start a fetch while one is running.
+  - The tests for a 403 and for an operation holding `error` in `google-health.test.ts` are back; my shortening had deleted them by mistake.
+  - The tests of fetching and coming back into view became tables.
+  - None of these changes what a screen shows.
+- **Not checked against the real Google.** Writing needs the `writeonly` scope on the OAuth consent screen, which the person adds themselves. So the request body, the `utcOffset` format, the answer as an operation, and the 403 for a missing permission are tested only against stubs and the stand-in (`.claude/skills/run/google-stand-in.js`), not against the Google Health API.
+- **What no automated test proves, and how it was checked instead:**
+  - That the sign-in popup is not blocked (AC-4). `signIn` runs before the first `await` of the tap, as in `fetchData`, but jsdom and the stand-in have no popup blocker. Not checked in a real browser with the real Google.
+  - That „Wird gespeichert …“ is legible, and the sheet's look while saving and after a failure (AC-5, AC-6). The reviews drove the page through the stand-in at 360 × 640 and 1440 × 900: a hanging save with the 20 s timeout, 403, 500, a read-only grant, a failed fetch after saving, a lagging fetch, and „Abmelden“. A stylesheet test pins the colours of the disabled button.
+  - AC-4 for trend and graph: a test pins „Gemessen“ for a first weight of the day, and „Noch kein Urteil“ for a weight entered before any fetch. Trend, verdict and graph are computed from the same list. That the point shows in the graph was seen only in the reviews' screenshots.
+- **Not fixed, seen in review:** while saving, „Eintragen“ becomes the longer „Wird gespeichert …“. The button grows, and the field shrinks, for as long as the save runs.
+- **Decisions that later code builds on:**
+  - `READ_SCOPE` and `WRITE_SCOPE` replace `HEALTH_SCOPE`.
+  - `SignedIn` and the hook's held token carry `writeGranted`.
+  - The new error kind `writeNotGranted` stands for both a 403 and a sign-in without the write scope; its text is in `src/app/failure-reason.ts`, where `reason` moved from `page.tsx` as `failureReason`.
+  - The sign-in still requires the read scope: a grant that only writes is `accessNotGranted`, since the fetch after saving needs reading.
+  - `enterMeasurement(token, measurement)` sends `utcOffset` for where the browser is, not for Berlin.
+  - A 2xx operation that holds an `error` reports „Google antwortet unerwartet.“: none of the reasons the page already knows fits it better, and AC-6 allows only those.
+  - In `src/measurement/entered-measurement.ts`, `notYetFetched(entered, fetched)` compares against the measurements of the fetch itself, not the whole cache.
+  - The hook exposes `enteredMeasurements` and `enter(kg)`, and the page shows `[...cache, ...enteredMeasurements]`.
+  - `EntrySheet({ colours, onEnter })` takes an `EnterWeight`. Before the page has read its cache, `onEnter` is `null` and the sheet is not rendered.
+- **Sign-in decisions AC-4 and AC-8 do not settle:**
+  - „Eintragen“ keeps a sign-in only once the weight is saved. Holding one whose save failed, or one that only reads, would hide „Daten abrufen“ although nothing was fetched. The cost: a retry after a failed save opens the popup again.
+  - A sign-in the visit holds is reused only where it may write and has not expired; otherwise „Eintragen“ signs in anew.
+- **Beyond the ticket:** the run skill gained `google-stand-in.js`, Google in memory in the browser, so the page can sign in, fetch and enter without a Google account. The reviews drove this ticket with it, and 02 can use it too.

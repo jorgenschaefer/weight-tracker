@@ -32,6 +32,16 @@ coming back into view after a real sign-in), replace `window.Date` with a
 subclass whose `now()` is later and dispatch `visibilitychange` on
 `document`.
 
+## Signing in, fetching and entering without Google
+
+The real Google takes no write until its consent screen lists the scope to
+write. To drive „Eintragen“, sign-in and fetching anyway, run
+`google-stand-in.js` on the page once it has loaded (javascript tool). It
+puts a Google in memory in place of the real one until the next reload;
+`window.standIn` holds its measurements and how it answers - grants only
+reading, declines, hangs, answers 403 - and every request the page sent.
+Its header lists the settings.
+
 ## Clean up
 
 Remove `walk:fixture` and `gewicht:v1` from `localStorage` (or click

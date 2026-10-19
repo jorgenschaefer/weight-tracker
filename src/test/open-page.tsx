@@ -1,6 +1,6 @@
 import { MantineProvider } from "@mantine/core";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 import Page from "@/app/page";
 import { CACHE_KEY, parseCache, serializeCache } from "@/measurement/cache";
@@ -10,8 +10,10 @@ import {
   MS_PER_DAY,
 } from "@/measurement/calendar-day";
 import {
+  enterMeasurement,
   fetchMeasurements,
   type GoogleHealthError,
+  type GoogleHealthResult,
   revokeAccess,
   signIn,
 } from "@/measurement/google-health";
@@ -26,7 +28,8 @@ import { stubContainerWidth } from "./container-width";
 
 /**
  * Google, in memory: the measurements in Google Health, the access tokens it
- * has granted the page and not yet revoked, and how many it has issued.
+ * has granted the page, to read and to write, and not yet revoked, and how
+ * many it has issued.
  */
 export const google = {
   measurements: [] as Measurement[],
@@ -49,7 +52,10 @@ export function standInForGoogle(now: Date) {
   vi.mocked(signIn).mockImplementation(async () => {
     const token = `token-${++google.tokensIssued}`;
     google.grants.push(token);
-    return { ok: true, value: { token, expiresInSeconds: TOKEN_LIFETIME_S } };
+    return {
+      ok: true,
+      value: { token, expiresInSeconds: TOKEN_LIFETIME_S, writeGranted: true },
+    };
   });
   vi.mocked(fetchMeasurements).mockImplementation(async (token, from) => {
     if (!google.grants.includes(token))
@@ -58,6 +64,12 @@ export function standInForGoogle(now: Date) {
       ok: true,
       value: google.measurements.filter((m) => m.time >= from),
     };
+  });
+  vi.mocked(enterMeasurement).mockImplementation(async (token, entered) => {
+    if (!google.grants.includes(token))
+      return failure({ kind: "tokenRejected" });
+    google.measurements.push(entered);
+    return { ok: true, value: null };
   });
   vi.mocked(revokeAccess).mockImplementation(async (token) => {
     google.grants = google.grants.filter((t) => t !== token);
@@ -133,6 +145,25 @@ export async function openAndClick(button: () => Promise<HTMLElement>) {
   return user;
 }
 
+/** Opens the sheet on the page, types `input` and taps „Eintragen“. */
+export async function enterWeight(user: UserEvent, input = "98,6") {
+  await user.click(
+    await screen.findByRole("button", { name: "Gewicht eintragen" }),
+  );
+  await user.type(
+    await screen.findByRole("textbox", { name: "Gewicht heute" }),
+    input,
+  );
+  await user.click(screen.getByRole("button", { name: "Eintragen" }));
+}
+
+/** 98,6 kg entered at {@link NOW}, as „Letzte Messung“ shows it once fetched. */
+export const ENTERED_SHOWN = "Letzte Messung 17.10. um 10:00 Uhr: 98,6 kg";
+export const NOT_YET_FETCHED = ", noch nicht aus Google Health abgerufen";
+
+export const sheet = () =>
+  screen.queryByRole("dialog", { name: "Gewicht eintragen" });
+
 export const fetchButton = () =>
   screen.findByRole("button", { name: "Daten abrufen" });
 export const logoutButton = () =>
@@ -148,7 +179,7 @@ export const hasNoButton = (name: string) =>
   expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
 
 export const FIRST_VISIT =
-  "Diese Seite liest deine Gewichtsmessungen aus Google Health und zeigt dir, ob du noch abnimmst.";
+  "Diese Seite liest deine Gewichtsmessungen aus Google Health, trägt neue ein und zeigt dir, ob du noch abnimmst.";
 
 /** A promise to hold a call with, settled by the test. */
 export function deferred<T>() {
@@ -157,6 +188,13 @@ export function deferred<T>() {
     resolve = r;
   });
   return { promise, resolve };
+}
+
+/** Holds the next fetch until the test answers it. */
+export function holdFetch() {
+  const answer = deferred<GoogleHealthResult<Measurement[]>>();
+  vi.mocked(fetchMeasurements).mockReturnValueOnce(answer.promise);
+  return answer;
 }
 
 /** The time the tests of fetching run at. */

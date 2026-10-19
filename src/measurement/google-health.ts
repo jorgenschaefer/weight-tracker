@@ -4,13 +4,17 @@ import type { Measurement } from "./measurement";
 /**
  * The one module that talks to Google: it loads Google Identity Services,
  * signs in for an access token, reads weight measurements from the Google
- * Health API and revokes the page's access. It only ever reads health data.
- * The token it hands out is the caller's to keep, in memory only.
+ * Health API, enters new ones into it and revokes the page's access. The
+ * token it hands out is the caller's to keep, in memory only.
  */
 
-/** Read access to Health Metrics & Measurements, and nothing more. */
-export const HEALTH_SCOPE =
+/** Read access to Health Metrics & Measurements. */
+export const READ_SCOPE =
   "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly";
+
+/** Write access to Health Metrics & Measurements, to enter measurements. */
+export const WRITE_SCOPE =
+  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.writeonly";
 
 /** What went wrong in talking to Google, for the page to tell in its words. */
 export type GoogleHealthError =
@@ -20,6 +24,8 @@ export type GoogleHealthError =
   | { kind: "signInFailed" }
   /** The sign-in went through, but without read access to the weights. */
   | { kind: "accessNotGranted" }
+  /** The sign-in or Google does not allow the page to enter measurements. */
+  | { kind: "writeNotGranted" }
   /** Google no longer accepts the access token; a new sign-in gets another. */
   | { kind: "tokenRejected" }
   | { kind: "unreachable" }
@@ -46,7 +52,8 @@ export function loadGoogleSignIn(): void {
 }
 
 /**
- * Signs in with Google for an access token that reads the weights. Call it
+ * Signs in with Google for an access token that reads the weights and, where
+ * the person allows it, enters them. Call it
  * straight from the click, before anything is awaited, or the browser blocks
  * the popup.
  */
@@ -59,7 +66,7 @@ export function signIn(): Promise<GoogleHealthResult<SignedIn>> {
     oauth2
       .initTokenClient({
         client_id: clientId(),
-        scope: HEALTH_SCOPE,
+        scope: `${READ_SCOPE} ${WRITE_SCOPE}`,
         callback: (response) => resolve(grantedToken(response)),
         error_callback: () => resolve(failure("signInFailed")),
       })
@@ -81,6 +88,17 @@ export async function fetchMeasurements(
     pageToken = page.value.nextPageToken;
   } while (pageToken !== undefined);
   return { ok: true, value: measurements };
+}
+
+/**
+ * Writes `measurement` into Google Health. It has arrived once Google accepts
+ * it, even where Google has not yet finished storing it.
+ */
+export function enterMeasurement(
+  token: AccessToken,
+  measurement: Measurement,
+): Promise<GoogleHealthResult<null>> {
+  return answeredInTime(postDataPoint(token, measurement));
 }
 
 /** Revokes the page's access at Google, which `token` was granted. */
@@ -105,10 +123,14 @@ export function revokeAccess(
 /** An OAuth access token for the Google Health API. */
 export type AccessToken = string;
 
-/** A sign-in: the access token, and how long Google will accept it. */
+/**
+ * A sign-in: the access token, how long Google will accept it, and whether it
+ * may enter measurements as well as read them.
+ */
 export interface SignedIn {
   token: AccessToken;
   expiresInSeconds: number;
+  writeGranted: boolean;
 }
 
 const SCRIPT_ID = "google-identity-services";
@@ -186,6 +208,50 @@ function parseDataPoint(dataPoint: unknown): Measurement | null {
   return { time, kg: weightGrams / 1000 };
 }
 
+async function postDataPoint(
+  token: AccessToken,
+  { time, kg }: Measurement,
+): Promise<GoogleHealthResult<null>> {
+  const dataPoint = {
+    weight: {
+      sampleTime: {
+        physicalTime: time.toISOString(),
+        // Where the browser is, as a duration east of UTC: Google shows the
+        // weighing at the time of day it was there.
+        utcOffset: `${-time.getTimezoneOffset() * 60}s`,
+      },
+      weightGrams: Math.round(kg * 1000),
+    },
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(DATA_POINTS, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(dataPoint),
+    });
+  } catch {
+    // fetch rejects only where the request did not get through.
+    return failure("unreachable");
+  }
+  if (response.status === 401) return failure("tokenRejected");
+  if (response.status === 403) return failure("writeNotGranted");
+  if (!response.ok)
+    return { ok: false, error: { kind: "failed", status: response.status } };
+
+  // Google answers with a long-running operation, which may already hold
+  // the error of a write it refused.
+  const operation = parseJson(await response.text());
+  if (!isRecord(operation) || operation.error !== undefined) {
+    return failure("unexpectedResponse");
+  }
+  return { ok: true, value: null };
+}
+
 /**
  * `answer`, or Google unreachable where it has not come within
  * {@link ANSWER_WITHIN_MS}: a request that hangs would otherwise keep the page
@@ -208,9 +274,9 @@ function grantedToken(response: TokenResponse): GoogleHealthResult<SignedIn> {
   if (response.error !== undefined || response.access_token === undefined) {
     return failure("signInFailed");
   }
-  // The consent screen lets the person untick the scope and still go on.
+  // The consent screen lets the person untick either scope and still go on.
   const scopes = (response.scope ?? "").split(" ");
-  if (!scopes.includes(HEALTH_SCOPE)) return failure("accessNotGranted");
+  if (!scopes.includes(READ_SCOPE)) return failure("accessNotGranted");
   // Google Identity Services types it as a string of seconds.
   const expiresInSeconds = Number(response.expires_in);
   if (!(expiresInSeconds > 0)) {
@@ -218,7 +284,11 @@ function grantedToken(response: TokenResponse): GoogleHealthResult<SignedIn> {
   }
   return {
     ok: true,
-    value: { token: response.access_token, expiresInSeconds },
+    value: {
+      token: response.access_token,
+      expiresInSeconds,
+      writeGranted: scopes.includes(WRITE_SCOPE),
+    },
   };
 }
 
