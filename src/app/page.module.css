@@ -90,8 +90,8 @@
 
 /* A screen as short as 360 × 640: the verdict, „Langfristig“ and the
    figures fit above its bottom edge in every state only with narrower gaps
-   than the specimen's. Verdict.module.css narrows its own at the same
-   height. */
+   than the specimen's. Verdict.module.css and MorningDeviation.module.css
+   narrow their own at the same height. */
 @media (max-height: 45em) {
   .overview {
     margin-top: 12px;
