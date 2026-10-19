@@ -51,7 +51,6 @@ Was dieses Ticket mit den anderen teilt: Es legt `src/measurement/entered-measur
 - Notizen zur Messung.
 
 ## Left standing
-- **Check not run as one command.** `npm run check` stops in its `biome check` step with "Found a nested root configuration". The cause is another session's locked git worktree in `.claude/worktrees/fruehwarnung`, which is not part of this change and which I left alone. I ran the steps one by one on this tree: `tsc --noEmit` passed, `biome check src UBIQUITOUS_LANGUAGE.md *.ts *.mts *.json .claude/skills` was clean, `vitest run` passed 27 files and 504 tests, and `next build` succeeded.
 - **What no test proves, and how it was checked instead.** jsdom lays nothing out. So these were checked by the two reviews in the real page (`next dev`, headless Chromium driven by Playwright) at 360 × 640 and 1440 × 900, on the first visit, on cached data at every colour level, and after a failed fetch:
   - the button stays in place while the page scrolls (AC-1);
   - scrolled to the bottom it covers nothing, and it never covers the headline, sentence, Ampel, figures, „Daten abrufen“ or the error line (AC-10);

@@ -21,3 +21,7 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code's git worktrees: other checkouts of this repository, each
+# with its own biome.json, which `biome check` would refuse as nested roots
+/.claude/worktrees/
