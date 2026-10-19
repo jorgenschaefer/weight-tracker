@@ -4,17 +4,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Measurement } from "@/measurement/measurement";
 import {
   at,
-  evening,
   leavePage,
   NOW,
+  openHistoryOn,
   openOn,
   standInForGoogle,
   steady,
 } from "@/test/open-page";
-import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -26,21 +24,6 @@ vi.mock("@/measurement/google-health", () => ({
 
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
-
-/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
-const OCTOBER_18_AND_19: Measurement[] = [
-  { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
-  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
-];
-
-/** Opens the page in the evening of `today` with the fixture, 18.10. and 19.10. up to then. */
-const openFixtureOn = (today: string) =>
-  openOn(
-    today,
-    [...weightHistory(), ...OCTOBER_18_AND_19].filter(
-      (m) => m.time <= evening(today),
-    ),
-  );
 
 const headline = () => screen.findByRole("heading", { level: 1 });
 const EARLY_WARNING = "Frühwarnung · letzte Tage";
@@ -83,14 +66,14 @@ describe("the sentence of the Frühwarnung", () => {
     ["2026-10-17", "Der Trend steigt seit einem Tag."],
     ["2026-07-22", "Der Trend steigt seit 7 Tagen."],
   ])("on %s is „%s“", async (today, sentence) => {
-    openFixtureOn(today);
+    openHistoryOn(today);
 
     await headline();
     expect(screen.getByText(sentence)).toBeInTheDocument();
   });
 
   it("stands under the headline, the card under it", async () => {
-    openFixtureOn("2026-10-12");
+    openHistoryOn("2026-10-12");
 
     const sentence = await screen.findByText(
       "Der Trend fällt seit mindestens 5 Tagen.",
@@ -138,7 +121,7 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-11)", () => {
   ])(
     "on %s is „%s“, „%s“, the card %s and „Langfristig“ %s",
     async (today, verdict, sentence, card, longTerm) => {
-      openFixtureOn(today);
+      openHistoryOn(today);
 
       expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
       expect(screen.getByText(sentence)).toBeInTheDocument();
@@ -158,11 +141,11 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-11)", () => {
   );
 
   it("on 7.10. is the comparison after the gap, on 8.10. „Nimmt ab“", async () => {
-    openFixtureOn("2026-10-07");
+    openHistoryOn("2026-10-07");
     expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
     cleanup();
 
-    openFixtureOn("2026-10-08");
+    openHistoryOn("2026-10-08");
     expect(await headline()).toHaveTextContent(/^Nimmt ab$/);
   });
 });
@@ -171,7 +154,7 @@ describe("what the page no longer says", () => {
   it.each(["2026-10-12", "2026-10-13", "2026-08-26", "2026-09-05"])(
     "on %s neither „kein Abnehmen“, „Zuletzt abgenommen bis“ nor „4 Wochen: …“",
     async (today) => {
-      openFixtureOn(today);
+      openHistoryOn(today);
 
       await headline();
       expect(document.body).not.toHaveTextContent(/kein Abnehmen/);
@@ -186,13 +169,13 @@ describe("a last measurement too old", () => {
     ["2026-09-25", "Stagniert"],
     ["2026-09-26", "Letzte Messung vor 4 Tagen"],
   ])("on %s, after the last on 22.9., is %s", async (today, text) => {
-    openFixtureOn(today);
+    openHistoryOn(today);
 
     expect(await headline()).toHaveTextContent(text);
   });
 
   it("wins over „Nimmt zu“, without „Frühwarnung“", async () => {
-    openFixtureOn("2026-10-23");
+    openHistoryOn("2026-10-23");
 
     expect(await headline()).toHaveTextContent("Letzte Messung vor 4 Tagen");
     expect(screen.queryByText(/Nimmt zu/)).not.toBeInTheDocument();
@@ -210,7 +193,7 @@ describe("after a gap", () => {
   const A_WEEK_AFTER = "Ein Urteil gibt es wieder eine Woche nach der Lücke.";
 
   it("compares with the trend before it, clearly more than the normal variation", async () => {
-    openFixtureOn("2026-10-03");
+    openHistoryOn("2026-10-03");
 
     expect(await headline()).toHaveTextContent(
       "Nach 9 Tagen ohne Messung: +1,0 kg gegenüber vorher",
@@ -224,7 +207,7 @@ describe("after a gap", () => {
   });
 
   it("compares with the trend before it, within the normal variation", async () => {
-    openFixtureOn("2026-10-04");
+    openHistoryOn("2026-10-04");
 
     expect(await headline()).toHaveTextContent(
       "Nach 9 Tagen ohne Messung: +0,3 kg gegenüber vorher",
@@ -262,7 +245,7 @@ describe("„Noch kein Urteil“", () => {
   });
 
   it("stands while the trend has no 7-day pace", async () => {
-    openFixtureOn("2026-07-11");
+    openHistoryOn("2026-07-11");
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
     expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
@@ -287,7 +270,7 @@ function figure(label: string): string | null {
 
 describe("the figures", () => {
   it("are the trend and „Gemessen“, in German", async () => {
-    openFixtureOn("2026-10-17");
+    openHistoryOn("2026-10-17");
 
     await headline();
     expect(figure("Trend")).toBe("97,8 kg");
@@ -295,7 +278,7 @@ describe("the figures", () => {
   });
 
   it("hold no pace, which „Langfristig“ says alone", async () => {
-    openFixtureOn("2026-10-17");
+    openHistoryOn("2026-10-17");
 
     await headline();
     expect(figure("Tempo 4 Wochen")).toBeNull();
@@ -376,7 +359,7 @@ describe("the colours of the surface", () => {
     ],
     ["2026-09-26", "a last measurement too old", "#DDE1E5", "#20262C"],
   ])("on %s, %s, are %s with %s", async (today, _, surface, ink) => {
-    openFixtureOn(today);
+    openHistoryOn(today);
 
     await headline();
     expect(screen.getByRole("main")).toHaveStyle({
@@ -438,10 +421,10 @@ describe("the headline", () => {
     ["2026-10-17", "„Nimmt zu“ on Warnstufe 1"],
     ["2026-09-05", "„Nimmt zu“ on Warnstufe 2"],
   ])("is set on %s, %s, as „Nimmt ab“", async (today) => {
-    openFixtureOn("2026-10-12");
+    openHistoryOn("2026-10-12");
     const losing = styleOf(await headline());
     cleanup();
-    openFixtureOn(today);
+    openHistoryOn(today);
 
     expect(styleOf(await headline())).toEqual(losing);
   });

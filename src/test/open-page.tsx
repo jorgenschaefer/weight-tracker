@@ -19,6 +19,7 @@ import {
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
 import { stubContainerWidth } from "./container-width";
+import { weightHistoryUntil } from "./weight-history-fixture";
 
 /**
  * Opening the page in tests, against Google in memory. A test file using it
@@ -157,6 +158,13 @@ export function openOn(today: string, measurements: Measurement[]) {
   storeCache(evening(today), measurements);
   renderPage();
 }
+
+/**
+ * Opens the page in the evening of `today` with the user's weight, 18.10. and
+ * 19.10. up to `lastDay`.
+ */
+export const openHistoryOn = (today: string, lastDay = today) =>
+  openOn(today, weightHistoryUntil(lastDay));
 
 /** Opens the page and clicks `button`; returns the user to click on with. */
 export async function openAndClick(button: () => Promise<HTMLElement>) {

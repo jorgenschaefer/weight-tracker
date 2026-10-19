@@ -7,10 +7,9 @@ import {
 } from "@/measurement/measurement";
 import { stubContainerWidth } from "@/test/container-width";
 import {
-  evening,
   leavePage,
   NOW,
-  openOn,
+  openHistoryOn,
   standInForGoogle,
 } from "@/test/open-page";
 import { weightHistory } from "@/test/weight-history-fixture";
@@ -376,10 +375,7 @@ describe("the outliers on the page", () => {
 
   /** The graph on the page, opened in the evening of `today` with the real history up to it. */
   async function graphOnPage(today: string): Promise<SVGSVGElement> {
-    openOn(
-      today,
-      weightHistory().filter((m) => m.time <= evening(today)),
-    );
+    openHistoryOn(today);
     const graph = await screen.findByRole("img", {
       name: "Messungen und Trend der letzten sechs Wochen",
     });

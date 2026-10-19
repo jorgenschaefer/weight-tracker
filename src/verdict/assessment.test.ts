@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  berlinDay,
   type CalendarDay,
   calendarDayBefore,
 } from "@/measurement/calendar-day";
@@ -9,7 +8,7 @@ import {
   countingMeasurements,
   type Measurement,
 } from "@/measurement/measurement";
-import { weightHistory } from "@/test/weight-history-fixture";
+import { weightHistoryUntil } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
 import { assess } from "./assessment";
 
@@ -19,23 +18,12 @@ const countingFrom = (days: [string, number][]) =>
     days.map(([day, kg]) => ({ time: new Date(`${day}T05:00:00Z`), kg })),
   );
 
-/** The counting measurements of the fixture up to `day`, as the page has them on that day. */
+/** The counting measurements of the fixture, 18.10. and 19.10. up to `day`, as the page has them on that day. */
 const historyUntil = (day: string, extra: Measurement[] = []) =>
-  countingMeasurements(
-    [...weightHistory(), ...extra].filter(
-      (measurement) => berlinDay(measurement.time) <= day,
-    ),
-  );
-
-/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
-const OCTOBER_18_AND_19: Measurement[] = [
-  { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
-  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
-];
+  countingMeasurements(weightHistoryUntil(day, extra));
 
 /** The assessment of the fixture, 18.10. and 19.10. on `day`, the day itself the last with a measurement. */
-const assessOn = (day: string) =>
-  assess(historyUntil(day, OCTOBER_18_AND_19), day as CalendarDay);
+const assessOn = (day: string) => assess(historyUntil(day), day as CalendarDay);
 
 describe("assess: the Frühwarnung on the fixture (AC-11)", () => {
   it.each([
@@ -166,10 +154,7 @@ describe("assess: the last measurement too old", () => {
 
   it("wins over „Nimmt zu“", () => {
     expect(
-      assess(
-        historyUntil("2026-10-18", OCTOBER_18_AND_19),
-        "2026-10-22" as CalendarDay,
-      ).status,
+      assess(historyUntil("2026-10-18"), "2026-10-22" as CalendarDay).status,
     ).toEqual({ kind: "lastMeasurementTooOld", days: 4 });
   });
 

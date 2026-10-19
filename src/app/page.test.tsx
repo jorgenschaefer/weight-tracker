@@ -25,6 +25,7 @@ import {
   MORNING_SHOWN,
   NOW,
   openAndClick,
+  openHistoryOn,
   renderPage,
   standInForGoogle,
   steady,
@@ -33,7 +34,6 @@ import {
   storeLoss,
   storeMorning,
 } from "@/test/open-page";
-import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -70,13 +70,7 @@ describe("the first visit", () => {
 
 describe("opening the page with a cache", () => {
   it("turns the button to fetch around on the surface, so it stands out on every level", async () => {
-    const august26 = new Date("2026-08-26T18:00:00+02:00");
-    vi.setSystemTime(august26);
-    storeCache(
-      august26,
-      weightHistory().filter((m) => m.time <= august26),
-    );
-    renderPage();
+    openHistoryOn("2026-08-26");
 
     const button = await fetchButton();
     expect(screen.getByRole("main")).toHaveStyle({
@@ -188,13 +182,7 @@ describe("the colour of the browser around the page", () => {
   });
 
   it("is the surface of the verdict from the cache", async () => {
-    const august26 = new Date("2026-08-26T18:00:00+02:00");
-    vi.setSystemTime(august26);
-    storeCache(
-      august26,
-      weightHistory().filter((m) => m.time <= august26),
-    );
-    renderPage();
+    openHistoryOn("2026-08-26");
     await fetchButton();
 
     expect(themeColours()).toEqual(["#8A380A"]);

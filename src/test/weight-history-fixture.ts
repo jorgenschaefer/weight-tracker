@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { berlinDay } from "@/measurement/calendar-day";
 import type { Measurement } from "@/measurement/measurement";
 
 /**
@@ -16,6 +17,25 @@ export function weightHistory(): Measurement[] {
       const [day, kg] = row.split(",");
       return { time: new Date(`${day}T07:00:00+02:00`), kg: Number(kg) };
     });
+}
+
+/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
+export const OCTOBER_18_AND_19: Measurement[] = [
+  { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
+  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
+];
+
+/**
+ * The user's weight with AC-11's 18.10. and 19.10., up to `lastDay` and any
+ * `extra` measurements up to it besides.
+ */
+export function weightHistoryUntil(
+  lastDay: string,
+  extra: Measurement[] = [],
+): Measurement[] {
+  return [...weightHistory(), ...OCTOBER_18_AND_19, ...extra].filter(
+    (measurement) => berlinDay(measurement.time) <= lastDay,
+  );
 }
 
 // A path, not a URL from `import.meta.url`: under jsdom that is no file URL.

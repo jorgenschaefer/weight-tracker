@@ -4,14 +4,13 @@ import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   at,
-  evening,
   leavePage,
   NOW,
+  openHistoryOn,
   openOn,
   standInForGoogle,
   steady,
 } from "@/test/open-page";
-import { weightHistory } from "@/test/weight-history-fixture";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -26,13 +25,6 @@ afterEach(leavePage);
 
 const HEADING = "Langfristig · 4 Wochen";
 const CHARACTER = "Nah an der Wahrheit, reagiert langsam.";
-
-/** Opens the page in the evening of `today` with the real history up to `lastDay`. */
-const openHistoryOn = (today: string, lastDay = today) =>
-  openOn(
-    today,
-    weightHistory().filter((m) => m.time <= evening(lastDay)),
-  );
 
 const headline = () => screen.findByRole("heading", { level: 1 });
 
