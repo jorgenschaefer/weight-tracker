@@ -3,9 +3,8 @@ import { formatPace } from "./format";
 import classes from "./LongTerm.module.css";
 
 /**
- * „Langfristig · 4 Wochen“: the 28-day `pace` in its band, the calories a
- * day it stands for, and what this pace is like; nothing where there is no
- * pace.
+ * „Langfristig · 4 Wochen“: the 28-day `pace` in its band and the calories a
+ * day it stands for; nothing where there is no pace.
  */
 export function LongTerm({ pace }: { pace: Pace | null }) {
   if (pace === null) return null;
@@ -21,9 +20,6 @@ export function LongTerm({ pace }: { pace: Pace | null }) {
             <span className={classes.calories}>{calories}</span>
           </>
         )}
-      </p>
-      <p className={classes.character}>
-        Nah an der Wahrheit, reagiert langsam.
       </p>
     </section>
   );

@@ -24,7 +24,6 @@ beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
 
 const HEADING = "Langfristig · 4 Wochen";
-const CHARACTER = "Nah an der Wahrheit, reagiert langsam.";
 
 const headline = () => screen.findByRole("heading", { level: 1 });
 
@@ -36,15 +35,15 @@ async function paceLine(): Promise<string | null> {
 }
 
 describe("„Langfristig · 4 Wochen“", () => {
-  it("says the 28-day pace, its band and the deficit a day, and what the pace is like", async () => {
+  it("says the 28-day pace, its band and the deficit a day, and nothing more", async () => {
     openHistoryOn("2026-10-17");
 
     expect(await paceLine()).toBe(
       "Nimmt ab, −0,42 kg pro Woche (≈ 460 kcal Defizit pro Tag)",
     );
-    expect(
+    expect(screen.getByText(HEADING).nextElementSibling).toBe(
       screen.getByText(HEADING).parentElement?.lastElementChild,
-    ).toHaveTextContent(new RegExp(`^${CHARACTER}$`));
+    );
   });
 
   it("says a gain with the surplus a day", async () => {
@@ -87,7 +86,6 @@ describe("„Langfristig · 4 Wochen“", () => {
 
     await headline();
     expect(screen.queryByText(HEADING)).not.toBeInTheDocument();
-    expect(screen.queryByText(CHARACTER)).not.toBeInTheDocument();
   });
 
   it("stands under the verdict and above the figures", async () => {

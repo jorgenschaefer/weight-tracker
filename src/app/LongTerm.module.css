@@ -29,12 +29,6 @@
   white-space: nowrap;
 }
 
-.character {
-  margin: 2px 0 0;
-  font-size: 14px;
-  opacity: 0.85;
-}
-
 /* The wide screen of page.module.css. */
 @media (min-width: 65em) {
   .pace {
