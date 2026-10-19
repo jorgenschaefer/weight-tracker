@@ -66,7 +66,7 @@ describe("gapUnderComparison", () => {
 describe("compareAfterGap", () => {
   /**
    * The 12 days up to 22.9. with a trend of 99.0 kg each and measurements
-   * 0.5 kg off it, alternately below and above: a spread s of 0.5 kg.
+   * 0.5 kg off it, alternately below and above: a scatter s of 0.5 kg.
    */
   const before: [string, number][] = Array.from({ length: 12 }, (_, i) => [
     calendarDayBefore("2026-09-22" as CalendarDay, i),
@@ -130,22 +130,22 @@ describe("compareAfterGap", () => {
     ).toBe("clearIncrease");
   });
 
-  it("takes the spread from the 4 weeks up to the last day before the gap", () => {
-    const farBack = measured(["2026-08-25", 109.0], ...before.toReversed(), [
+  it("takes as s the scatter of the first day after the gap, from the 28 days before it", () => {
+    const farBack = measured(["2026-09-02", 109.0], ...before.toReversed(), [
       "2026-10-01",
       100.1,
     ]);
-    const trends = [trendOf("2026-08-25", 99.0), ...trendsBefore];
+    const trends = [trendOf("2026-09-02", 99.0), ...trendsBefore];
 
     expect(
       compareAfterGap(farBack, trends, findGaps(farBack)[1])?.variation,
     ).toBe("clearIncrease");
 
-    const justInside = measured(["2026-08-26", 109.0], ...before.toReversed(), [
+    const justInside = measured(["2026-09-03", 109.0], ...before.toReversed(), [
       "2026-10-01",
       100.1,
     ]);
-    const trendsInside = [trendOf("2026-08-26", 99.0), ...trendsBefore];
+    const trendsInside = [trendOf("2026-09-03", 99.0), ...trendsBefore];
 
     expect(
       compareAfterGap(justInside, trendsInside, findGaps(justInside)[1])
@@ -153,7 +153,20 @@ describe("compareAfterGap", () => {
     ).toBe("withinNormalVariation");
   });
 
-  it("leaves out of the spread the measurements after the gap", () => {
+  it("takes 0.7 kg as s with fewer than 10 days with a trend before the gap: 1.3 kg is within 2 · 0.7 / √1", () => {
+    const nineBefore = before.slice(0, 9);
+    const counting = measured(...nineBefore.toReversed(), [
+      "2026-10-01",
+      100.3,
+    ]);
+    const trends = nineBefore.map(([day]) => trendOf(day, 99.0));
+
+    expect(
+      compareAfterGap(counting, trends, findGaps(counting)[0])?.variation,
+    ).toBe("withinNormalVariation");
+  });
+
+  it("leaves out of s the measurements after the gap", () => {
     const counting = measured(...before.toReversed(), ["2026-10-01", 100.1]);
     const withTrendAfter = [...trendsBefore, trendOf("2026-10-01", 99.0)];
 
@@ -163,7 +176,7 @@ describe("compareAfterGap", () => {
     ).toBe("clearIncrease");
   });
 
-  it("leaves out of the spread the measurements whose day has no trend", () => {
+  it("leaves out of s the measurements whose day has no trend", () => {
     const withoutTrend = trendsBefore.filter(({ day }) => day !== "2026-09-21");
     const counting = measured(
       ...before

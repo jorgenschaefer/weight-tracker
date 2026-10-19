@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-7
 advances:  AC-2, AC-6
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -64,3 +64,8 @@ Of the glossary, this ticket adds „Streuung“ and „Abweichung am Morgen“ 
 - Out of scope: Eine Simulation der Rauschfaktoren aus der eigenen, schiefen Streuung zur Laufzeit. The factors are constants with their comment.
 
 ## Left standing
+- **Review finding not fixed (nit):** `threshold` in `src/trend/scatter.ts` carries the noise factors of the 7-day and 28-day pace (`ScatterCheck` `"sevenDayPace"`, `"twentyEightDayPace"`), which only its tests use so far. Kept because tickets 02 and 03 are to take their thresholds from here rather than compute their own.
+- **Consequence of the nudge on the comparison after a gap (reviewer's observation, not a finding):** s is now the Streuung of the first day after the gap, whose 28 days include the gap itself. After a gap of about 19 days or more, fewer than 10 distances remain, so s is always 0.7 kg, whatever the person's own scatter was before.
+- **Not proved by an automated test:** what the card looks like - its sizes against `specimens/Main.dc.html`, that nothing is cut off at 390 px and on a wide screen. The reviewer drove the page (run skill, headless Chrome) on 8.10., 12.10., 13.10., 14.10., 16.10., 15.9. and 3.10. at both widths. Texts, day labels, rounding, place and inverted colours of the card are proved by `src/app/MorningDeviation.test.tsx`; „Gestern“ and „Am T.M.“ were not seen in the browser, as no date of the test data shows them with the full history.
+- **Costly to reverse:** the interface of `src/trend/scatter.ts` that tickets 02 and 03 will be written against - `scatter(counting, trends, day)`, `threshold(check: ScatterCheck, scatterKg)` and `sortAgainstThreshold(value, limit)` returning `"below" | "between" | "above"` (a value exactly on the threshold, give or take 1e-9, is `"between"`). And `morningDeviation: MorningDeviation | null` (`{ day, differenceKg }`, negative below the trend) on every branch of `Assessment`, `null` everywhere but the verdict of the trend; the card is `MorningDeviationCard` in `src/app/MorningDeviation.tsx`, rendered by `Verdict`, which now takes `today`.
+- **Departures from the nudges:** `MEASUREMENTS_UNTIL_VERDICT` in `src/verdict/gap-comparison.ts` stays: when the comparison after a gap ends is ticket 03's. Of the glossary changes the nudge lists, only the ones this ticket names are made (Streuung, Abweichung am Morgen, Ausreißer, Vergleich nach einer Lücke); Urteil, Stufe, Tempo, Tempo-Stufe, 7-Tage-Tempo, 4-Tage-Tempo and Steigung are left to tickets 02 and 03. `variation` in the comparison after a gap now sorts with `sortAgainstThreshold` too, which adds its 1e-9 rounding allowance to the 2 · s / √n boundary.

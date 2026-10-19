@@ -2,12 +2,14 @@ import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import { findGaps, type Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { isOutlier } from "./outlier";
+import { scatter } from "./scatter";
 import { type Trend, trends } from "./trend";
 
 /**
  * What the graph draws of the last 6 weeks: the counting measurements, each
- * marked whether it is an outlier, and the trend of each day as a line, in
- * pieces broken at every gap. Both ordered by day.
+ * marked whether it is an outlier on the scatter of its own day, and the
+ * trend of each day as a line, in pieces broken at every gap. Both ordered
+ * by day.
  */
 export interface SixWeekSeries {
   measurements: { measurement: CountingMeasurement; outlier: boolean }[];
@@ -30,7 +32,13 @@ export function sixWeekSeries(
       const trend = trendOfDay.get(measurement.day);
       return {
         measurement,
-        outlier: trend !== undefined && isOutlier(measurement, trend),
+        outlier:
+          trend !== undefined &&
+          isOutlier(
+            measurement,
+            trend,
+            scatter(counting, everyTrend, measurement.day),
+          ),
       };
     });
   const trendLine = breakAtGaps(

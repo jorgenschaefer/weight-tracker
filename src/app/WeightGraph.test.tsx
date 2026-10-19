@@ -1,14 +1,29 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import {
   type CountingMeasurement,
   countingMeasurements,
 } from "@/measurement/measurement";
 import { stubContainerWidth } from "@/test/container-width";
+import {
+  evening,
+  leavePage,
+  NOW,
+  openOn,
+  standInForGoogle,
+} from "@/test/open-page";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { WeightGraph } from "./WeightGraph";
+
+vi.mock("@/measurement/google-health", () => ({
+  loadGoogleSignIn: vi.fn(),
+  enterMeasurement: vi.fn(),
+  signIn: vi.fn(),
+  fetchMeasurements: vi.fn(),
+  revokeAccess: vi.fn(),
+}));
 
 // Safe: valid `YYYY-MM-DD`s.
 const october15 = "2026-10-15" as CalendarDay;
@@ -353,4 +368,40 @@ describe("WeightGraph", () => {
       expect(y).toBeLessThan(height);
     }
   });
+});
+
+describe("the outliers on the page", () => {
+  beforeEach(() => standInForGoogle(NOW));
+  afterEach(leavePage);
+
+  /** The graph on the page, opened in the evening of `today` with the real history up to it. */
+  async function graphOnPage(today: string): Promise<SVGSVGElement> {
+    openOn(
+      today,
+      weightHistory().filter((m) => m.time <= evening(today)),
+    );
+    const graph = await screen.findByRole("img", {
+      name: "Messungen und Trend der letzten sechs Wochen",
+    });
+    // Safe: the element with this role is the graph's <svg>.
+    return graph as unknown as SVGSVGElement;
+  }
+
+  it.each([
+    // 0.83 kg over a trend of 96.78 kg, beyond 1.25 × a scatter of 0.54 kg.
+    ["2026-10-08", true],
+    // 0.97 kg over a trend of 97.33 kg, within 1.25 × a scatter of 0.81 kg.
+    ["2026-10-16", false],
+    // 1.02 kg under a trend of 99.82 kg, beyond 1.25 × a scatter of 0.69 kg.
+    ["2026-09-15", true],
+    // 0.75 kg under a trend of 100.05 kg, within 1.25 × a scatter of 0.68 kg.
+    ["2026-09-14", false],
+  ])(
+    "on %s marks the measurement of the day an outlier: %s, by the scatter of its day",
+    async (today, outlier) => {
+      const last = points(await graphOnPage(today)).at(-1);
+
+      expect(last && isHollowRing(last)).toBe(outlier);
+    },
+  );
 });

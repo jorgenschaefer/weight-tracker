@@ -148,6 +148,16 @@ export async function changeVisibility(state: DocumentVisibilityState) {
   });
 }
 
+/** 18:00 in Berlin summer time on `day`. */
+export const evening = (day: string) => new Date(`${day}T18:00:00+02:00`);
+
+/** Opens the page in the evening of `today`, with `measurements` in the cache. */
+export function openOn(today: string, measurements: Measurement[]) {
+  vi.setSystemTime(evening(today));
+  storeCache(evening(today), measurements);
+  renderPage();
+}
+
 /** Opens the page and clicks `button`; returns the user to click on with. */
 export async function openAndClick(button: () => Promise<HTMLElement>) {
   const user = renderPage();

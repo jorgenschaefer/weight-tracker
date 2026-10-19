@@ -1,6 +1,6 @@
-import { daysBetween } from "@/measurement/calendar-day";
 import { findGaps, type Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
+import { scatter, sortAgainstThreshold } from "@/trend/scatter";
 import { median, type Trend } from "@/trend/trend";
 
 /**
@@ -32,9 +32,9 @@ export function gapUnderComparison(
 /**
  * The comparison after `gap`, from `counting` and their `trends` (both
  * ordered by day). The difference is clear where it is larger than
- * 2 · s / √n: s the spread of the counting measurements around their day's
- * trend in the 4 weeks up to the last day before the gap, n the number of
- * counting measurements after it. None where that last day has no trend.
+ * 2 · s / √n: s the scatter of the first day after the gap, n the number of
+ * counting measurements after it. None where the last day before the gap
+ * has no trend.
  */
 export function compareAfterGap(
   counting: CountingMeasurement[],
@@ -47,7 +47,8 @@ export function compareAfterGap(
   const differenceKg =
     median(after.map((measurement) => measurement.kg)) - trendBefore.kg;
   const normalVariation =
-    (2 * spreadBefore(counting, trends, gap)) / Math.sqrt(after.length);
+    (2 * scatter(counting, trends, gap.firstDayAfter)) /
+    Math.sqrt(after.length);
   return {
     kind: "gapComparison",
     gapDays: gap.days,
@@ -57,7 +58,6 @@ export function compareAfterGap(
 }
 
 const MEASUREMENTS_UNTIL_VERDICT = 5;
-const SPREAD_DAYS = 28;
 
 function measurementsAfter(
   counting: CountingMeasurement[],
@@ -67,33 +67,16 @@ function measurementsAfter(
   return counting.filter((measurement) => measurement.day >= gap.firstDayAfter);
 }
 
-/**
- * The root mean square of how far the counting measurements in the 4 weeks
- * up to the last day before `gap` lie from their day's trend; a day without
- * a trend has nothing to lie from and is left out.
- */
-function spreadBefore(
-  counting: CountingMeasurement[],
-  trends: Trend[],
-  gap: Gap,
-): number {
-  const trendOfDay = new Map(trends.map((trend) => [trend.day, trend]));
-  const squares = counting.flatMap((measurement) => {
-    const daysBeforeGap = daysBetween(measurement.day, gap.lastDayBefore);
-    const trend = trendOfDay.get(measurement.day);
-    if (daysBeforeGap < 0 || daysBeforeGap >= SPREAD_DAYS || !trend) return [];
-    return [(measurement.kg - trend.kg) ** 2];
-  });
-  return Math.sqrt(
-    squares.reduce((sum, square) => sum + square, 0) / squares.length,
-  );
-}
-
 function variation(
   differenceKg: number,
   normalVariation: number,
 ): GapComparison["variation"] {
-  if (differenceKg > normalVariation) return "clearIncrease";
-  if (differenceKg < -normalVariation) return "clearDecrease";
-  return "withinNormalVariation";
+  switch (sortAgainstThreshold(differenceKg, normalVariation)) {
+    case "above":
+      return "clearIncrease";
+    case "below":
+      return "clearDecrease";
+    case "between":
+      return "withinNormalVariation";
+  }
 }

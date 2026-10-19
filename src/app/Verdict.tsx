@@ -1,3 +1,4 @@
+import type { CalendarDay } from "@/measurement/calendar-day";
 import type { PaceBand } from "@/trend/pace";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
 import { CONFIRMATION_DAYS, type DaysWithoutDecrease } from "@/verdict/verdict";
@@ -7,15 +8,23 @@ import {
   formatKgChange,
   formatPace,
 } from "./format";
+import { MorningDeviationCard } from "./MorningDeviation";
 import classes from "./Verdict.module.css";
 
 /**
- * The verdict, or why there is none, from `assessment`: the headline, the
- * sentence under it where it has one, and the pace band. The headline grows
- * wider and heavier with the level of a no-decrease verdict.
+ * The verdict, or why there is none, from `assessment` on `today`: the
+ * headline, the sentence under it where it has one, the card of the
+ * morning's deviation where there is one, and the pace band. The headline
+ * grows wider and heavier with the level of a no-decrease verdict.
  */
-export function Verdict({ assessment }: { assessment: Assessment }) {
-  const { status, pace } = assessment;
+export function Verdict({
+  assessment,
+  today,
+}: {
+  assessment: Assessment;
+  today: CalendarDay;
+}) {
+  const { status, pace, morningDeviation } = assessment;
   const sentence = explanation(status);
   return (
     <>
@@ -23,6 +32,13 @@ export function Verdict({ assessment }: { assessment: Assessment }) {
         {headline(status)}
       </h1>
       {sentence !== null && <p className={classes.explanation}>{sentence}</p>}
+      {morningDeviation !== null && (
+        <MorningDeviationCard
+          deviation={morningDeviation}
+          today={today}
+          colours={surfaceColours(status)}
+        />
+      )}
       {pace !== null && <p className={classes.band}>{BAND_NAMES[pace.band]}</p>}
     </>
   );

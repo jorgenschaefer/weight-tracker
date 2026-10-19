@@ -27,7 +27,7 @@ describe("sixWeekSeries", () => {
     expect(series.trendLine.at(-1)?.at(-1)?.day).toBe("2026-10-12");
   });
 
-  it("marks the measurements more than 0.9 kg off their day's trend, as the specimen does", () => {
+  it("marks the measurements beyond the threshold of their own day's scatter from their day's trend, above or below", () => {
     const outliers = sixWeekSeries(realHistory(), october17)
       .measurements.filter(({ outlier }) => outlier)
       .map(({ measurement }) => measurement.day);
@@ -37,10 +37,10 @@ describe("sixWeekSeries", () => {
       "2026-09-15",
       "2026-09-18",
       "2026-09-20",
+      "2026-10-08",
       "2026-10-09",
       "2026-10-12",
       "2026-10-13",
-      "2026-10-16",
     ]);
   });
 

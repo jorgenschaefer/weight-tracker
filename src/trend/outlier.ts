@@ -1,21 +1,45 @@
+import type { CalendarDay } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
+import { sortAgainstThreshold, threshold } from "./scatter";
 import type { Trend } from "./trend";
 
 /**
- * Whether `measurement` lies more than 0.9 kg from `trend`, the trend of its
- * day.
+ * Whether `measurement` lies beyond the morning's threshold from `trend`,
+ * the trend of its day, on its day's scatter of `scatterKg` - above it or
+ * below it.
  */
 export function isOutlier(
   measurement: CountingMeasurement,
   trend: Trend,
+  scatterKg: number,
 ): boolean {
-  return Math.abs(measurement.kg - trend.kg) > OUTLIER_KG + ROUNDING_ERROR;
+  return (
+    sortAgainstThreshold(
+      measurement.kg - trend.kg,
+      threshold("morning", scatterKg),
+    ) !== "between"
+  );
 }
 
-const OUTLIER_KG = 0.9;
+/**
+ * „Heute · X kg über/unter dem Trend“: the counting measurement of a day
+ * that is an outlier, and how far it lies from its day's trend, in kg -
+ * negative below it.
+ */
+export interface MorningDeviation {
+  day: CalendarDay;
+  differenceKg: number;
+}
 
 /**
- * Far below a gram, far above what subtracting two weights loses: in kg,
- * 96.8 lies 0.9000000000000057 from 97.7, and would count without it.
+ * The deviation of `measurement` from `trend`, the trend of its day, on its
+ * day's scatter of `scatterKg`; none where it is no {@link isOutlier outlier}.
  */
-const ROUNDING_ERROR = 1e-9;
+export function morningDeviation(
+  measurement: CountingMeasurement,
+  trend: Trend,
+  scatterKg: number,
+): MorningDeviation | null {
+  if (!isOutlier(measurement, trend, scatterKg)) return null;
+  return { day: measurement.day, differenceKg: measurement.kg - trend.kg };
+}

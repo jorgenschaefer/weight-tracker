@@ -1,6 +1,8 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
+import { type MorningDeviation, morningDeviation } from "@/trend/outlier";
 import { type Pace, pace } from "@/trend/pace";
+import { scatter } from "@/trend/scatter";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { trends } from "@/trend/trend";
 import {
@@ -15,12 +17,18 @@ import { type TrendVerdict, trendVerdict } from "./verdict";
  * it the figures of the last day with a measurement and the 6-week series.
  * Each status carries the figures it can have: under „Noch kein Urteil“
  * there is no trend - no trend, no pace and no trend line - and without any
- * measurement no „Gemessen“ either.
+ * measurement no „Gemessen“ either. Only the verdict of the trend carries the
+ * deviation of the morning, where the last day with a measurement has one.
  */
 export type Assessment =
-  | (Figures & { status: TrendVerdict; trendKg: number })
+  | (Figures & {
+      status: TrendVerdict;
+      trendKg: number;
+      morningDeviation: MorningDeviation | null;
+    })
   | (Figures & {
       status: GapComparison | { kind: "lastMeasurementTooOld"; days: number };
+      morningDeviation: null;
     })
   | {
       status: { kind: "noVerdictYet" };
@@ -28,6 +36,7 @@ export type Assessment =
       trendKg: null;
       pace: null;
       sixWeekSeries: SixWeekSeries;
+      morningDeviation: null;
     };
 
 /** What the page says above the figures: a verdict, or why there is none. */
@@ -64,6 +73,7 @@ export function assess(
     trendKg: assessment.trendKg,
     pace: assessment.pace,
     sixWeekSeries: assessment.sixWeekSeries,
+    morningDeviation: null,
   };
 }
 
@@ -93,12 +103,22 @@ function assessLastDay(
   if (gap !== null) {
     const comparison = compareAfterGap(counting, everyTrend, gap);
     if (comparison === null) return noVerdictYet(last.kg, series);
-    return { status: comparison, trendKg: trendOfLast?.kg ?? null, ...figures };
+    return {
+      status: comparison,
+      trendKg: trendOfLast?.kg ?? null,
+      morningDeviation: null,
+      ...figures,
+    };
   }
   if (trendOfLast === undefined) return noVerdictYet(last.kg, series);
   return {
     status: trendVerdict(everyTrend, counting),
     trendKg: trendOfLast.kg,
+    morningDeviation: morningDeviation(
+      last,
+      trendOfLast,
+      scatter(counting, everyTrend, last.day),
+    ),
     ...figures,
   };
 }
@@ -120,5 +140,6 @@ function noVerdictYet(
       })),
       trendLine: [],
     },
+    morningDeviation: null,
   };
 }

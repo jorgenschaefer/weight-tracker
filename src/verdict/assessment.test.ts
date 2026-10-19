@@ -326,6 +326,27 @@ describe("assess: no verdict yet", () => {
       trendKg: null,
       pace: null,
       sixWeekSeries: { measurements: [], trendLine: [] },
+      morningDeviation: null,
     });
+  });
+});
+
+describe("assess: the deviation of the morning", () => {
+  it("stands with the verdict of the trend, from the scatter of the last day", () => {
+    const { morningDeviation } = assessOn("2026-10-12");
+
+    expect(morningDeviation?.day).toBe("2026-10-12");
+    expect(morningDeviation?.differenceKg).toBeCloseTo(2.6);
+  });
+
+  it("is none with the verdict where the measurement is within the threshold", () => {
+    expect(assessOn("2026-10-16").morningDeviation).toBeNull();
+  });
+
+  it("is none where the last measurement is too old", () => {
+    expect(
+      assess(historyUntil("2026-10-12"), "2026-10-16" as CalendarDay)
+        .morningDeviation,
+    ).toBeNull();
   });
 });

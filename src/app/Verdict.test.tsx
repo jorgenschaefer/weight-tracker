@@ -6,12 +6,12 @@ import { cleanup, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Measurement } from "@/measurement/measurement";
 import {
+  evening,
   leavePage,
   NOW,
-  renderPage,
+  openOn,
   standInForGoogle,
   steady,
-  storeCache,
 } from "@/test/open-page";
 import { weightHistory } from "@/test/weight-history-fixture";
 
@@ -25,16 +25,6 @@ vi.mock("@/measurement/google-health", () => ({
 
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
-
-/** 18:00 in Berlin summer time on `day`. */
-const evening = (day: string) => new Date(`${day}T18:00:00+02:00`);
-
-/** Opens the page in the evening of `today`, with `measurements` in the cache. */
-function openOn(today: string, measurements: Measurement[]) {
-  vi.setSystemTime(evening(today));
-  storeCache(evening(today), measurements);
-  renderPage();
-}
 
 /** The 18.10.2026 the fixture lacks: 98.4 kg, the day after its last. */
 const OCTOBER_18: Measurement = {
