@@ -32,8 +32,12 @@
   }
 }
 
+/* On a 360 × 640 screen at 38px, „Nach 9 Tagen ohne Messung: +1,5 kg
+   gegenüber vorher“ takes five lines, and with an error line and
+   „Daten abrufen“ pushes the figures below the screen; at 34px it takes
+   three. */
 .headline[data-emphasis="statement"] {
-  font-size: 38px;
+  font-size: 34px;
   font-weight: 700;
   line-height: 1.02;
 }
