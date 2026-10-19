@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import "@mantine/core/styles.css";
 import {
@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   description: "Gewichtstrend aus Google Health",
   robots: { index: false, follow: false },
 };
+
+// Chrome on Android lays the page out above the keyboard instead of behind
+// it, so the bottom sheet's field and „Eintragen“ stay in sight while typing.
+export const viewport: Viewport = { interactiveWidget: "resizes-content" };
 
 // Downloaded at build time and served with the app, so the browser never
 // asks Google Fonts. Variable in weight and width.

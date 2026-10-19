@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { metadata } from "./layout";
+import { metadata, viewport } from "./layout";
 
 // next/font is a compiler transform that only next build and next dev run.
 vi.mock("next/font/google", () => ({
@@ -10,6 +10,12 @@ vi.mock("next/font/google", () => ({
 describe("root layout metadata", () => {
   it("keeps every page out of search engines", () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe("root layout viewport", () => {
+  it("shrinks the page above the phone's keyboard, so the sheet's field and „Eintragen“ stay above it", () => {
+    expect(viewport.interactiveWidget).toBe("resizes-content");
   });
 });
 

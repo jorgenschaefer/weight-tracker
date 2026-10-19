@@ -21,3 +21,5 @@ Code in English, page in German.
 | Ausreißer | `outlier` | A counting measurement more than 0.9 kg away from the trend of its day. |
 | Abruf | `fetch` | Fetching the measurements from Google Health into the cache in this browser. |
 | Abrufzeitraum | `FetchPeriod` | The period a fetch asks for and replaces in the cache: 90 days on the first fetch, later the last 14 days or everything since the last fetch, at most 90 days. |
+| Eintragen | `enter` | Writing a weight typed on the page into Google Health, at the time it is entered. |
+| Eingetragene Messung | `enteredMeasurement` | A measurement entered on the page that Google Health has not yet returned in a fetch. |

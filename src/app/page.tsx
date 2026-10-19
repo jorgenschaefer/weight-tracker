@@ -10,6 +10,7 @@ import {
   latestMeasurement,
 } from "@/measurement/measurement";
 import { type Assessment, assess } from "@/verdict/assessment";
+import { EntrySheet } from "./EntrySheet";
 import { formatDay, formatKg, formatTime } from "./format";
 import classes from "./page.module.css";
 import {
@@ -70,8 +71,9 @@ function useToday(): CalendarDay {
 }
 
 /**
- * The colour field: the whole screen, its content in the middle. The browser
- * around the page, Android's status bar and address bar, takes its colour.
+ * The colour field: the whole screen, its content in the middle, and the
+ * button to enter a weight in every state of the page. The browser around the
+ * page, Android's status bar and address bar, takes its colour.
  */
 function Surface({
   colours,
@@ -88,6 +90,7 @@ function Surface({
       {/* React moves it into <head> and keeps it there in step. */}
       <meta name="theme-color" content={colours.surface} />
       <div className={classes.content}>{children}</div>
+      <EntrySheet colours={colours} />
     </main>
   );
 }

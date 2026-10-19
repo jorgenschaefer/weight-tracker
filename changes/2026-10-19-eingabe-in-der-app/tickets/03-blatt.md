@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2, AC-10
 advances:  AC-3
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -51,3 +51,18 @@ Was dieses Ticket mit den anderen teilt: Es legt `src/measurement/entered-measur
 - Notizen zur Messung.
 
 ## Left standing
+- **Check not run as one command.** `npm run check` stops in its `biome check` step with "Found a nested root configuration". The cause is another session's locked git worktree in `.claude/worktrees/fruehwarnung`, which is not part of this change and which I left alone. I ran the steps one by one on this tree: `tsc --noEmit` passed, `biome check src UBIQUITOUS_LANGUAGE.md *.ts *.mts *.json .claude/skills` was clean, `vitest run` passed 27 files and 504 tests, and `next build` succeeded.
+- **What no test proves, and how it was checked instead.** jsdom lays nothing out. So these were checked by the two reviews in the real page (`next dev`, headless Chromium driven by Playwright) at 360 × 640 and 1440 × 900, on the first visit, on cached data at every colour level, and after a failed fetch:
+  - the button stays in place while the page scrolls (AC-1);
+  - scrolled to the bottom it covers nothing, and it never covers the headline, sentence, Ampel, figures, „Daten abrufen“ or the error line (AC-10);
+  - nothing scrolls horizontally, and the sheet's content is 960 px wide and centred on the wide window (AC-10);
+  - a real tap beside the sheet closes it (AC-2).
+  - On level 2 at the top of the page, not yet scrolled, the button covers the newest point in the graph. AC-10 asks for that point only when scrolled to the bottom.
+- **The open keyboard was not tried on a real phone (AC-10).** The reviewer stood in for it with a 360 × 340 window, and field and „Eintragen“ stayed visible. On the phone it relies on `interactive-widget=resizes-content` in the viewport (`src/app/layout.tsx`). Chrome on Android honours that. Safari on iOS ignores it, and nobody tried it there. The number keyboard is pinned only as `inputmode="decimal"`; nobody saw it on a phone.
+- **Not driven in the browser.** After the second review I made the placeholder „98,6“ keep its grey when an empty field is refused (it turned red under Mantine's error colour, finding rated should-fix). A test pins it, but nobody looked at it in the page.
+- **Departure from a nudge: no `Affix`.** The button is an `ActionIcon` with its own `position: fixed` class in `EntrySheet.module.css`. `Affix` places it through Mantine's stylesheet and a rem-scaled variable, which jsdom cannot test. A class can be checked from the stylesheet, the way `page.test.tsx` already checks the layout. It also keeps the button below the sheet's overlay (z-index 100 against Mantine's 200).
+- **Colours the design does not settle.** The specimen shows only level 1, where „Eintragen“ and the field's border take the page's text colour. On level 3 that colour is light (#FFF3E8) and would not show on the light sheet. So they take whichever of the page's two colours is darker (`sheetColours` in `EntrySheet.tsx`): the surface #8A380A on level 3, the text colour everywhere else. Mantine's red for the hint is replaced by the sheet's text colour in bold, like the page's problem line, and so is its red border on a refused field.
+- **Beyond the sheet component.** `page.module.css` now leaves `padding-bottom: 100px` under the page on every width, so the button covers nothing when scrolled to the bottom. On wide screens that bottom padding used to be 16 px. `layout.tsx` gains the `viewport` export.
+- **Names and behaviour later code builds on.** `parseEnteredKg(input): number | null` in `src/measurement/entered-measurement.ts` is the AC-3 rule. Tickets 01 and 02 add to that file. The sheet is `EntrySheet({ colours })` in `src/app/EntrySheet.tsx`, with the form in `EntryForm` beside it; 01 attaches saving there. Two decisions AC-3 does not settle:
+  - spaces before and after the number are ignored;
+  - a separator with no decimal after it („98,“) is refused, and so is one with no digit before it („,5“).

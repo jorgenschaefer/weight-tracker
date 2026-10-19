@@ -1,9 +1,13 @@
 /* The colour field: the whole screen is the verdict surface, in the colours
-   page.tsx sets on it, neutral until there is a verdict to colour it by. */
+   page.tsx sets on it, neutral until there is a verdict to colour it by.
+   Below the content it leaves room for the button to enter a weight: 60 px
+   tall (EntrySheet.tsx), 20 px from the bottom (EntrySheet.module.css), and
+   20 px more. */
 .surface {
   min-height: 100dvh;
   box-sizing: border-box;
-  padding: 20px 20px 8px;
+  padding: 20px;
+  padding-bottom: 100px;
   display: flex;
   flex-direction: column;
 }
@@ -104,7 +108,7 @@
    graph under both. Verdict.module.css switches at the same width. */
 @media (min-width: 65em) {
   .surface {
-    padding: 40px 20px 16px;
+    padding-top: 40px;
   }
 
   .latest {

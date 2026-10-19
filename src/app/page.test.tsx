@@ -344,6 +344,34 @@ describe("„Abmelden“", () => {
   });
 });
 
+describe("the button to enter a weight", () => {
+  const enterButton = () =>
+    screen.findByRole("button", { name: "Gewicht eintragen" });
+
+  it("is there on the first visit, before the first fetch", async () => {
+    renderPage();
+
+    expect(await enterButton()).toBeInTheDocument();
+  });
+
+  it("is there on the page from the cache", async () => {
+    storeLoss();
+    renderPage();
+
+    expect(await enterButton()).toBeInTheDocument();
+  });
+
+  it("is there after a failed fetch", async () => {
+    vi.mocked(fetchMeasurements).mockResolvedValue(
+      failure({ kind: "unreachable" }),
+    );
+    await openAndClick(fetchButton);
+
+    await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+    expect(await enterButton()).toBeInTheDocument();
+  });
+});
+
 describe("the layout", () => {
   it("puts the verdict, the pace band and the figures before the graph", async () => {
     storeLoss();
@@ -378,6 +406,18 @@ describe("the layout", () => {
     )?.[1];
 
     expect(provisional).toMatch(/opacity:\s*0\.45/);
+  });
+
+  it("leaves room below the page for the button to enter a weight, 20 px over it, so it covers nothing scrolled to the bottom", () => {
+    const surfaceRules = [
+      ...stylesheets[0].matchAll(/\.surface\s*\{([^}]*)\}/g),
+    ].map((match) => match[1]);
+
+    // The button is 60 px tall, 20 px from the bottom of the window.
+    expect(surfaceRules[0]).toMatch(/padding-bottom:\s*100px/);
+    for (const later of surfaceRules.slice(1)) {
+      expect(later).not.toMatch(/padding(-bottom)?:/);
+    }
   });
 
   it("limits the content to 960 px, in the middle", () => {
