@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>FAB zum Eintragen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#5A2C06}a:hover{color:#3A1801}
+.cap{min-height:44px;font-size:14px;line-height:1.35;font-weight:500;color:#2F3740}
+.cap b{font-weight:700}
+.col{display:flex;flex-direction:column;gap:8px;width:360px}
+.scr{position:relative;width:360px;height:640px;box-sizing:border-box;padding:20px;display:flex;flex-direction:column;border-radius:6px;overflow:hidden;background:#F5E1CB;color:#5A2C06}
+.meta{font-size:14px;line-height:1.4;opacity:.85}
+.h{margin:28px 0 0;font-size:44px;line-height:.98;font-weight:700;letter-spacing:-0.01em}
+.sub{margin-top:12px;font-size:16px;line-height:1.4}
+.band{margin-top:14px;font-size:21px;font-weight:600}
+.nums{margin-top:28px;padding-top:12px;border-top:1px solid color-mix(in srgb,currentColor 30%,transparent);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nl{font-size:13px;font-weight:500;opacity:.85}
+.nv{margin-top:2px;font-size:28px;font-weight:600;font-stretch:88%;font-variant-numeric:tabular-nums}
+.nu{font-size:13px;font-weight:500;opacity:.85}
+.graph{margin-top:28px;height:150px;border-radius:4px;background:color-mix(in srgb,currentColor 8%,transparent);display:flex;align-items:center;justify-content:center;font-size:13px;opacity:.7}
+.entry{display:flex;gap:8px;align-items:flex-end}
+.field{flex:1;display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
+.box{height:48px;box-sizing:border-box;border:2px solid #5A2C06;border-radius:8px;background:#FFF8F0;display:flex;align-items:center;padding:0 12px;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;color:#20262C}
+.box input{all:unset;width:100%;font:inherit;color:inherit}
+.kg{font-size:15px;font-weight:500;opacity:.7;margin-left:6px}
+.btn{height:48px;padding:0 18px;border:0;border-radius:8px;background:#5A2C06;color:#F5E1CB;font:inherit;font-size:17px;font-weight:600;cursor:pointer}
+.ghost{align-self:flex-start;margin-top:18px;height:48px;padding:0 18px;border:2px solid #5A2C06;border-radius:8px;background:transparent;color:#5A2C06;font:inherit;font-size:17px;font-weight:600}
+.dock{position:absolute;left:0;right:0;bottom:0;padding:12px 20px 16px;background:#EBD2B6;border-top:1px solid color-mix(in srgb,#5A2C06 25%,transparent)}
+.fab{position:absolute;right:20px;bottom:20px;width:60px;height:60px;border:0;border-radius:50%;background:#5A2C06;color:#F5E1CB;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(58,24,1,.3);cursor:pointer}
+.scrim{position:absolute;inset:0;background:rgba(32,38,44,.35)}
+.sheet{position:absolute;left:0;right:0;bottom:0;padding:16px 20px 24px;background:#FFF8F0;color:#20262C;border-radius:14px 14px 0 0}
+.x{width:44px;height:44px;border:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.logout{margin-top:auto;font-size:14px;text-decoration:underline;opacity:.8}
+</style>
+</helmet>
+<div style="width: 880px; height: 800px; box-sizing: border-box; padding: 32px 40px; display: flex; gap: 40px; background: #E3E6E9; font-family: 'Archivo', sans-serif">
+
+<div class="col">
+<div class="cap"><b>Geschlossen</b><br>Runder Knopf unten rechts, über dem Graphen.</div>
+<div class="scr">
+<div class="meta">Letzte Messung 16.10. um 7:00 Uhr: 98,3 kg</div>
+<div class="h">Seit 6 Tagen kein Abnehmen</div>
+<div class="sub">Zuletzt abgenommen bis 10.10.</div>
+<div class="band">4 Wochen: nimmt ab</div>
+<div class="nums">
+<div><div class="nl">Trend</div><div class="nv">97,3</div><div class="nu">kg</div></div>
+<div><div class="nl">Gemessen</div><div class="nv">98,3</div><div class="nu">kg</div></div>
+<div><div class="nl">Tempo 4 Wochen</div><div class="nv">−0,51</div><div class="nu">kg pro Woche</div></div>
+</div>
+<div class="graph">Graph, 6 Wochen</div>
+<button class="fab" type="button" aria-label="Gewicht eintragen"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button>
+</div>
+</div>
+
+<div class="col">
+<div class="cap"><b>Geöffnet</b><br>Der Knopf öffnet ein Blatt von unten; die Tastatur käme darunter.</div>
+<div class="scr">
+<div class="meta">Letzte Messung 16.10. um 7:00 Uhr: 98,3 kg</div>
+<div class="h">Seit 6 Tagen kein Abnehmen</div>
+<div class="sub">Zuletzt abgenommen bis 10.10.</div>
+<div class="band">4 Wochen: nimmt ab</div>
+<div class="nums">
+<div><div class="nl">Trend</div><div class="nv">97,3</div><div class="nu">kg</div></div>
+<div><div class="nl">Gemessen</div><div class="nv">98,3</div><div class="nu">kg</div></div>
+<div><div class="nl">Tempo 4 Wochen</div><div class="nv">−0,51</div><div class="nu">kg pro Woche</div></div>
+</div>
+<div class="graph">Graph, 6 Wochen</div>
+<div class="scrim"></div>
+<div class="sheet">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="font-size: 20px; font-weight: 700">Gewicht eintragen</div>
+<button class="x" type="button" aria-label="Schließen"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button>
+</div>
+<div class="entry" style="margin-top: 14px">
+<label class="field">Gewicht heute<span class="box"><input inputmode="decimal" placeholder="98,6" aria-label="Gewicht heute in kg"><span class="kg">kg</span></span></label>
+<button class="btn" type="button">Eintragen</button>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":800}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
