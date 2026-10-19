@@ -44,5 +44,6 @@ Its header lists the settings.
 
 ## Clean up
 
-Remove `walk:fixture` and `gewicht:v1` from `localStorage` (or click
-„Abmelden“), close the frames, and stop the dev server.
+Remove `walk:fixture`, `gewicht:v1` and `gewicht:eingetragen:v1` from
+`localStorage` (or click „Abmelden“), close the frames, and stop the dev
+server.
