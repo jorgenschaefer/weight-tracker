@@ -5,6 +5,14 @@ utility: M
 
 # Code so lesbar wie die Beschreibung
 
+> Plan und Anhang beschreiben Code und Seite vor
+> `changes/2026-10-19-fruehwarnung-mit-einer-stimme/`. Seitdem gibt es kein
+> 4-Tage-Tempo, keine Steigung, kein „kein Abnehmen“ und keine Ampel mehr,
+> die Schwellen kommen aus der Streuung (`src/trend/scatter.ts`), und
+> `sortAgainstThreshold` ist die eine Regel für alle Grenzen. Wer diesen
+> Eintrag aufnimmt, schreibt zuerst den Anhang neu und prüft den Plan
+> dagegen.
+
 Der Anhang unten beschreibt in natürlicher Sprache, was die Seite tut. Der
 Code sollte sich genauso lesen lassen. Bisher tut er das nicht. Die
 Beschreibung ist um einen Tag mit seinen Eigenschaften gebaut (Trend,
