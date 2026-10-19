@@ -72,7 +72,7 @@ function verdictKindOn(
 ): TrendVerdict["kind"] | null {
   const pace = weekPace(trends, day, firstComparable);
   if (pace === null) return null;
-  const limit = threshold("sevenDayPace", scatter(counting, trends, day));
+  const limit = threshold("weekPace", scatter(counting, trends, day));
   switch (sortAgainstThreshold(pace, limit)) {
     case "below":
       return "losing";

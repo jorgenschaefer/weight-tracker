@@ -47,7 +47,7 @@ export function pace(
  * threshold of the 28-day pace; a pace on it belongs to „stagniert“.
  */
 export function paceBand(kgPerWeek: number, scatterKg: number): PaceBand {
-  const limit = threshold("twentyEightDayPace", scatterKg);
+  const limit = threshold("pace", scatterKg);
   switch (sortAgainstThreshold(kgPerWeek, limit)) {
     case "above":
       return "gain";
