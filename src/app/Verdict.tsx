@@ -137,9 +137,9 @@ function explanation(status: AssessmentStatus): string | null {
     case "gaining":
       return trendVerdictSentence(status);
     case "gapComparison":
-      return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder eine Woche nach der Lücke.`;
+      return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder zwei Wochen nach der Lücke.`;
     case "noVerdictYet":
-      return "Ein Urteil gibt es nach knapp zwei Wochen mit Messungen.";
+      return "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.";
     case "lastMeasurementTooOld":
       return null;
   }

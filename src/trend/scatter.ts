@@ -34,9 +34,10 @@ const START_SCATTER_KG = 0.7;
 
 /**
  * The checks judged against the scatter: the morning's distance from its
- * trend, in kg, and the 7-day and the 28-day pace, in kg per week.
+ * trend, in kg, and the 7-day, the 14-day and the 28-day pace, in kg per
+ * week.
  */
-export type ScatterCheck = "morning" | "weekPace" | "pace";
+export type ScatterCheck = "morning" | "weekPace" | "fortnightPace" | "pace";
 
 /**
  * The threshold of `check` on a day of `scatterKg`: {@link THRESHOLD_FACTOR}
@@ -58,6 +59,8 @@ const NOISE_FACTORS: Record<ScatterCheck, number> = {
   // 0.92 in the simulation, rounded up.
   morning: 1.0,
   weekPace: 0.8,
+  // 0.387 in the simulation, comparing with the trend 14 to 17 days back.
+  fortnightPace: 0.39,
   pace: 0.2,
 };
 

@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8
 advances:  
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -65,3 +65,7 @@ Layout (AC-8): jsdom measures none. The `run` skill of this repository drives th
 
 ## Left standing
 
+- **AC-8 not proved by an automated test, and as worded it does not hold - nor did it before.** jsdom measures no layout. A reviewer drove the page with the `run` skill at 360 × 640 and 1280 px on 10.7., 19.7., 7.8., 20.9., 22.9., 5.10. and 19.10. The card, „Langfristig“, the figures, the graph, the colours and „Frühwarnung · letzte Tage“ render as before, and nothing scrolls sideways. But in every state with „Langfristig“ the graph and „Abmelden“ lie below the fold at 640 px; with the card, most of the graph does. This change touches no layout - only two sentences of the same length in `src/app/Verdict.tsx` - and `changes/backlog/hauptseite-abwaegen.md` already records the figures ending at the bottom edge. Whether AC-8 means "nothing new is pushed down" or needs rewording is a question for acceptance.
+- **Decided:** where a day has a 14-day pace but no 7-day pace (a trend missing 7 to 10 days back), the 14-day pace speaks, reading AC-2's „Sonst“ literally; `src/verdict/verdict.test.ts` pins it.
+- **Coverage moved, not lost:** the fixture has no „Stagniert“ of 13 or 14 days any more, so the colour and headline tests in `src/app/Verdict.test.tsx` take Warnstufe 2 and 3 from „Nimmt zu“; „Stagniert“ on every Warnstufe stays pinned in `src/verdict/verdict.test.ts`, and both kinds take the same colours by level.
+- **Costly to reverse:** `fortnightPace(trends, day, firstComparable)` in `src/trend/week-pace.ts`; `ScatterCheck` `"fortnightPace"`; `trendVerdict` keeps its signature and now returns what the headline shows, not what the day's paces say; glossary „14-Tage-Tempo“ / `fortnightPace`.

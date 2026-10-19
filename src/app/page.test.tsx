@@ -70,7 +70,7 @@ describe("the first visit", () => {
 
 describe("opening the page with a cache", () => {
   it("turns the button to fetch around on the surface, so it stands out on every level", async () => {
-    openHistoryOn("2026-08-26");
+    openHistoryOn("2026-09-12");
 
     const button = await fetchButton();
     expect(screen.getByRole("main")).toHaveStyle({
@@ -182,7 +182,7 @@ describe("the colour of the browser around the page", () => {
   });
 
   it("is the surface of the verdict from the cache", async () => {
-    openHistoryOn("2026-08-26");
+    openHistoryOn("2026-09-12");
     await fetchButton();
 
     expect(themeColours()).toEqual(["#8A380A"]);

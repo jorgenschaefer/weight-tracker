@@ -81,7 +81,7 @@ const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
 
 /**
  * The assessment as of the last day with a measurement: the Frühwarnung where
- * that day has a 7-day pace, otherwise the comparison after the last gap -
+ * that day has a 14-day pace, otherwise the comparison after the last gap -
  * and „Noch kein Urteil“ where there is no gap, or no trend before it.
  */
 function assessLastDay(

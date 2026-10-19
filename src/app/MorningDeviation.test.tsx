@@ -31,11 +31,11 @@ const card = () => screen.queryByText(/ kg (über|unter) dem Trend$/);
 
 describe("the card of the morning", () => {
   it("says how far over the trend a measurement beyond the threshold lies, rounded to one decimal", async () => {
-    // 99.7 kg on a trend of 97.1 kg; the threshold 1.25 × 0.58 kg.
-    openHistoryOn("2026-10-12");
+    // 101.0 kg on a trend of 99.08 kg; the threshold 1.25 × 0.56 kg.
+    openHistoryOn("2026-08-30");
 
     expect(
-      await screen.findByText("Heute · 2,6 kg über dem Trend"),
+      await screen.findByText("Heute · 1,9 kg über dem Trend"),
     ).toBeInTheDocument();
     expect(screen.getByText(ABOVE)).toBeInTheDocument();
   });
@@ -60,24 +60,24 @@ describe("the card of the morning", () => {
   });
 
   it.each([
-    ["2026-10-13", "Gestern"],
-    ["2026-10-14", "Am 12.10."],
-    ["2026-10-15", "Am 12.10."],
+    ["2026-08-31", "Gestern"],
+    ["2026-09-01", "Am 30.8."],
+    ["2026-09-02", "Am 30.8."],
   ])(
     "on %s names the day of a measurement not from today: %s",
     async (today, day) => {
-      openHistoryOn(today, "2026-10-12");
+      openHistoryOn(today, "2026-08-30");
 
       expect(
-        await screen.findByText(`${day} · 2,6 kg über dem Trend`),
+        await screen.findByText(`${day} · 1,9 kg über dem Trend`),
       ).toBeInTheDocument();
     },
   );
 
   it("stands under the headline, before „Langfristig“", async () => {
-    openHistoryOn("2026-10-12");
+    openHistoryOn("2026-08-30");
 
-    const shown = await screen.findByText("Heute · 2,6 kg über dem Trend");
+    const shown = await screen.findByText("Heute · 1,9 kg über dem Trend");
     expect(
       (await headline()).compareDocumentPosition(shown) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -90,9 +90,9 @@ describe("the card of the morning", () => {
   });
 
   it("is in the inverted colours of the surface", async () => {
-    openHistoryOn("2026-10-12");
+    openHistoryOn("2026-08-30");
 
-    const shown = await screen.findByText("Heute · 2,6 kg über dem Trend");
+    const shown = await screen.findByText("Heute · 1,9 kg über dem Trend");
     const main = screen.getByRole("main");
     expect(shown.parentElement).toHaveStyle({
       backgroundColor: main.style.color,

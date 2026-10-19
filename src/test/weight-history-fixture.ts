@@ -19,14 +19,14 @@ export function weightHistory(): Measurement[] {
     });
 }
 
-/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
+/** AC-6's 18.10. and 19.10.2026, which the fixture lacks. */
 const OCTOBER_18_AND_19: Measurement[] = [
   { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
   { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
 ];
 
 /**
- * The user's weight with AC-11's 18.10. and 19.10., up to `lastDay` and any
+ * The user's weight with AC-6's 18.10. and 19.10., up to `lastDay` and any
  * `extra` measurements up to it besides.
  */
 export function weightHistoryUntil(

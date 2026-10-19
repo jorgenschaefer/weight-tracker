@@ -110,6 +110,7 @@ describe("threshold", () => {
   it.each([
     ["morning", 1.25],
     ["weekPace", 1.25 * 0.8],
+    ["fortnightPace", 1.25 * 0.39],
     ["pace", 1.25 * 0.2],
   ] as const)(
     "of %s is 1.25 times its noise factor times the scatter",

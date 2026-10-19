@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import type { Trend } from "./trend";
-import { weekPace } from "./week-pace";
+import { fortnightPace, weekPace } from "./week-pace";
 
 /** A trend of `kg` on `day`. */
 const trend = (day: string, kg: number): Trend => ({
@@ -69,5 +69,51 @@ describe("weekPace", () => {
       0.4,
     );
     expect(weekPace(history, day("2026-10-17"), day("2026-10-11"))).toBeNull();
+  });
+});
+
+describe("fortnightPace", () => {
+  it("is the change of the trend against 14 days before, per week", () => {
+    const history = [trend("2026-10-03", 98.0), trend("2026-10-17", 97.0)];
+
+    expect(
+      fortnightPace(history, day("2026-10-17"), day("2026-10-01")),
+    ).toBeCloseTo(-0.5);
+  });
+
+  it("compares with the last trend 14 to 17 days back", () => {
+    const history = [
+      trend("2026-09-30", 96.0),
+      trend("2026-10-01", 97.0),
+      trend("2026-10-04", 98.0),
+      trend("2026-10-17", 97.0),
+    ];
+
+    expect(
+      fortnightPace(history, day("2026-10-17"), day("2026-09-01")),
+    ).toBeCloseTo(0);
+  });
+
+  it("is none where no trend lies 14 to 17 days back", () => {
+    const history = [
+      trend("2026-09-29", 98.0),
+      trend("2026-10-04", 98.0),
+      trend("2026-10-17", 97.0),
+    ];
+
+    expect(
+      fortnightPace(history, day("2026-10-17"), day("2026-09-01")),
+    ).toBeNull();
+  });
+
+  it("compares only with trends from the first comparable day on", () => {
+    const history = [trend("2026-10-02", 98.0), trend("2026-10-17", 97.0)];
+
+    expect(
+      fortnightPace(history, day("2026-10-17"), day("2026-10-02")),
+    ).toBeCloseTo(-7 / 15);
+    expect(
+      fortnightPace(history, day("2026-10-17"), day("2026-10-03")),
+    ).toBeNull();
   });
 });

@@ -12,17 +12,42 @@ export function weekPace(
   day: CalendarDay,
   firstComparable: CalendarDay,
 ): number | null {
+  return paceAgainstDaysBack(trends, day, firstComparable, 7);
+}
+
+/**
+ * The 14-day pace on `day`: its trend against the trend of the last day 14
+ * to 17 days before it, in kg per week, compared as {@link weekPace} does.
+ */
+export function fortnightPace(
+  trends: Trend[],
+  day: CalendarDay,
+  firstComparable: CalendarDay,
+): number | null {
+  return paceAgainstDaysBack(trends, day, firstComparable, 14);
+}
+
+/**
+ * The pace on `day` against the trend of the last day `minDaysBack` to
+ * {@link WINDOW_DAYS} more days before it, from `firstComparable` on, in kg
+ * per week.
+ */
+function paceAgainstDaysBack(
+  trends: Trend[],
+  day: CalendarDay,
+  firstComparable: CalendarDay,
+  minDaysBack: number,
+): number | null {
   const now = trends.find((trend) => trend.day === day);
   const before = trends.findLast(
     (trend) =>
-      daysBetween(trend.day, day) >= MIN_DAYS_BACK &&
+      daysBetween(trend.day, day) >= minDaysBack &&
       daysBetween(firstComparable, trend.day) >= 0,
   );
   if (now === undefined || before === undefined) return null;
   const days = daysBetween(before.day, day);
-  if (days > MAX_DAYS_BACK) return null;
+  if (days > minDaysBack + WINDOW_DAYS) return null;
   return ((now.kg - before.kg) / days) * 7;
 }
 
-const MIN_DAYS_BACK = 7;
-const MAX_DAYS_BACK = 10;
+const WINDOW_DAYS = 3;

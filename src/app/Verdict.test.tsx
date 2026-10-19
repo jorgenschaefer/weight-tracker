@@ -58,13 +58,14 @@ describe("the Frühwarnung", () => {
 
 describe("the sentence of the Frühwarnung", () => {
   it.each([
-    ["2026-10-08", "Der Trend fällt seit mindestens einem Tag."],
-    ["2026-10-12", "Der Trend fällt seit mindestens 5 Tagen."],
-    ["2026-08-01", "Der Trend fällt seit 5 Tagen."],
-    ["2026-10-13", "Der Trend stagniert seit einem Tag."],
-    ["2026-08-26", "Der Trend stagniert seit 14 Tagen."],
-    ["2026-10-17", "Der Trend steigt seit einem Tag."],
-    ["2026-07-22", "Der Trend steigt seit 7 Tagen."],
+    ["2026-10-15", "Der Trend fällt seit mindestens einem Tag."],
+    ["2026-10-17", "Der Trend fällt seit mindestens 3 Tagen."],
+    ["2026-08-01", "Der Trend fällt seit 4 Tagen."],
+    ["2026-08-22", "Der Trend stagniert seit einem Tag."],
+    ["2026-08-29", "Der Trend stagniert seit 8 Tagen."],
+    ["2026-10-18", "Der Trend steigt seit einem Tag."],
+    ["2026-07-22", "Der Trend steigt seit mindestens 4 Tagen."],
+    ["2026-09-15", "Der Trend steigt seit 17 Tagen."],
   ])("on %s is „%s“", async (today, sentence) => {
     openHistoryOn(today);
 
@@ -73,48 +74,90 @@ describe("the sentence of the Frühwarnung", () => {
   });
 
   it("stands under the headline, the card under it", async () => {
-    openHistoryOn("2026-10-12");
+    openHistoryOn("2026-10-19");
 
-    const sentence = await screen.findByText(
-      "Der Trend fällt seit mindestens 5 Tagen.",
-    );
+    const sentence = await screen.findByText("Der Trend steigt seit 2 Tagen.");
     const follows = (a: Element, b: Element) =>
       a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
     expect(follows(await headline(), sentence)).toBeTruthy();
     expect(
-      follows(sentence, screen.getByText("Heute · 2,6 kg über dem Trend")),
+      follows(sentence, screen.getByText("Heute · 1,3 kg unter dem Trend")),
     ).toBeTruthy();
   });
 });
 
-describe("the page with the user's weight, 18.10. and 19.10. (AC-11)", () => {
+describe("the page with the user's weight, 18.10. and 19.10. (AC-6)", () => {
   it.each([
     [
-      "2026-10-12",
-      "Nimmt ab",
-      "Der Trend fällt seit mindestens 5 Tagen.",
-      "Heute · 2,6 kg über dem Trend",
-      "Nimmt ab, −0,74 kg pro Woche (≈ 810 kcal Defizit pro Tag)",
+      "2026-07-19",
+      "Nimmt zu",
+      "Der Trend steigt seit mindestens einem Tag.",
+      null,
+      null,
     ],
+    ["2026-07-29", "Nimmt ab", "Der Trend fällt seit einem Tag.", null, null],
+    ["2026-08-07", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
     [
-      "2026-10-13",
+      "2026-08-22",
       "Stagniert",
       "Der Trend stagniert seit einem Tag.",
-      "Heute · 1,2 kg über dem Trend",
+      null,
       null,
     ],
     [
-      "2026-10-16",
+      "2026-08-30",
+      "Nimmt zu",
+      "Der Trend steigt seit einem Tag.",
+      "Heute · 1,9 kg über dem Trend",
+      null,
+    ],
+    [
+      "2026-09-15",
+      "Nimmt zu",
+      "Der Trend steigt seit 17 Tagen.",
+      "Heute · 1,0 kg unter dem Trend",
+      null,
+    ],
+    [
+      "2026-09-16",
       "Stagniert",
-      "Der Trend stagniert seit 4 Tagen.",
+      "Der Trend stagniert seit einem Tag.",
       null,
       null,
     ],
-    ["2026-10-17", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
+    [
+      "2026-09-20",
+      "Nimmt ab",
+      "Der Trend fällt seit einem Tag.",
+      "Heute · 1,0 kg über dem Trend",
+      null,
+    ],
+    [
+      "2026-09-22",
+      "Stagniert",
+      "Der Trend stagniert seit einem Tag.",
+      null,
+      null,
+    ],
+    [
+      "2026-10-15",
+      "Nimmt ab",
+      "Der Trend fällt seit mindestens einem Tag.",
+      null,
+      null,
+    ],
+    [
+      "2026-10-17",
+      "Nimmt ab",
+      "Der Trend fällt seit mindestens 3 Tagen.",
+      null,
+      null,
+    ],
+    ["2026-10-18", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
     [
       "2026-10-19",
       "Nimmt zu",
-      "Der Trend steigt seit 3 Tagen.",
+      "Der Trend steigt seit 2 Tagen.",
       "Heute · 1,3 kg unter dem Trend",
       "Nimmt ab, −0,33 kg pro Woche (≈ 360 kcal Defizit pro Tag)",
     ],
@@ -140,14 +183,36 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-11)", () => {
     },
   );
 
-  it("on 7.10. is the comparison after the gap, on 8.10. „Nimmt ab“", async () => {
-    openHistoryOn("2026-10-07");
-    expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
-    cleanup();
+  it.each([
+    ["2026-07-28", "Nimmt zu"],
+    ["2026-08-06", "Nimmt ab"],
+    ["2026-08-21", "Nimmt zu"],
+    ["2026-08-29", "Stagniert"],
+    ["2026-09-19", "Stagniert"],
+    ["2026-09-21", "Nimmt ab"],
+  ])(
+    "on %s, the day before a change, is still „%s“",
+    async (today, verdict) => {
+      openHistoryOn(today);
 
-    openHistoryOn("2026-10-08");
-    expect(await headline()).toHaveTextContent(/^Nimmt ab$/);
+      expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
+    },
+  );
+
+  it("on 18.7. is „Noch kein Urteil“", async () => {
+    openHistoryOn("2026-07-18");
+
+    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
   });
+
+  it.each(["2026-10-01", "2026-10-14"])(
+    "on %s is the comparison after the gap",
+    async (today) => {
+      openHistoryOn(today);
+
+      expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
+    },
+  );
 });
 
 describe("what the page no longer says", () => {
@@ -190,7 +255,8 @@ describe("a last measurement too old", () => {
 });
 
 describe("after a gap", () => {
-  const A_WEEK_AFTER = "Ein Urteil gibt es wieder eine Woche nach der Lücke.";
+  const TWO_WEEKS_AFTER =
+    "Ein Urteil gibt es wieder zwei Wochen nach der Lücke.";
 
   it("compares with the trend before it, clearly more than the normal variation", async () => {
     openHistoryOn("2026-10-03");
@@ -200,7 +266,7 @@ describe("after a gap", () => {
     );
     expect(
       screen.getByText(
-        `Deutlich mehr als die normale Schwankung. ${A_WEEK_AFTER}`,
+        `Deutlich mehr als die normale Schwankung. ${TWO_WEEKS_AFTER}`,
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
@@ -213,7 +279,7 @@ describe("after a gap", () => {
       "Nach 9 Tagen ohne Messung: +0,3 kg gegenüber vorher",
     );
     expect(
-      screen.getByText(`Im Rahmen der normalen Schwankung. ${A_WEEK_AFTER}`),
+      screen.getByText(`Im Rahmen der normalen Schwankung. ${TWO_WEEKS_AFTER}`),
     ).toBeInTheDocument();
   });
 
@@ -233,22 +299,22 @@ describe("after a gap", () => {
 });
 
 describe("„Noch kein Urteil“", () => {
-  const IN_TWO_WEEKS =
-    "Ein Urteil gibt es nach knapp zwei Wochen mit Messungen.";
+  const IN_THREE_WEEKS =
+    "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.";
 
   it("stands where the measurements do not suffice for a trend", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
+    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
     expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
   });
 
-  it("stands while the trend has no 7-day pace", async () => {
-    openHistoryOn("2026-07-11");
+  it("stands while the trend has no 14-day pace", async () => {
+    openHistoryOn("2026-07-18");
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
+    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
   });
 
   it("stands after a gap with no trend before it", async () => {
@@ -258,7 +324,7 @@ describe("„Noch kein Urteil“", () => {
     ]);
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
+    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
   });
 });
 
@@ -341,15 +407,15 @@ describe("the figures", () => {
 
 describe("the colours of the surface", () => {
   it.each([
-    ["2026-10-12", "„Nimmt ab“", "#D5E4F1", "#10355A"],
-    ["2026-10-13", "„Stagniert“ on its first day", "#F5E1CB", "#5A2C06"],
-    ["2026-07-26", "„Stagniert“ for 2 days", "#F5E1CB", "#5A2C06"],
-    ["2026-08-19", "„Stagniert“ for 7 days", "#EDA562", "#3A1801"],
-    ["2026-08-25", "„Stagniert“ for 13 days", "#EDA562", "#3A1801"],
-    ["2026-08-26", "„Stagniert“ for 14 days", "#8A380A", "#FFF3E8"],
-    ["2026-10-17", "„Nimmt zu“ on its first day", "#F5E1CB", "#5A2C06"],
-    ["2026-07-21", "„Nimmt zu“ for 6 days", "#F5E1CB", "#5A2C06"],
+    ["2026-10-15", "„Nimmt ab“", "#D5E4F1", "#10355A"],
+    ["2026-08-22", "„Stagniert“ on its first day", "#F5E1CB", "#5A2C06"],
+    ["2026-08-23", "„Stagniert“ for 2 days", "#F5E1CB", "#5A2C06"],
+    ["2026-08-28", "„Stagniert“ for 7 days", "#EDA562", "#3A1801"],
+    ["2026-10-18", "„Nimmt zu“ on its first day", "#F5E1CB", "#5A2C06"],
+    ["2026-09-04", "„Nimmt zu“ for 6 days", "#F5E1CB", "#5A2C06"],
     ["2026-09-05", "„Nimmt zu“ for 7 days", "#EDA562", "#3A1801"],
+    ["2026-09-11", "„Nimmt zu“ for 13 days", "#EDA562", "#3A1801"],
+    ["2026-09-12", "„Nimmt zu“ for 14 days", "#8A380A", "#FFF3E8"],
     ["2026-10-03", "a clear increase after a gap", "#EDA562", "#3A1801"],
     [
       "2026-10-04",
@@ -415,13 +481,13 @@ describe("the headline", () => {
   });
 
   it.each([
-    ["2026-10-13", "„Stagniert“ on Warnstufe 1"],
-    ["2026-08-19", "„Stagniert“ on Warnstufe 2"],
-    ["2026-08-26", "„Stagniert“ on Warnstufe 3"],
-    ["2026-10-17", "„Nimmt zu“ on Warnstufe 1"],
+    ["2026-08-22", "„Stagniert“ on Warnstufe 1"],
+    ["2026-08-28", "„Stagniert“ on Warnstufe 2"],
+    ["2026-10-18", "„Nimmt zu“ on Warnstufe 1"],
     ["2026-09-05", "„Nimmt zu“ on Warnstufe 2"],
+    ["2026-09-12", "„Nimmt zu“ on Warnstufe 3"],
   ])("is set on %s, %s, as „Nimmt ab“", async (today) => {
-    openHistoryOn("2026-10-12");
+    openHistoryOn("2026-10-15");
     const losing = styleOf(await headline());
     cleanup();
     openHistoryOn(today);
