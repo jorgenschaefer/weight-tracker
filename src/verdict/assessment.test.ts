@@ -11,9 +11,7 @@ import {
 } from "@/measurement/measurement";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
-import { trends } from "@/trend/trend";
 import { assess } from "./assessment";
-import { trendVerdict } from "./verdict";
 
 /** Counting measurements of [day, kg] pairs, each at 05:00 UTC. */
 const countingFrom = (days: [string, number][]) =>
@@ -29,51 +27,33 @@ const historyUntil = (day: string, extra: Measurement[] = []) =>
     ),
   );
 
-/** The 18.10.2026 the fixture lacks: 98.4 kg, the day after its last. */
-const OCTOBER_18: Measurement[] = [
+/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
+const OCTOBER_18_AND_19: Measurement[] = [
   { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
+  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
 ];
 
-/** The assessment of the fixture and 18.10. on `day`, the day itself the last with a measurement. */
+/** The assessment of the fixture, 18.10. and 19.10. on `day`, the day itself the last with a measurement. */
 const assessOn = (day: string) =>
-  assess(historyUntil(day, OCTOBER_18), day as CalendarDay);
+  assess(historyUntil(day, OCTOBER_18_AND_19), day as CalendarDay);
 
-describe("assess: the verdict on the fixture", () => {
-  it("is „Nimmt ab“ on 12.10.2026", () => {
-    expect(assessOn("2026-10-12").status).toEqual({ kind: "losing" });
-  });
-
-  it("is no decrease since 3 days on 13.10.2026, after the last falling trend on 10.10.", () => {
-    expect(assessOn("2026-10-13").status).toEqual({
-      kind: "noDecrease",
-      days: 3,
-      atLeast: false,
-      since: "2026-10-10",
-      level: 1,
-    });
-  });
-
+describe("assess: the Frühwarnung on the fixture (AC-11)", () => {
   it.each([
-    ["2026-10-17", 7, "2026-10-10", 2],
-    ["2026-10-18", 8, "2026-10-10", 2],
-    ["2026-07-13", 2, "2026-07-11", 1],
-    ["2026-08-04", 2, "2026-08-02", 1],
-    ["2026-08-30", 28, "2026-08-02", 3],
-  ])(
-    "is „Nimmt zu“ on %s, %d days after the last falling trend on %s, on level %d",
-    (day, days, since, level) => {
-      expect(assessOn(day).status).toEqual({
-        kind: "gaining",
-        days,
-        atLeast: false,
-        since,
-        level,
-      });
-    },
-  );
+    ["2026-10-08", { kind: "losing", days: 1, atLeast: true }],
+    ["2026-10-12", { kind: "losing", days: 5, atLeast: true }],
+    ["2026-10-13", { kind: "holding", days: 1, atLeast: false, level: 1 }],
+    ["2026-10-16", { kind: "holding", days: 4, atLeast: false, level: 1 }],
+    ["2026-10-17", { kind: "gaining", days: 1, atLeast: false, level: 1 }],
+    ["2026-10-19", { kind: "gaining", days: 3, atLeast: false, level: 1 }],
+  ])("on %s is %o", (day, status) => {
+    expect(assessOn(day).status).toEqual(status);
+  });
 
-  it("is „Nimmt zu“ on 18.10.2026 with the 4-week pace still a loss", () => {
-    expect(assessOn("2026-10-18").pace?.band).toBe("loss");
+  it("carries the 4-week pace of 19.10., still a loss", () => {
+    expect(assessOn("2026-10-19").pace).toEqual({
+      kgPerWeek: -0.33,
+      band: "loss",
+    });
   });
 });
 
@@ -126,8 +106,10 @@ describe("assess: the figures", () => {
 
 describe("assess: a single deviating value", () => {
   /**
-   * A trend falling 0.5 kg per week, measured every day for 3 weeks up to
+   * A trend falling 1.4 kg per week, measured every day for 3 weeks up to
    * 17.10., that day `offsetKg` off it, and falling on for `daysAfter` days.
+   * 3 kg off raises the Streuung of the days after it to at most 0.95 kg, the
+   * threshold of the 7-day pace to at most 0.95 kg per week.
    */
   const fallingFast = (
     offsetKg: number,
@@ -136,14 +118,14 @@ describe("assess: a single deviating value", () => {
     countingMeasurements(
       Array.from({ length: 21 + daysAfter }, (_, i) => ({
         time: new Date(Date.UTC(2026, 8, 27 + i, 5)),
-        kg: 100 - (0.5 / 7) * i + (i === 20 ? offsetKg : 0),
+        kg: 100 - (1.4 / 7) * i + (i === 20 ? offsetKg : 0),
       })),
     );
 
-  it("leaves the verdict at „Nimmt ab“ 3 kg above a trend falling 0.5 kg per week", () => {
+  it("leaves the verdict at „Nimmt ab“ 3 kg above a trend falling 1.4 kg per week", () => {
     const assessment = assess(fallingFast(3), "2026-10-17" as CalendarDay);
 
-    expect(assessment.status).toEqual({ kind: "losing" });
+    expect(assessment.status).toMatchObject({ kind: "losing" });
   });
 
   it.each(Array.from({ length: 13 }, (_, i) => i + 1))(
@@ -153,25 +135,14 @@ describe("assess: a single deviating value", () => {
 
       expect(
         assess(counting, counting[counting.length - 1].day).status,
-      ).toEqual({
-        kind: "losing",
-      });
+      ).toMatchObject({ kind: "losing" });
     },
   );
 });
 
 describe("assess: the last measurement too old", () => {
   it.each([
-    [
-      "2026-10-20",
-      {
-        kind: "gaining",
-        days: 7,
-        atLeast: false,
-        since: "2026-10-10",
-        level: 2,
-      },
-    ],
+    ["2026-10-20", { kind: "gaining", days: 1, atLeast: false, level: 1 }],
     ["2026-10-21", { kind: "lastMeasurementTooOld", days: 4 }],
     ["2026-11-30", { kind: "lastMeasurementTooOld", days: 44 }],
   ])("on %s after the last measurement on 17.10. is %o", (today, status) => {
@@ -196,7 +167,7 @@ describe("assess: the last measurement too old", () => {
   it("wins over „Nimmt zu“", () => {
     expect(
       assess(
-        historyUntil("2026-10-18", OCTOBER_18),
+        historyUntil("2026-10-18", OCTOBER_18_AND_19),
         "2026-10-22" as CalendarDay,
       ).status,
     ).toEqual({ kind: "lastMeasurementTooOld", days: 4 });
@@ -237,7 +208,32 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
     );
   });
 
-  it("wins over „Nimmt zu“", () => {
+  it("compares until the day has a 7-day pace after the gap: on 7.10. still, on 8.10. no more", () => {
+    expect(assessOn("2026-10-07").status).toMatchObject({
+      kind: "gapComparison",
+      gapDays: 9,
+    });
+    expect(assessOn("2026-10-08").status).toMatchObject({ kind: "losing" });
+  });
+
+  it("compares after the later of two gaps", () => {
+    const twoGaps = countingFrom([
+      ...Array.from({ length: 20 }, (_, i): [string, number] => [
+        `2026-09-${String(i + 1).padStart(2, "0")}`,
+        95.0,
+      ]),
+      ["2026-09-24", 95.0],
+      ["2026-09-30", 95.0],
+    ]);
+
+    expect(assess(twoGaps, "2026-09-30" as CalendarDay).status).toMatchObject({
+      kind: "gapComparison",
+      gapDays: 6,
+    });
+  });
+
+  it("wins over a 7-day pace across the gap", () => {
+    // Rising 2.1 kg a week before the gap and after it.
     const risingAcrossGap = countingFrom([
       ...Array.from({ length: 20 }, (_, i): [string, number] => [
         `2026-09-${String(i + 1).padStart(2, "0")}`,
@@ -247,39 +243,10 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
       ["2026-09-27", 103.0],
       ["2026-09-29", 104.0],
     ]);
-    expect(trendVerdict(trends(risingAcrossGap), risingAcrossGap).kind).toEqual(
-      "gaining",
-    );
 
     expect(
       assess(risingAcrossGap, "2026-09-29" as CalendarDay).status,
     ).toMatchObject({ kind: "gapComparison", gapDays: 5 });
-  });
-
-  it("gives the verdict again from the 5th on, 5.10.", () => {
-    expect(assessOn("2026-10-05").status).toEqual({ kind: "losing" });
-  });
-  it("counts no decrease after a gap only from the first day after it", () => {
-    const fastLossThenFlat = countingMeasurements([
-      ...Array.from({ length: 15 }, (_, i) => ({
-        time: new Date(Date.UTC(2026, 7, 18 + i, 5)),
-        kg: 98.0 - i * 0.15,
-      })),
-      ...Array.from({ length: 5 }, (_, i) => ({
-        time: new Date(Date.UTC(2026, 9, 1 + i, 5)),
-        kg: 95.9,
-      })),
-    ]);
-
-    expect(
-      assess(fastLossThenFlat, "2026-10-05" as CalendarDay).status,
-    ).toEqual({
-      kind: "noDecrease",
-      days: 4,
-      atLeast: true,
-      since: "2026-10-01",
-      level: 1,
-    });
   });
 });
 
@@ -294,6 +261,15 @@ describe("assess: no verdict yet", () => {
       pace: null,
     });
     expect(assessment.sixWeekSeries.measurements).toHaveLength(4);
+  });
+
+  it("while the trend has no 7-day pace yet, with the trend", () => {
+    // A trend from 5.7. on, a 7-day pace from 12.7. on.
+    expect(assessOn("2026-07-11")).toMatchObject({
+      status: { kind: "noVerdictYet" },
+      trendKg: expect.any(Number),
+    });
+    expect(assessOn("2026-07-12").status.kind).not.toBe("noVerdictYet");
   });
 
   it("after a gap with no trend before it, with the trend, the pace, the trend line and the outliers of the last day", () => {
@@ -328,25 +304,6 @@ describe("assess: no verdict yet", () => {
     );
     expect(assessment.sixWeekSeries.trendLine).not.toEqual([]);
     expect(assessment.sixWeekSeries.measurements.at(-1)?.outlier).toBe(true);
-  });
-
-  it("wins over „Nimmt zu“ after a gap with no trend before it", () => {
-    const fewBeforeThenRising = countingFrom([
-      ["2026-09-18", 99.0],
-      ["2026-09-19", 99.1],
-      ["2026-09-20", 99.2],
-      ["2026-09-21", 99.3],
-      ["2026-09-25", 100.0],
-      ["2026-09-27", 101.0],
-      ["2026-09-29", 102.0],
-    ]);
-    expect(
-      trendVerdict(trends(fewBeforeThenRising), fewBeforeThenRising).kind,
-    ).toEqual("gaining");
-
-    expect(
-      assess(fewBeforeThenRising, "2026-09-29" as CalendarDay).status,
-    ).toEqual({ kind: "noVerdictYet" });
   });
 
   it("without any measurement, nor „Gemessen“ then", () => {

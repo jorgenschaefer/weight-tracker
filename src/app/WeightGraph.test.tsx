@@ -187,8 +187,8 @@ describe("WeightGraph", () => {
       ],
       trendLine: [
         [
-          { day: october16, kg: 98.0, slopePerWeek: 0 },
-          { day: october17, kg: 97.0, slopePerWeek: 0 },
+          { day: october16, kg: 98.0 },
+          { day: october17, kg: 97.0 },
         ],
       ],
     });
@@ -303,7 +303,7 @@ describe("WeightGraph", () => {
         { measurement: measured("2026-10-10", 98.0), outlier: false },
         { measurement: measured("2026-10-15", 97.6), outlier: false },
       ],
-      trendLine: [[{ day: october15, kg: 97.3, slopePerWeek: 0 }]],
+      trendLine: [[{ day: october15, kg: 97.3 }]],
     });
     const [piece] = trendPieces(graph);
     const [first, ...rest] = (piece.getAttribute("points") ?? "").split(" ");
@@ -352,8 +352,8 @@ describe("WeightGraph", () => {
       ],
       trendLine: [
         [
-          { day: october16, kg: 96.0, slopePerWeek: 0 },
-          { day: october17, kg: 96.1, slopePerWeek: 0 },
+          { day: october16, kg: 96.0 },
+          { day: october17, kg: 96.1 },
         ],
       ],
     });

@@ -6,62 +6,13 @@ import {
 import { findGaps } from "@/measurement/gap";
 import { countingMeasurements } from "@/measurement/measurement";
 import type { Trend } from "@/trend/trend";
-import { compareAfterGap, gapUnderComparison } from "./gap-comparison";
+import { compareAfterGap } from "./gap-comparison";
 
 /** Counting measurements, one per `[day, kg]`, each at 05:00 UTC, early morning in Berlin. */
 const measured = (...days: [string, number][]) =>
   countingMeasurements(
     days.map(([day, kg]) => ({ time: new Date(`${day}T05:00:00Z`), kg })),
   );
-
-describe("gapUnderComparison", () => {
-  const beforeGap: [string, number][] = [
-    ["2026-09-20", 99.0],
-    ["2026-09-21", 99.0],
-    ["2026-09-22", 99.0],
-  ];
-
-  it("is the last gap, until its 5th counting measurement after it", () => {
-    const counting = measured(
-      ...beforeGap,
-      ["2026-10-01", 99.0],
-      ["2026-10-02", 99.0],
-      ["2026-10-03", 99.0],
-      ["2026-10-04", 99.0],
-    );
-
-    expect(gapUnderComparison(counting)).toEqual(findGaps(counting)[0]);
-  });
-
-  it("is the later of two gaps", () => {
-    const counting = measured(
-      ...beforeGap,
-      ["2026-10-01", 99.0],
-      ["2026-10-02", 99.0],
-      ["2026-10-08", 99.0],
-    );
-
-    expect(gapUnderComparison(counting)?.firstDayAfter).toBe("2026-10-08");
-  });
-
-  it("is none from the 5th counting measurement after the gap on", () => {
-    const counting = measured(
-      ...beforeGap,
-      ["2026-10-01", 99.0],
-      ["2026-10-02", 99.0],
-      ["2026-10-03", 99.0],
-      ["2026-10-04", 99.0],
-      ["2026-10-05", 99.0],
-    );
-
-    expect(gapUnderComparison(counting)).toBeNull();
-  });
-
-  it("is none without a gap", () => {
-    expect(gapUnderComparison(measured(...beforeGap))).toBeNull();
-    expect(gapUnderComparison([])).toBeNull();
-  });
-});
 
 describe("compareAfterGap", () => {
   /**
@@ -202,5 +153,5 @@ describe("compareAfterGap", () => {
 
 function trendOf(day: string, kg: number): Trend {
   // Safe: every day these tests write is a valid `YYYY-MM-DD`.
-  return { day: day as CalendarDay, kg, slopePerWeek: 0 };
+  return { day: day as CalendarDay, kg };
 }

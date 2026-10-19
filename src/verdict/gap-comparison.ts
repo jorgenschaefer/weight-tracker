@@ -1,4 +1,4 @@
-import { findGaps, type Gap } from "@/measurement/gap";
+import type { Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { scatter, sortAgainstThreshold } from "@/trend/scatter";
 import { median, type Trend } from "@/trend/trend";
@@ -13,20 +13,6 @@ export interface GapComparison {
   gapDays: number;
   differenceKg: number;
   variation: "clearIncrease" | "clearDecrease" | "withinNormalVariation";
-}
-
-/**
- * The last gap among `counting` (ordered by day) while fewer than
- * {@link MEASUREMENTS_UNTIL_VERDICT} counting measurements follow it; none
- * once they do, when the verdict holds again.
- */
-export function gapUnderComparison(
-  counting: CountingMeasurement[],
-): Gap | null {
-  const gap = findGaps(counting).at(-1);
-  if (gap === undefined) return null;
-  const after = measurementsAfter(counting, gap);
-  return after.length < MEASUREMENTS_UNTIL_VERDICT ? gap : null;
 }
 
 /**
@@ -56,8 +42,6 @@ export function compareAfterGap(
     variation: variation(differenceKg, normalVariation),
   };
 }
-
-const MEASUREMENTS_UNTIL_VERDICT = 5;
 
 function measurementsAfter(
   counting: CountingMeasurement[],

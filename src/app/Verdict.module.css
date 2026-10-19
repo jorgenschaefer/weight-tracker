@@ -1,6 +1,12 @@
-/* The verdict on the colour field, in the surface's text colour. The
-   headline grows wider and heavier with each level of no decrease, through
-   Archivo's width and weight axes. */
+/* The verdict on the colour field, in the surface's text colour. */
+.kicker {
+  margin: 28px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .headline {
   margin: 28px 0 0;
   font-size: 64px;
@@ -11,21 +17,18 @@
   overflow-wrap: break-word;
 }
 
-.headline[data-emphasis="level1"] {
-  font-size: 44px;
-  font-weight: 700;
+.kicker + .headline {
+  margin-top: 4px;
 }
 
-.headline[data-emphasis="level2"] {
-  font-size: 44px;
-  font-weight: 800;
-  font-stretch: 112%;
-}
-
-.headline[data-emphasis="level3"] {
-  font-size: 42px;
-  font-weight: 900;
-  font-stretch: 125%;
+/* A screen as short as 360 × 640: with „Daten abrufen“, an error line and a
+   card of three lines, the specimen's 28px above the kicker push the
+   figures below the screen. page.module.css narrows its gaps at the same
+   height. */
+@media (max-height: 45em) {
+  .kicker {
+    margin-top: 16px;
+  }
 }
 
 .headline[data-emphasis="statement"] {
@@ -67,25 +70,17 @@
 }
 
 /* The wide screen of page.module.css: the headline beside „Langfristig“
-   and the figures. The verdict's headline keeps roughly its proportions
-   across the levels. */
+   and the figures. */
 @media (min-width: 65em) {
+  .kicker {
+    margin-top: 0;
+  }
+
   .headline {
     margin-top: 0;
     font-size: 104px;
     line-height: 0.95;
     letter-spacing: -0.015em;
-  }
-
-  .headline[data-emphasis="level1"],
-  .headline[data-emphasis="level2"] {
-    font-size: 72px;
-  }
-
-  /* At its width and weight, "mindestens" fills the column beside the
-     figures at 60px; any larger breaks it inside the word. */
-  .headline[data-emphasis="level3"] {
-    font-size: 60px;
   }
 
   /* Smaller than the phone's proportion: these headlines are long, and the

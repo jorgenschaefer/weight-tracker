@@ -70,11 +70,11 @@ describe("the first visit", () => {
 
 describe("opening the page with a cache", () => {
   it("turns the button to fetch around on the surface, so it stands out on every level", async () => {
-    const august30 = new Date("2026-08-30T18:00:00+02:00");
-    vi.setSystemTime(august30);
+    const august26 = new Date("2026-08-26T18:00:00+02:00");
+    vi.setSystemTime(august26);
     storeCache(
-      august30,
-      weightHistory().filter((m) => m.time <= august30),
+      august26,
+      weightHistory().filter((m) => m.time <= august26),
     );
     renderPage();
 
@@ -188,11 +188,11 @@ describe("the colour of the browser around the page", () => {
   });
 
   it("is the surface of the verdict from the cache", async () => {
-    const august30 = new Date("2026-08-30T18:00:00+02:00");
-    vi.setSystemTime(august30);
+    const august26 = new Date("2026-08-26T18:00:00+02:00");
+    vi.setSystemTime(august26);
     storeCache(
-      august30,
-      weightHistory().filter((m) => m.time <= august30),
+      august26,
+      weightHistory().filter((m) => m.time <= august26),
     );
     renderPage();
     await fetchButton();

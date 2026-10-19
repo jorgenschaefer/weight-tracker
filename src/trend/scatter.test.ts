@@ -30,7 +30,6 @@ function aroundTrend(offsets: number[], daysBefore = 1) {
   const trendOfDays: Trend[] = days.map((day) => ({
     day,
     kg: 98,
-    slopePerWeek: 0,
   }));
   return { counting, trends: trendOfDays };
 }

@@ -27,59 +27,45 @@ vi.mock("@/measurement/google-health", () => ({
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
 
-/** The 18.10.2026 the fixture lacks: 98.4 kg, the day after its last. */
-const OCTOBER_18: Measurement = {
-  time: new Date("2026-10-18T07:00:00+02:00"),
-  kg: 98.4,
-};
+/** AC-11's 18.10. and 19.10.2026, which the fixture lacks. */
+const OCTOBER_18_AND_19: Measurement[] = [
+  { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
+  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
+];
 
-/** Opens the page in the evening of `today` with the fixture and 18.10. up to then. */
+/** Opens the page in the evening of `today` with the fixture, 18.10. and 19.10. up to then. */
 const openFixtureOn = (today: string) =>
   openOn(
     today,
-    [...weightHistory(), OCTOBER_18].filter((m) => m.time <= evening(today)),
+    [...weightHistory(), ...OCTOBER_18_AND_19].filter(
+      (m) => m.time <= evening(today),
+    ),
   );
 
 const headline = () => screen.findByRole("heading", { level: 1 });
+const EARLY_WARNING = "Frühwarnung · letzte Tage";
 
-describe("the verdict", () => {
-  it("is „Nimmt ab“ while the trend falls faster than 0.2 kg per week", async () => {
-    openOn("2026-10-17", steady("2026-10-17", 35, -0.5));
-
-    expect(await headline()).toHaveTextContent("Nimmt ab");
-  });
-
-  it("is „Seit N Tagen kein Abnehmen“ from the last day with a falling trend, and says until when it fell", async () => {
-    openFixtureOn("2026-08-12");
-
-    expect(await headline()).toHaveTextContent("Seit 10 Tagen kein Abnehmen");
-    expect(screen.getByText("Zuletzt abgenommen bis 2.8.")).toBeInTheDocument();
-  });
-
+describe("the Frühwarnung", () => {
   it.each([
-    ["2026-10-11", "Nimmt ab"],
-    ["2026-10-12", "Nimmt ab"],
-    ["2026-10-13", "Seit 3 Tagen kein Abnehmen"],
+    [-0.5, "Nimmt ab"],
+    [0, "Stagniert"],
+    [0.5, "Nimmt zu"],
   ])(
-    "never says 1 or 2 days without a decrease: on %s it says %s",
-    async (today, text) => {
-      openFixtureOn(today);
+    "at a steady %d kg per week says „%s“ under „Frühwarnung · letzte Tage“",
+    async (kgPerWeek, text) => {
+      openOn("2026-10-17", steady("2026-10-17", 35, kgPerWeek));
 
-      expect(await headline()).toHaveTextContent(text);
+      const shown = await headline();
+      expect(shown).toHaveTextContent(new RegExp(`^${text}$`));
+      expect(
+        screen.getByText(EARLY_WARNING).compareDocumentPosition(shown) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     },
   );
 
-  it("is „Seit mindestens N Tagen kein Abnehmen“ from the first measurement where no trend fell, with no day it fell until", async () => {
-    openOn("2026-10-17", steady("2026-10-17", 17, 0.5));
-
-    expect(await headline()).toHaveTextContent(
-      "Seit mindestens 16 Tagen kein Abnehmen",
-    );
-    expect(screen.queryByText(/Zuletzt abgenommen/)).not.toBeInTheDocument();
-  });
-
   it("stays „Nimmt ab“ in a fast loss whatever a single measurement says", async () => {
-    const loss = steady("2026-10-17", 35, -0.7);
+    const loss = steady("2026-10-17", 35, -1.4);
     const outlier = { ...loss[34], kg: loss[34].kg + 3 };
     openOn("2026-10-17", [...loss.slice(0, 34), outlier]);
 
@@ -87,71 +73,117 @@ describe("the verdict", () => {
   });
 });
 
-describe("„Nimmt zu“", () => {
-  it("says „Seit mindestens N Tagen kein Abnehmen“ where no trend fell", async () => {
-    openOn("2026-10-17", steady("2026-10-17", 17, 2.0));
+describe("the sentence of the Frühwarnung", () => {
+  it.each([
+    ["2026-10-08", "Der Trend fällt seit mindestens einem Tag."],
+    ["2026-10-12", "Der Trend fällt seit mindestens 5 Tagen."],
+    ["2026-08-01", "Der Trend fällt seit 5 Tagen."],
+    ["2026-10-13", "Der Trend stagniert seit einem Tag."],
+    ["2026-08-26", "Der Trend stagniert seit 14 Tagen."],
+    ["2026-10-17", "Der Trend steigt seit einem Tag."],
+    ["2026-07-22", "Der Trend steigt seit 7 Tagen."],
+  ])("on %s is „%s“", async (today, sentence) => {
+    openFixtureOn(today);
 
-    expect(await headline()).toHaveTextContent(/^Nimmt zu$/);
+    await headline();
+    expect(screen.getByText(sentence)).toBeInTheDocument();
+  });
+
+  it("stands under the headline, the card under it", async () => {
+    openFixtureOn("2026-10-12");
+
+    const sentence = await screen.findByText(
+      "Der Trend fällt seit mindestens 5 Tagen.",
+    );
+    const follows = (a: Element, b: Element) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(follows(await headline(), sentence)).toBeTruthy();
     expect(
-      screen.getByText("Seit mindestens 16 Tagen kein Abnehmen"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Zuletzt abgenommen/)).not.toBeInTheDocument();
+      follows(sentence, screen.getByText("Heute · 2,6 kg über dem Trend")),
+    ).toBeTruthy();
   });
 });
 
-describe("the verdict with the user's weight and 18.10.", () => {
+describe("the page with the user's weight, 18.10. and 19.10. (AC-11)", () => {
   it.each([
-    ["2026-10-12", "Nimmt ab", null],
+    [
+      "2026-10-12",
+      "Nimmt ab",
+      "Der Trend fällt seit mindestens 5 Tagen.",
+      "Heute · 2,6 kg über dem Trend",
+      "Nimmt ab, −0,74 kg pro Woche (≈ 810 kcal Defizit pro Tag)",
+    ],
     [
       "2026-10-13",
-      "Seit 3 Tagen kein Abnehmen",
-      "Zuletzt abgenommen bis 10.10.",
+      "Stagniert",
+      "Der Trend stagniert seit einem Tag.",
+      "Heute · 1,2 kg über dem Trend",
+      null,
     ],
     [
-      "2026-10-17",
-      "Nimmt zu",
-      "Seit 7 Tagen kein Abnehmen, zuletzt abgenommen bis 10.10.",
+      "2026-10-16",
+      "Stagniert",
+      "Der Trend stagniert seit 4 Tagen.",
+      null,
+      null,
     ],
+    ["2026-10-17", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
     [
-      "2026-10-18",
+      "2026-10-19",
       "Nimmt zu",
-      "Seit 8 Tagen kein Abnehmen, zuletzt abgenommen bis 10.10.",
+      "Der Trend steigt seit 3 Tagen.",
+      "Heute · 1,3 kg unter dem Trend",
+      "Nimmt ab, −0,33 kg pro Woche (≈ 360 kcal Defizit pro Tag)",
     ],
-    ["2026-07-13", "Nimmt zu", "Zuletzt abgenommen bis 11.7."],
-    ["2026-08-04", "Nimmt zu", "Zuletzt abgenommen bis 2.8."],
-  ])("on %s is „%s“, then „%s“", async (today, verdict, sentence) => {
-    openFixtureOn(today);
+  ])(
+    "on %s is „%s“, „%s“, the card %s and „Langfristig“ %s",
+    async (today, verdict, sentence, card, longTerm) => {
+      openFixtureOn(today);
 
-    expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
-    if (sentence !== null) {
+      expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
       expect(screen.getByText(sentence)).toBeInTheDocument();
-    }
+      const cards = screen.queryAllByText(/ kg (über|unter) dem Trend$/);
+      expect(cards.map((shown) => shown.textContent)).toEqual(
+        card === null ? [] : [card],
+      );
+      if (longTerm !== null) {
+        expect(
+          screen.getByText(
+            (_, element) =>
+              element?.tagName === "P" && element.textContent === longTerm,
+          ),
+        ).toBeInTheDocument();
+      }
+    },
+  );
+
+  it("on 7.10. is the comparison after the gap, on 8.10. „Nimmt ab“", async () => {
+    openFixtureOn("2026-10-07");
+    expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
+    cleanup();
+
+    openFixtureOn("2026-10-08");
+    expect(await headline()).toHaveTextContent(/^Nimmt ab$/);
   });
+});
 
-  it("shows on 18.10. the 4 weeks still a loss", async () => {
-    openFixtureOn("2026-10-18");
+describe("what the page no longer says", () => {
+  it.each(["2026-10-12", "2026-10-13", "2026-08-26", "2026-09-05"])(
+    "on %s neither „kein Abnehmen“, „Zuletzt abgenommen bis“ nor „4 Wochen: …“",
+    async (today) => {
+      openFixtureOn(today);
 
-    await headline();
-    expect(
-      screen.getByText(/^Nimmt ab, −0,\d\d kg pro Woche/),
-    ).toBeInTheDocument();
-  });
-
-  it("counts on 8.8. up to the last measurement on 7.8.", async () => {
-    openFixtureOn("2026-08-08");
-
-    expect(await headline()).toHaveTextContent(/^Nimmt zu$/);
-    expect(
-      screen.getByText(
-        "Seit 5 Tagen kein Abnehmen, zuletzt abgenommen bis 2.8.",
-      ),
-    ).toBeInTheDocument();
-  });
+      await headline();
+      expect(document.body).not.toHaveTextContent(/kein Abnehmen/);
+      expect(document.body).not.toHaveTextContent(/Zuletzt abgenommen/);
+      expect(document.body).not.toHaveTextContent(/4 Wochen:/);
+    },
+  );
 });
 
 describe("a last measurement too old", () => {
   it.each([
-    ["2026-09-25", "Seit 4 Tagen kein Abnehmen"],
+    ["2026-09-25", "Stagniert"],
     ["2026-09-26", "Letzte Messung vor 4 Tagen"],
   ])("on %s, after the last on 22.9., is %s", async (today, text) => {
     openFixtureOn(today);
@@ -159,11 +191,12 @@ describe("a last measurement too old", () => {
     expect(await headline()).toHaveTextContent(text);
   });
 
-  it("wins over „Nimmt zu“", async () => {
-    openFixtureOn("2026-10-22");
+  it("wins over „Nimmt zu“, without „Frühwarnung“", async () => {
+    openFixtureOn("2026-10-23");
 
     expect(await headline()).toHaveTextContent("Letzte Messung vor 4 Tagen");
     expect(screen.queryByText(/Nimmt zu/)).not.toBeInTheDocument();
+    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
   });
 
   it("wins over „Noch kein Urteil“", async () => {
@@ -174,8 +207,7 @@ describe("a last measurement too old", () => {
 });
 
 describe("after a gap", () => {
-  const ALL_BUT_A_VERDICT =
-    "Ein Urteil gibt es wieder ab der 5. Messung nach der Lücke.";
+  const A_WEEK_AFTER = "Ein Urteil gibt es wieder eine Woche nach der Lücke.";
 
   it("compares with the trend before it, clearly more than the normal variation", async () => {
     openFixtureOn("2026-10-03");
@@ -185,9 +217,10 @@ describe("after a gap", () => {
     );
     expect(
       screen.getByText(
-        `Deutlich mehr als die normale Schwankung. ${ALL_BUT_A_VERDICT}`,
+        `Deutlich mehr als die normale Schwankung. ${A_WEEK_AFTER}`,
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
   });
 
   it("compares with the trend before it, within the normal variation", async () => {
@@ -197,9 +230,7 @@ describe("after a gap", () => {
       "Nach 9 Tagen ohne Messung: +0,3 kg gegenüber vorher",
     );
     expect(
-      screen.getByText(
-        `Im Rahmen der normalen Schwankung. ${ALL_BUT_A_VERDICT}`,
-      ),
+      screen.getByText(`Im Rahmen der normalen Schwankung. ${A_WEEK_AFTER}`),
     ).toBeInTheDocument();
   });
 
@@ -216,22 +247,25 @@ describe("after a gap", () => {
       screen.getByText(/^Deutlich mehr als die normale Schwankung\./),
     ).toBeInTheDocument();
   });
-
-  it("gives the verdict again from the 5th measurement after it", async () => {
-    openFixtureOn("2026-10-05");
-
-    expect(await headline()).toHaveTextContent("Nimmt ab");
-  });
 });
 
 describe("„Noch kein Urteil“", () => {
-  const FROM_THE_5TH = "Ein Urteil gibt es ab der 5. Messung.";
+  const IN_TWO_WEEKS =
+    "Ein Urteil gibt es nach knapp zwei Wochen mit Messungen.";
 
   it("stands where the measurements do not suffice for a trend", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(FROM_THE_5TH)).toBeInTheDocument();
+    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
+    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
+  });
+
+  it("stands while the trend has no 7-day pace", async () => {
+    openFixtureOn("2026-07-11");
+
+    expect(await headline()).toHaveTextContent("Noch kein Urteil");
+    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
   });
 
   it("stands after a gap with no trend before it", async () => {
@@ -241,7 +275,7 @@ describe("„Noch kein Urteil“", () => {
     ]);
 
     expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(FROM_THE_5TH)).toBeInTheDocument();
+    expect(screen.getByText(IN_TWO_WEEKS)).toBeInTheDocument();
   });
 });
 
@@ -325,27 +359,14 @@ describe("the figures", () => {
 describe("the colours of the surface", () => {
   it.each([
     ["2026-10-12", "„Nimmt ab“", "#D5E4F1", "#10355A"],
-    ["2026-10-14", "3–6 days without a decrease", "#F5E1CB", "#5A2C06"],
-    ["2026-08-12", "7–13 days without a decrease", "#EDA562", "#3A1801"],
-    ["2026-08-20", "14 and more days without a decrease", "#8A380A", "#FFF3E8"],
-    [
-      "2026-07-13",
-      "„Nimmt zu“ under 3 days without a decrease",
-      "#F5E1CB",
-      "#5A2C06",
-    ],
-    [
-      "2026-10-17",
-      "„Nimmt zu“ 7 days without a decrease",
-      "#EDA562",
-      "#3A1801",
-    ],
-    [
-      "2026-08-30",
-      "„Nimmt zu“ 28 days without a decrease",
-      "#8A380A",
-      "#FFF3E8",
-    ],
+    ["2026-10-13", "„Stagniert“ on its first day", "#F5E1CB", "#5A2C06"],
+    ["2026-07-26", "„Stagniert“ for 2 days", "#F5E1CB", "#5A2C06"],
+    ["2026-08-19", "„Stagniert“ for 7 days", "#EDA562", "#3A1801"],
+    ["2026-08-25", "„Stagniert“ for 13 days", "#EDA562", "#3A1801"],
+    ["2026-08-26", "„Stagniert“ for 14 days", "#8A380A", "#FFF3E8"],
+    ["2026-10-17", "„Nimmt zu“ on its first day", "#F5E1CB", "#5A2C06"],
+    ["2026-07-21", "„Nimmt zu“ for 6 days", "#F5E1CB", "#5A2C06"],
+    ["2026-09-05", "„Nimmt zu“ for 7 days", "#EDA562", "#3A1801"],
     ["2026-10-03", "a clear increase after a gap", "#EDA562", "#3A1801"],
     [
       "2026-10-04",
@@ -363,7 +384,6 @@ describe("the colours of the surface", () => {
       color: ink,
     });
   });
-
   it("are neutral after a clear decrease after a gap", async () => {
     openOn("2026-10-17", [
       ...steady("2026-10-01", 30, 0, 95),
@@ -411,35 +431,17 @@ describe("the headline", () => {
     ...declarations(`.headline[data-emphasis="${heading.dataset.emphasis}"]`),
   });
 
-  it("grows heavier and no narrower with each level, wider at the highest", async () => {
-    const styles = [];
-    for (const today of [
-      "2026-10-12",
-      "2026-10-14",
-      "2026-08-12",
-      "2026-08-20",
-    ]) {
-      openFixtureOn(today);
-      styles.push(styleOf(await headline()));
-      cleanup();
-    }
-
-    const weights = styles.map((style) => Number(style["font-weight"]));
-    const widths = styles.map((style) =>
-      Number.parseFloat(style["font-stretch"]),
-    );
-    for (let i = 1; i < styles.length; i++) {
-      expect(weights[i]).toBeGreaterThan(weights[i - 1]);
-      expect(widths[i]).toBeGreaterThanOrEqual(widths[i - 1]);
-    }
-    expect(widths[3]).toBeGreaterThan(widths[0]);
-  });
-
-  it("is set for „Nimmt zu“ as for „Nimmt ab“", async () => {
+  it.each([
+    ["2026-10-13", "„Stagniert“ on Warnstufe 1"],
+    ["2026-08-19", "„Stagniert“ on Warnstufe 2"],
+    ["2026-08-26", "„Stagniert“ on Warnstufe 3"],
+    ["2026-10-17", "„Nimmt zu“ on Warnstufe 1"],
+    ["2026-09-05", "„Nimmt zu“ on Warnstufe 2"],
+  ])("is set on %s, %s, as „Nimmt ab“", async (today) => {
     openFixtureOn("2026-10-12");
     const losing = styleOf(await headline());
     cleanup();
-    openFixtureOn("2026-08-30");
+    openFixtureOn(today);
 
     expect(styleOf(await headline())).toEqual(losing);
   });

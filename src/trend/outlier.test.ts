@@ -13,7 +13,7 @@ const measured = (kg: number): CountingMeasurement => ({
   day,
 });
 
-const trendOf = (kg: number): Trend => ({ day, kg, slopePerWeek: 0 });
+const trendOf = (kg: number): Trend => ({ day, kg });
 
 describe("isOutlier", () => {
   it.each([

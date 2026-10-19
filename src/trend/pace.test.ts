@@ -5,12 +5,11 @@ import { weightHistory } from "@/test/weight-history-fixture";
 import { kcalPerDay, pace, paceBand } from "./pace";
 import { type Trend, trends } from "./trend";
 
-/** A trend of `kg` on `day`; the slope plays no part in the pace. */
+/** A trend of `kg` on `day`. */
 const trend = (day: string, kg: number): Trend => ({
   // Safe: every day these tests write is a valid `YYYY-MM-DD`.
   day: day as CalendarDay,
   kg,
-  slopePerWeek: 0,
 });
 
 describe("pace", () => {

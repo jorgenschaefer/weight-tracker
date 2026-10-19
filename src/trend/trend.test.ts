@@ -10,7 +10,7 @@ const measured = (...days: [string, number][]) =>
   );
 
 describe("trends", () => {
-  it("follows a straight line: its value on the day, its slope per week", () => {
+  it("follows a straight line: its value on the day", () => {
     const line = measured(
       ["2026-10-01", 99.0],
       ["2026-10-02", 98.9],
@@ -22,8 +22,7 @@ describe("trends", () => {
     const trend = trends(line).at(-1);
 
     expect(trend?.day).toBe("2026-10-05");
-    expect(trend?.kg).toBeCloseTo(98.6);
-    expect(trend?.slopePerWeek).toBeCloseTo(-0.7);
+    expect(trend?.kg).toBeCloseTo(98.6, 10);
   });
 
   it("gives a day a trend only from its 5th counting measurement in 14 days on", () => {
@@ -68,8 +67,7 @@ describe("trends", () => {
 
     const trend = trends(withOutlier).at(-1);
 
-    expect(trend?.kg).toBeCloseTo(98.5);
-    expect(trend?.slopePerWeek).toBeCloseTo(-0.7);
+    expect(trend?.kg).toBeCloseTo(98.5, 10);
   });
 
   it("counts calendar days, not the hours between measurements", () => {
@@ -83,7 +81,6 @@ describe("trends", () => {
       ].map(([time, kg]) => ({ time: new Date(time), kg: Number(kg) })),
     );
 
-    expect(trends(laterEachDay)[0].slopePerWeek).toBeCloseTo(-0.7, 10);
     expect(trends(laterEachDay)[0].kg).toBeCloseTo(98.6, 10);
   });
 
@@ -110,7 +107,7 @@ describe("trends", () => {
       ["2026-10-26", 98.6],
     );
 
-    expect(trends(line).at(-1)?.slopePerWeek).toBeCloseTo(-0.7);
+    expect(trends(line).at(-1)?.kg).toBeCloseTo(98.6, 10);
   });
 
   it("computes the real history as the specimen does: 97.75 kg on 17.10.", () => {

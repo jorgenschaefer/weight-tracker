@@ -1,15 +1,12 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
+import { findGaps } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { type MorningDeviation, morningDeviation } from "@/trend/outlier";
 import { type Pace, pace } from "@/trend/pace";
 import { scatter } from "@/trend/scatter";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { trends } from "@/trend/trend";
-import {
-  compareAfterGap,
-  type GapComparison,
-  gapUnderComparison,
-} from "./gap-comparison";
+import { compareAfterGap, type GapComparison } from "./gap-comparison";
 import { type TrendVerdict, trendVerdict } from "./verdict";
 
 /**
@@ -83,9 +80,9 @@ export function assess(
 const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
 
 /**
- * The assessment as of the last day with a measurement: the comparison while
- * a gap is under comparison, otherwise the verdict of the trend - and
- * „Noch kein Urteil“ where either lacks the trend it needs.
+ * The assessment as of the last day with a measurement: the Frühwarnung where
+ * that day has a 7-day pace, otherwise the comparison after the last gap -
+ * and „Noch kein Urteil“ where there is no gap, or no trend before it.
  */
 function assessLastDay(
   counting: CountingMeasurement[],
@@ -118,16 +115,17 @@ function assessLastDay(
     status: { kind: "noVerdictYet" },
     ...figures,
   } as const;
-  const gap = gapUnderComparison(counting);
-  if (gap !== null) {
-    const comparison = compareAfterGap(counting, everyTrend, gap);
+  const verdict = trendVerdict(everyTrend, counting);
+  if (verdict === null || trendOfLast === undefined) {
+    const gap = findGaps(counting).at(-1);
+    const comparison =
+      gap === undefined ? null : compareAfterGap(counting, everyTrend, gap);
     if (comparison === null) return noVerdictYet;
     return { status: comparison, ...figures };
   }
-  if (trendOfLast === undefined) return noVerdictYet;
   return {
     ...figures,
-    status: trendVerdict(everyTrend, counting),
+    status: verdict,
     trendKg: trendOfLast.kg,
     morningDeviation: morningDeviation(last, trendOfLast, scatterOfLast),
   };

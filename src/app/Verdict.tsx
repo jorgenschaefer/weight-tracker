@@ -1,15 +1,15 @@
 import type { CalendarDay } from "@/measurement/calendar-day";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
-import { CONFIRMATION_DAYS, type DaysWithoutDecrease } from "@/verdict/verdict";
-import { formatCalendarDay, formatKg, formatKgChange } from "./format";
+import type { TrendVerdict } from "@/verdict/verdict";
+import { formatKg, formatKgChange } from "./format";
 import { MorningDeviationCard } from "./MorningDeviation";
 import classes from "./Verdict.module.css";
 
 /**
- * The verdict, or why there is none, from `assessment` on `today`: the
- * headline, the sentence under it where it has one, and the card of the
- * morning's deviation where there is one. The headline grows wider and
- * heavier with the level of a no-decrease verdict.
+ * The verdict, or why there is none, from `assessment` on `today`: under
+ * „Frühwarnung · letzte Tage“ where it is the Frühwarnung, the headline, the
+ * sentence under it where it has one, and the card of the morning's
+ * deviation where there is one.
  */
 export function Verdict({
   assessment,
@@ -22,6 +22,9 @@ export function Verdict({
   const sentence = explanation(status);
   return (
     <>
+      {isTrendVerdict(status) && (
+        <p className={classes.kicker}>Frühwarnung · letzte Tage</p>
+      )}
       <h1 className={classes.headline} data-emphasis={emphasis(status)}>
         {headline(status)}
       </h1>
@@ -58,14 +61,14 @@ export const NEUTRAL: SurfaceColours = { surface: "#DDE1E5", ink: "#20262C" };
 
 /**
  * The colours of the surface under `status`: blue while losing, escalating
- * with the level of no decrease, under „Nimmt zu“ too, orange for a clear
+ * with the Warnstufe of „Stagniert“ and „Nimmt zu“, orange for a clear
  * increase after a gap, neutral for everything else.
  */
 export function surfaceColours(status: AssessmentStatus): SurfaceColours {
   switch (status.kind) {
     case "losing":
       return { surface: "#D5E4F1", ink: "#10355A" };
-    case "noDecrease":
+    case "holding":
     case "gaining":
       return LEVEL_COLOURS[status.level];
     case "gapComparison":
@@ -82,12 +85,25 @@ const LEVEL_COLOURS: Record<1 | 2 | 3, SurfaceColours> = {
   3: { surface: "#8A380A", ink: "#FFF3E8" },
 };
 
+function isTrendVerdict(status: AssessmentStatus): status is TrendVerdict {
+  switch (status.kind) {
+    case "losing":
+    case "holding":
+    case "gaining":
+      return true;
+    case "gapComparison":
+    case "lastMeasurementTooOld":
+    case "noVerdictYet":
+      return false;
+  }
+}
+
 function headline(status: AssessmentStatus): string {
   switch (status.kind) {
     case "losing":
       return "Nimmt ab";
-    case "noDecrease":
-      return noDecreaseFor(status);
+    case "holding":
+      return "Stagniert";
     case "gaining":
       return "Nimmt zu";
     case "gapComparison":
@@ -103,10 +119,9 @@ function headline(status: AssessmentStatus): string {
 function emphasis(status: AssessmentStatus): string {
   switch (status.kind) {
     case "losing":
+    case "holding":
     case "gaining":
       return "short";
-    case "noDecrease":
-      return `level${status.level}`;
     case "gapComparison":
     case "lastMeasurementTooOld":
     case "noVerdictYet":
@@ -117,36 +132,31 @@ function emphasis(status: AssessmentStatus): string {
 /** The sentence under the headline, where it has one. */
 function explanation(status: AssessmentStatus): string | null {
   switch (status.kind) {
-    case "noDecrease":
-      // Where no trend fell, there is no day it fell until.
-      if (status.atLeast) return null;
-      return `Zuletzt abgenommen bis ${formatCalendarDay(status.since)}`;
-    case "gaining":
-      return gainingExplanation(status);
-    case "gapComparison":
-      return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder ab der 5. Messung nach der Lücke.`;
-    case "noVerdictYet":
-      return "Ein Urteil gibt es ab der 5. Messung.";
     case "losing":
+    case "holding":
+    case "gaining":
+      return trendVerdictSentence(status);
+    case "gapComparison":
+      return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder eine Woche nach der Lücke.`;
+    case "noVerdictYet":
+      return "Ein Urteil gibt es nach knapp zwei Wochen mit Messungen.";
     case "lastMeasurementTooOld":
       return null;
   }
 }
 
-/** Under „Nimmt zu“, the days without a decrease that would otherwise be the headline. */
-function gainingExplanation(status: DaysWithoutDecrease): string {
-  if (status.atLeast) return noDecreaseFor(status);
-  const until = `abgenommen bis ${formatCalendarDay(status.since)}`;
-  if (status.days < CONFIRMATION_DAYS) return `Zuletzt ${until}`;
-  return `${noDecreaseFor(status)}, zuletzt ${until}`;
+/** „Der Trend fällt seit (mindestens) N Tagen.“, „… seit einem Tag.“ */
+function trendVerdictSentence(verdict: TrendVerdict): string {
+  const days = verdict.days === 1 ? "einem Tag" : `${verdict.days} Tagen`;
+  const since = verdict.atLeast ? `seit mindestens ${days}` : `seit ${days}`;
+  return `Der Trend ${TREND_VERBS[verdict.kind]} ${since}.`;
 }
 
-/** „Seit (mindestens) N Tagen kein Abnehmen“. */
-function noDecreaseFor(status: DaysWithoutDecrease): string {
-  return status.atLeast
-    ? `Seit mindestens ${status.days} Tagen kein Abnehmen`
-    : `Seit ${status.days} Tagen kein Abnehmen`;
-}
+const TREND_VERBS: Record<TrendVerdict["kind"], string> = {
+  losing: "fällt",
+  holding: "stagniert",
+  gaining: "steigt",
+};
 
 function Figure({ label, kg }: { label: string; kg: number }) {
   return (

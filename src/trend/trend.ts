@@ -1,14 +1,10 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
 
-/**
- * The smoothed weight on a day with a counting measurement, and how fast it
- * changes there, in kg per week (negative while it falls).
- */
+/** The smoothed weight on a day with a counting measurement. */
 export interface Trend {
   day: CalendarDay;
   kg: number;
-  slopePerWeek: number;
 }
 
 /**
@@ -33,7 +29,7 @@ export function trends(counting: CountingMeasurement[]): Trend[] {
           earlier.kg + slopePerDay * daysBetween(earlier.day, measurement.day),
       ),
     );
-    return [{ day: measurement.day, kg, slopePerWeek: slopePerDay * 7 }];
+    return [{ day: measurement.day, kg }];
   });
 }
 

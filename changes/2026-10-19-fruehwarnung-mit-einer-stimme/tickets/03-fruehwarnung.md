@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-10, AC-11, AC-12, AC-13
 advances:  
 after:     01-streuung-und-ausreisser, 02-langfristig
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -71,3 +71,17 @@ Look and words: `specimens/Main.dc.html` (19.10.), `specimens/A-12.dc.html` (12.
 - Whether `changes/backlog/nimmt-zu-nach-luecke.md` still occurs is checked at acceptance, which deletes it; the entry stays here.
 
 ## Left standing
+- **Review finding not fixed (should-fix, second round):** this case still overflows at 360 × 640. When sign-in is declined, the error line „Abruf fehlgeschlagen: …“ (two lines) stands with „Daten abrufen“ and a three-line card „über dem Trend“. A sentence that wraps to two lines, such as „Der Trend stagniert seit mindestens 14 Tagen.“, then pushes the figures to 656 px, past the 640 px screen. The first round found the same state at 664 px with a one-line sentence. Narrower gaps on short screens (`max-height: 45em` in `Verdict.module.css` and `page.module.css`) brought that one to 634 px. The reviewer produced the two-line case by editing the DOM; no date of the test data has it. Reaching it takes a „Stagniert“ of 10 or more days counted „mindestens“, plus an Ausreißer above the trend, plus a declined sign-in. It was not fixed because the second round was the last, and AC-12 does not name the error line. Every state AC-12 names fits: the tallest with „Daten abrufen“ ends at 616.8 px and the busy line at 586 px.
+- **Reviewer's question, decided and not changed (should-fix, first round):** N in „Der Trend … seit N Tagen.“ and the Warnstufe count up to the last day with a measurement, not up to today. A page opened on 20.10. after a last weighing on 17.10. says „seit einem Tag“. This is how the old verdict counted. The AC-11 days all have a measurement, where both readings agree. After 3 days without a measurement, „Letzte Messung vor N Tagen“ stands instead. Counting to today would be one argument in `trendVerdict` (`src/verdict/verdict.ts`); it is a question for acceptance.
+- **Not proved by an automated test:** the layout of AC-12, because jsdom measures none. Two reviewers drove the page with the run skill in headless Chromium against `next dev`. At 360 × 640 with „Daten abrufen“, every date from 15.7. to 19.10. fit and nothing scrolled sideways. 18.10. and 19.10. were added to the test data as AC-11 says. The busy line fit on 12.10. and 19.10., and a failed fetch (503) fit too. At 390 × 844 the specimen's 28 px gaps stand. At 1280 × 800 and 1280 × 680, the Frühwarnung and its card are on the left and „Langfristig“ and the figures on the right. The reviewers also saw the AC-11 texts and colours in the browser; tests in `Verdict.test.tsx` prove those too. Not driven: a production build (`next start`), real Google, and the revoke-failure line together with the Frühwarnung.
+- **Costly to reverse:** these are what later code will be written against:
+  - `trendVerdict(trends, counting)` returns `TrendVerdict | null`, null where the last day has no 7-day pace. `TrendVerdict` is `{ kind: "losing", days, atLeast }` or `{ kind: "holding" | "gaining", days, atLeast, level }`.
+  - `assess` shows the comparison after the last gap whenever the last day has no 7-day pace, and „Noch kein Urteil“ where there is no gap or no trend before it.
+  - `weekPace(trends, day, firstComparable)` is in `src/trend/week-pace.ts`.
+  - `Trend` is now `{ day, kg }`, without `slopePerWeek`.
+  - The glossary entries are „Warnstufe“ / `level`, „7-Tage-Tempo“ / `weekPace`, and „Stagniert“ / `holding`.
+- **Departures from the nudges:**
+  - „Nimmt ab“ carries N and „mindestens“ but no Warnstufe: nothing reads it, since „Nimmt ab“ stays blue.
+  - The comparison after a gap stands while the *last day* has no 7-day pace (AC-10's „bis der Tag ein 7-Tage-Tempo nach der Lücke hat“). A day without one long after a gap would bring it back. With gaps of at most 3 days, a day with a trend always has a trend 7 to 10 days before it, so I know of no data that does this.
+  - The test of a single outlier in a falling trend (`assessment.test.ts`, `Verdict.test.tsx`) now falls 1.4 kg per week, not 0.5. Under AC-2, the 3 kg outlier raises the Streuung to about 0.67 kg, and with it a pace of −0.5 kg per week is „Stagniert“.
+
