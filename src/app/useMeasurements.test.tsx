@@ -21,6 +21,7 @@ import {
   google,
   hasNoButton,
   holdFetch,
+  holdSignIn,
   isNotShown,
   isShown,
   leavePage,
@@ -31,6 +32,7 @@ import {
   NOW,
   openAndClick,
   passTime,
+  refreshButton,
   reload,
   renderPage,
   runTimersFrom,
@@ -387,6 +389,26 @@ describe("„Abmelden“", () => {
     );
     expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
     expect(google.grants).toContain("token-1");
+  });
+
+  it("does not keep the sign-in of a fetch it overtook for the next open", async () => {
+    const user = await openAndClick(signInButton);
+    await statusMark();
+    vi.setSystemTime(new Date(NOW.getTime() + TOKEN_LIFETIME_S * 1000));
+    const signedIn = holdSignIn();
+    await user.click(await refreshButton());
+    await logOut(user);
+    signedIn.resolve({
+      ok: true,
+      value: { token: "late", expiresInSeconds: 3599, writeGranted: true },
+    });
+    await isShown(FIRST_VISIT);
+    expect(await statusDetail()).toBe("nicht angemeldet");
+
+    reload();
+
+    await signInButton();
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
   });
 
   it("does not keep the sign-in it makes to revoke the access for the next open", async () => {

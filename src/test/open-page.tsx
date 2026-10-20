@@ -15,6 +15,7 @@ import {
   type GoogleHealthError,
   type GoogleHealthResult,
   revokeAccess,
+  type SignedIn,
   signIn,
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
@@ -270,6 +271,13 @@ export function deferred<T>() {
     resolve = r;
   });
   return { promise, resolve };
+}
+
+/** Holds the next sign-in until the test answers it. */
+export function holdSignIn() {
+  const answer = deferred<GoogleHealthResult<SignedIn>>();
+  vi.mocked(signIn).mockReturnValueOnce(answer.promise);
+  return answer;
 }
 
 /** Holds the next fetch until the test answers it. */
