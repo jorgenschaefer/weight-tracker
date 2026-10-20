@@ -1,7 +1,7 @@
 import type { CalendarDay } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { sortAgainstThreshold, threshold } from "./scatter";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 
 /**
  * Whether `measurement` lies beyond the morning's threshold from `trend`,

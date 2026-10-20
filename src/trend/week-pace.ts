@@ -1,5 +1,5 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 
 /**
  * The 7-day pace on `day`: its trend against the trend of the last day 7 to

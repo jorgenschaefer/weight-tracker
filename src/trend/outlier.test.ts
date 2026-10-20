@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { isOutlier, morningDeviation } from "./outlier";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 
 // Safe: a valid `YYYY-MM-DD`.
 const day = "2026-10-12" as CalendarDay;

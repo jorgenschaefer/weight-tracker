@@ -1,7 +1,7 @@
 import type { Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { scatter, sortAgainstThreshold } from "@/trend/scatter";
-import { median, type Trend } from "@/trend/trend";
+import { median, type Trend } from "@/trend/theil-sen";
 
 /**
  * „Nach N Tagen ohne Messung: ±x kg gegenüber vorher“: the median of the

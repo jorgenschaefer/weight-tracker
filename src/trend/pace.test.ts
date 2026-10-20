@@ -3,7 +3,7 @@ import type { CalendarDay } from "@/measurement/calendar-day";
 import { countingMeasurements } from "@/measurement/measurement";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { kcalPerDay, pace, paceBand } from "./pace";
-import { type Trend, trends } from "./trend";
+import { type Trend, trends } from "./theil-sen";
 
 /** A trend of `kg` on `day`. */
 const trend = (day: string, kg: number): Trend => ({

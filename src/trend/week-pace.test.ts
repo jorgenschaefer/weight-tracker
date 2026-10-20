@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 import { fortnightPace, weekPace } from "./week-pace";
 
 /** A trend of `kg` on `day`. */

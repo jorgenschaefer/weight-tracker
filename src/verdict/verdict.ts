@@ -2,7 +2,7 @@ import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import { findGaps } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { scatter, sortAgainstThreshold, threshold } from "@/trend/scatter";
-import type { Trend } from "@/trend/trend";
+import type { Trend } from "@/trend/theil-sen";
 import { fortnightPace, weekPace } from "@/trend/week-pace";
 
 /**

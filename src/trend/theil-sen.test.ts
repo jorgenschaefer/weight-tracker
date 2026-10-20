@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { countingMeasurements } from "@/measurement/measurement";
 import { weightHistory } from "@/test/weight-history-fixture";
-import { trends } from "./trend";
+import { trends } from "./theil-sen";
 
 /** Counting measurements, one per `[day, kg]`, each at 05:00 UTC, early morning in Berlin. */
 const measured = (...days: [string, number][]) =>

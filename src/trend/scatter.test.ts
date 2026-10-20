@@ -9,7 +9,7 @@ import {
 } from "@/measurement/measurement";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { scatter, sortAgainstThreshold, threshold } from "./scatter";
-import { type Trend, trends } from "./trend";
+import { type Trend, trends } from "./theil-sen";
 
 // Safe: a valid `YYYY-MM-DD`.
 const october20 = "2026-10-20" as CalendarDay;

@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:
 advances:
 after:
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -34,3 +34,4 @@ The move is temporary. 01 writes the filter in a new `trend.ts`. Tickets 02 to 0
 - Changing anything Theil-Sen computes, or any importer beyond its import line.
 
 ## Left standing
+Nothing. The review came back clean, `npm run check` ran whole and is green, and the ticket closes no criterion.

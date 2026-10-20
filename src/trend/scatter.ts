@@ -1,6 +1,6 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 
 /**
  * The scatter of `day`: the root mean square of how far the counting

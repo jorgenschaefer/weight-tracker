@@ -1,6 +1,6 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import { sortAgainstThreshold, threshold } from "./scatter";
-import type { Trend } from "./trend";
+import type { Trend } from "./theil-sen";
 
 /** The change of the trend over 4 weeks in kg per week, and its band. */
 export interface Pace {

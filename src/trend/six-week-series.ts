@@ -3,7 +3,7 @@ import { findGaps, type Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
 import { isOutlier } from "./outlier";
 import { scatter } from "./scatter";
-import { type Trend, trends } from "./trend";
+import { type Trend, trends } from "./theil-sen";
 
 /**
  * What the graph draws of the last 6 weeks: the counting measurements, each

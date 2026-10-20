@@ -5,7 +5,7 @@ import { type MorningDeviation, morningDeviation } from "@/trend/outlier";
 import { type Pace, pace } from "@/trend/pace";
 import { scatter } from "@/trend/scatter";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
-import { trends } from "@/trend/trend";
+import { trends } from "@/trend/theil-sen";
 import { compareAfterGap, type GapComparison } from "./gap-comparison";
 import { type TrendVerdict, trendVerdict } from "./verdict";
 

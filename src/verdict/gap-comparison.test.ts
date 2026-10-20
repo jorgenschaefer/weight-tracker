@@ -5,7 +5,7 @@ import {
 } from "@/measurement/calendar-day";
 import { findGaps } from "@/measurement/gap";
 import { countingMeasurements } from "@/measurement/measurement";
-import type { Trend } from "@/trend/trend";
+import type { Trend } from "@/trend/theil-sen";
 import { compareAfterGap } from "./gap-comparison";
 
 /** Counting measurements, one per `[day, kg]`, each at 05:00 UTC, early morning in Berlin. */

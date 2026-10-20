@@ -4,7 +4,7 @@ import {
   calendarDayBefore,
 } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import type { Trend } from "@/trend/trend";
+import type { Trend } from "@/trend/theil-sen";
 import { trendVerdict } from "./verdict";
 
 /**

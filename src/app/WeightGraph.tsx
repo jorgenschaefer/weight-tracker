@@ -7,7 +7,7 @@ import {
   daysBetween,
 } from "@/measurement/calendar-day";
 import type { SixWeekSeries } from "@/trend/six-week-series";
-import type { Trend } from "@/trend/trend";
+import type { Trend } from "@/trend/theil-sen";
 import { formatCalendarDay } from "./format";
 
 /**
