@@ -21,12 +21,17 @@ export function runSnippet(
 ): SnippetRun {
   const { hostname, host, port } = new URL(url);
   const written: string[] = [];
-  const localStorage = {
+  const methods: Record<string, unknown> = {
     getItem: () => null,
     setItem: (key: string) => written.push(`set ${key}`),
     removeItem: (key: string) => written.push(`remove ${key}`),
     clear: () => written.push("clear"),
   };
+  // Records writes as properties too: `localStorage[key] = value`, `delete`.
+  const localStorage = new Proxy(methods, {
+    set: (_, key) => (written.push(`set ${String(key)}`), true),
+    deleteProperty: (_, key) => (written.push(`remove ${String(key)}`), true),
+  });
   const window: Record<string, unknown> = {
     location: { hostname, host, port },
     localStorage,
