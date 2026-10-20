@@ -19,21 +19,25 @@ export function weightHistory(): Measurement[] {
     });
 }
 
-/** AC-6's 18.10. and 19.10.2026, which the fixture lacks. */
-const OCTOBER_18_AND_19: Measurement[] = [
+/**
+ * 18.10. to 20.10.2026, which the fixture lacks; `analysis/kalman/reference.py`
+ * adds the same days, and the two change together.
+ */
+const OCTOBER_18_TO_20: Measurement[] = [
   { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
   { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
+  { time: new Date("2026-10-20T07:00:00+02:00"), kg: 96.9 },
 ];
 
 /**
- * The user's weight with AC-6's 18.10. and 19.10., up to `lastDay` and any
+ * The user's weight with 18.10. to 20.10., up to `lastDay` and any
  * `extra` measurements up to it besides.
  */
 export function weightHistoryUntil(
   lastDay: string,
   extra: Measurement[] = [],
 ): Measurement[] {
-  return [...weightHistory(), ...OCTOBER_18_AND_19, ...extra].filter(
+  return [...weightHistory(), ...OCTOBER_18_TO_20, ...extra].filter(
     (measurement) => berlinDay(measurement.time) <= lastDay,
   );
 }

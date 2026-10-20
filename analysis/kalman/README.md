@@ -22,3 +22,13 @@ Unsicherheit, die Wahrscheinlichkeit nennenswerter Abnahme (unter
 −0,1 kg/Woche) und die, im Plan zu sein (unter −0,5 kg/Woche), wie weit die
 Messung von der Erwartung abweicht, und die Ampel. Das sind die Größen, aus
 denen die Sätze zum Morgen entstehen sollen.
+
+`reference.py` schreibt die ungerundeten Werte von `kalman` und
+`traffic_light` für die Testdaten der Seite nach
+`src/test/fixtures/kalman-reference.json`, gegen die die Tests des Filters
+und der Ampel prüfen. Nach jeder Änderung einer Einstellung in `kalman.py`
+neu erzeugen:
+
+```sh
+python3 -I analysis/kalman/reference.py > src/test/fixtures/kalman-reference.json
+```

@@ -240,7 +240,7 @@ describe("a last measurement too old", () => {
   });
 
   it("wins over „Nimmt zu“, without „Frühwarnung“", async () => {
-    openHistoryOn("2026-10-23");
+    openHistoryOn("2026-10-24");
 
     expect(await headline()).toHaveTextContent("Letzte Messung vor 4 Tagen");
     expect(screen.queryByText(/Nimmt zu/)).not.toBeInTheDocument();

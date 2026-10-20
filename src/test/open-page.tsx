@@ -169,8 +169,8 @@ export function openOn(today: string, measurements: Measurement[]) {
 }
 
 /**
- * Opens the page in the evening of `today` with the user's weight, 18.10. and
- * 19.10. up to `lastDay`.
+ * Opens the page in the evening of `today` with the user's weight and 18.10.
+ * to 20.10., up to `lastDay`.
  */
 export const openHistoryOn = (today: string, lastDay = today) =>
   openOn(today, weightHistoryUntil(lastDay));
