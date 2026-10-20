@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   CACHE_KEY,
   type MeasurementCache,
@@ -86,8 +86,7 @@ export function useMeasurements(): Measurements | null {
   // not fetch again.
   const lastFetchStarted = useRef<number | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on mount. fetchData is handed the cache and token it fetches with; what else it uses - refs, state setters, the entered measurements read from this browser - is the same in every render.
-  useEffect(() => {
+  const loadOnOpen = useEffectEvent(() => {
     loadGoogleSignIn();
     const cached = loadCache();
     setCache(cached);
@@ -97,7 +96,8 @@ export function useMeasurements(): Measurements | null {
     if (stored === null) return;
     if (hasExpired(stored, new Date())) removeToken();
     else void fetchData(cached, stored);
-  }, []);
+  });
+  useEffect(() => loadOnOpen(), []);
 
   // While this visit holds a token, the page fetches by itself when it comes
   // back into view: a tab left open gets a weighing of the last hour without
