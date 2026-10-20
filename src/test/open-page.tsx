@@ -264,6 +264,9 @@ export const hasNoButton = (name: string) =>
 export const FIRST_VISIT =
   "Diese Seite liest deine Gewichtsmessungen aus Google Health, trägt neue ein und zeigt dir, ob du noch abnimmst.";
 
+/** The hint below {@link FIRST_VISIT}. */
+export const HINT = "Tippe oben auf die Zeile, um dich bei Google anzumelden.";
+
 /** A promise to hold a call with, settled by the test. */
 export function deferred<T>() {
   let resolve!: (value: T) => void;

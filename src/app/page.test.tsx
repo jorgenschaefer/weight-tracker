@@ -14,7 +14,10 @@ import {
   FIRST_VISIT,
   failure,
   google,
+  HINT,
   hasNoButton,
+  holdFetch,
+  holdSignIn,
   isNotShown,
   isShown,
   leavePage,
@@ -27,6 +30,7 @@ import {
   renderPage,
   signInButton,
   standInForGoogle,
+  statusDetail,
   statusLine,
   steady,
   storeCache,
@@ -58,6 +62,56 @@ describe("the first visit", () => {
     expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
     isNotShown(/Letzte Messung/);
     hasNoButton("Abmelden");
+  });
+
+  it.each<[string, (() => void) | null]>([
+    ["not signed in", null],
+    ["while signing in", () => holdSignIn()],
+    ["while fetching", () => holdFetch()],
+    [
+      "after a failed fetch",
+      () =>
+        vi
+          .mocked(fetchMeasurements)
+          .mockResolvedValueOnce(failure({ kind: "unreachable" })),
+    ],
+  ])(
+    "shows the sentence about the page and the hint to tap the line, %s",
+    async (_, beforeTap) => {
+      if (beforeTap === null) renderPage();
+      else {
+        beforeTap();
+        await openAndClick(signInButton);
+      }
+
+      await isShown(FIRST_VISIT);
+      const hint = await screen.findByText(HINT);
+      expect(screen.getByText(FIRST_VISIT).compareDocumentPosition(hint)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    },
+  );
+
+  it("has no „Daten abrufen“", async () => {
+    renderPage();
+    await statusLine();
+
+    expect(
+      screen.queryByRole("button", { name: "Daten abrufen" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("the rest of the page while a fetch runs", () => {
+  it("stays as it is, nothing provisional or dimmed", async () => {
+    storeLoss();
+    holdFetch();
+    await openAndClick(signInButton);
+
+    await waitFor(async () => expect(await statusDetail()).toBe("ruft ab …"));
+    isNotShown(/aktualisiert/);
+    expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
+    expect(verdict().closest("[aria-busy]")).toBeNull();
   });
 });
 

@@ -20,7 +20,9 @@ import {
   FIRST_VISIT,
   failure,
   google,
+  HINT,
   holdFetch,
+  holdSignIn,
   isNotShown,
   isShown,
   leavePage,
@@ -40,7 +42,6 @@ import {
   statusLine,
   statusMark,
   statusSheet,
-  storeLoss,
   storeMorning,
   TOKEN_LIFETIME_S,
 } from "@/test/open-page";
@@ -57,15 +58,6 @@ vi.mock("@/measurement/google-health", () => ({
 
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
-
-const HINT = "Tippe oben auf die Zeile, um dich bei Google anzumelden.";
-
-/** Holds the next sign-in until the test answers it. */
-function holdSignIn() {
-  const answer = deferred<GoogleHealthResult<SignedIn>>();
-  vi.mocked(signIn).mockReturnValueOnce(answer.promise);
-  return answer;
-}
 
 /** Holds the next entry until the test answers it. */
 function holdEntry() {
@@ -551,59 +543,6 @@ describe("before the page has read this browser", () => {
       screen.getByRole("button", { name: "Google Health" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Abrufen" })).toBeDisabled();
-  });
-});
-
-describe("the rest of the page while a fetch runs", () => {
-  it("stays as it is, nothing provisional or dimmed", async () => {
-    storeLoss();
-    holdFetch();
-    await openAndClick(signInButton);
-
-    await detailIs("ruft ab …");
-    isNotShown(/aktualisiert/);
-    const verdict = screen.getByRole("heading", { level: 1 });
-    expect(verdict).toHaveTextContent("Du nimmst seit Wochen ab.");
-    expect(verdict.closest("[aria-busy]")).toBeNull();
-  });
-});
-
-describe("the first visit", () => {
-  it.each<[string, (() => void) | null]>([
-    ["not signed in", null],
-    ["while signing in", () => holdSignIn()],
-    ["while fetching", () => holdFetch()],
-    [
-      "after a failed fetch",
-      () =>
-        vi
-          .mocked(fetchMeasurements)
-          .mockResolvedValueOnce(failure({ kind: "unreachable" })),
-    ],
-  ])(
-    "shows the sentence about the page and the hint to tap the line, %s",
-    async (_, beforeTap) => {
-      if (beforeTap === null) renderPage();
-      else {
-        beforeTap();
-        await openAndClick(signInButton);
-      }
-
-      await isShown(FIRST_VISIT);
-      const hint = await screen.findByText(HINT);
-      expect(screen.getByText(FIRST_VISIT).compareDocumentPosition(hint)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    },
-  );
-
-  it("has no „Daten abrufen“", async () => {
-    renderPage();
-    await statusLine();
-
-    expect(
-      screen.queryByRole("button", { name: "Daten abrufen" }),
-    ).not.toBeInTheDocument();
   });
 });
 
