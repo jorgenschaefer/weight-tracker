@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2, AC-3
 advances:  
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -42,3 +42,38 @@ Die Snippets laufen im Browser und haben keine Tests unter Vitest; das Durchgehe
 Die vierte Zahl („Bilanz“) baut 02. Eine echte Anmeldung bei Google auf `walk.localhost` gehört nicht dazu, und was schon im `localStorage` von localhost:3000 liegt, auch frühere Testdaten von Walks, bleibt unangetastet.
 
 ## Left standing
+
+- **Fix after the last review** (answers the review's only finding, a nit:
+  on a page whose URL has no port, such as https://gewicht.jorgenschaefer.de,
+  the refusal named http://walk.localhost, i.e. port 80, where no dev server
+  listens): there the three snippets now name
+  `http://walk.localhost:<port of the dev server, in .next/dev/lock>`. With a
+  port in the URL the message is unchanged (http://walk.localhost:3000 on
+  localhost:3000). No reviewer saw this fix. I checked the printed fixture
+  snippet with a stubbed `location` and the other two by reading them.
+- **No automated test proves AC-1, AC-2 or AC-3.** As the ticket's Context
+  says, the snippets have no Vitest tests (the test layout check covers only
+  `.ts`/`.tsx` sources). I checked them in headless Chrome over the DevTools
+  protocol, with one throwaway profile and the `next dev` on port 3000. The
+  reviewer did the same check again on its own.
+  - AC-3: on localhost:3000 and on 127.0.0.1:3000, each snippet threw with
+    http://walk.localhost:3000 in its message. `localStorage` was unchanged,
+    `walkOn`, `standIn` and `standInReopen` stayed undefined, and `fetch`
+    and `initTokenClient` stayed the real ones. Before the change, the same
+    run on localhost:3000 stored `walk:fixture` and replaced `fetch`.
+  - AC-2: on walk.localhost:3000 the first visit showed. The fixture snippet
+    stored 100 days and `walkOn("2026-08-30")` returned the verdict. Through
+    the stand-in, signing in, fetching, „Eintragen“ (POST) and
+    `standInReopen` all worked, and moving the page's clock dropped the kept
+    token. The `.next/dev/lock` command in `SKILL.md` printed 3000.
+  - AC-1: I seeded localhost:3000 with `gewicht:v1`, `gewicht:eingetragen:v1`,
+    `gewicht:token:v1` and an old `walk:fixture`, then did the whole walk and
+    the cleanup on walk.localhost. Afterwards localhost:3000 held exactly the
+    same entries with the same values.
+  - Not checked: a real Google sign-in on walk.localhost. `SKILL.md` says it
+    does not work, because walk.localhost is not an origin the OAuth client
+    lists. The ticket rules it out, so I did not try it.
+- **Decision that spreads:** `SKILL.md` finds the running dev server through
+  `.next/dev/lock` (its `port` field), as Next.js 16 writes it, and confirms
+  it with a `curl` to walk.localhost, since the file can outlive a server
+  that crashed. This depends on that file's format in Next.js.

@@ -1,7 +1,8 @@
 // Browser snippet: defines walkOn(day, opts), which opens the page in a
 // same-origin iframe as it is on `day` (Berlin), with the test data up to
 // that day as the cache, and returns what the page says. Run it once on
-// http://localhost:3000 after fixture-snippet.mjs's snippet.
+// http://walk.localhost:<port> after fixture-snippet.mjs's snippet; on any
+// other host it throws before it defines anything.
 //
 // opts: time ("08:00:00+02:00"), only (rows { day, kg } instead of the test
 // data), width/height of the frame (360×640), keep (leave the frame open as
@@ -10,6 +11,11 @@
 // One call takes a few seconds under `next dev`; for a sweep over many days,
 // start a loop without awaiting it and read its results afterwards, since a
 // browser-tool call times out after about 45 s.
+if (location.hostname !== "walk.localhost") {
+  throw new Error(
+    `walk-on.js runs only on walk.localhost, to keep the localStorage of ${location.host} as it is - open http://walk.localhost${location.port ? `:${location.port}` : ":<port of the dev server, in .next/dev/lock>"} and run it there`,
+  );
+}
 window.walkOn = async (day, opts = {}) => {
   const {
     time = "08:00:00+02:00",

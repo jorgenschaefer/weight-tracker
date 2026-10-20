@@ -1,6 +1,7 @@
 // Browser snippet: puts a Google in memory in place of the real one, so the
 // page signs in, fetches and enters weights without a Google account. Run it
-// on http://localhost:3000 once the page has loaded; it waits for Google
+// on http://walk.localhost:<port> once the page has loaded; on any other host
+// it throws before it replaces anything. It waits for Google
 // Identity Services to load and then replaces what the page uses of it, and
 // of fetch for the Google Health API. A token it has revoked is answered with
 // 401, as by Google.
@@ -23,6 +24,11 @@
 //   read          "answer" | "hang" | a status such as 401 or 503
 //   delayMs       how long each answer from Google Health takes (800)
 //   requests      every request to Google Health, in order
+if (location.hostname !== "walk.localhost") {
+  throw new Error(
+    `google-stand-in.js runs only on walk.localhost, to keep the localStorage of ${location.host} as it is - open http://walk.localhost${location.port ? `:${location.port}` : ":<port of the dev server, in .next/dev/lock>"} and run it there`,
+  );
+}
 (async () => {
   const READ =
     "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly";
