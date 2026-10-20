@@ -17,14 +17,18 @@ import { NEUTRAL, type SurfaceColours } from "./Verdict";
 type Saved = GoogleHealthResult<null>;
 const SAVED: Saved = { ok: true, value: null };
 
-/** Renders the sheet, saving with `onEnter`; by default every save succeeds. */
+/**
+ * Renders the sheet, saving with `onEnter`, after the Letzte Messung of
+ * `latestKg`; by default every save succeeds and there is no measurement.
+ */
 function renderSheet(
   colours = NEUTRAL,
   onEnter: EnterWeight = async () => SAVED,
+  latestKg: number | null = null,
 ) {
   render(
     <MantineProvider>
-      <EntrySheet colours={colours} onEnter={onEnter} />
+      <EntrySheet colours={colours} onEnter={onEnter} latestKg={latestKg} />
     </MantineProvider>,
   );
   return userEvent.setup();
@@ -66,8 +70,12 @@ describe("the button to enter a weight", () => {
 });
 
 /** Opens the page's sheet; returns the user to type and click with. */
-async function openSheet(colours = NEUTRAL, onEnter?: EnterWeight) {
-  const user = renderSheet(colours, onEnter);
+async function openSheet(
+  colours = NEUTRAL,
+  onEnter?: EnterWeight,
+  latestKg: number | null = null,
+) {
+  const user = renderSheet(colours, onEnter, latestKg);
   await user.click(enterButton());
   await screen.findByRole("dialog", { name: "Gewicht eintragen" });
   return user;
@@ -102,6 +110,19 @@ describe("the sheet", () => {
 
     expect(field()).toHaveFocus();
     expect(field()).toHaveAttribute("inputmode", "decimal");
+  });
+
+  it("suggests the Letzte Messung in the empty field", async () => {
+    await openSheet(NEUTRAL, undefined, 97.4);
+
+    expect(field()).toHaveValue("");
+    expect(field()).toHaveAttribute("placeholder", "97,4");
+  });
+
+  it("suggests 98,6 in the empty field without any measurement", async () => {
+    await openSheet();
+
+    expect(field()).toHaveAttribute("placeholder", "98,6");
   });
 
   it("is only as tall as its content, so the page shows above it", async () => {

@@ -4,6 +4,7 @@ import { parseEnteredKg } from "@/measurement/entered-measurement";
 import type { GoogleHealthResult } from "@/measurement/google-health";
 import classes from "./EntrySheet.module.css";
 import { failureReason } from "./failure-reason";
+import { formatKg } from "./format";
 import { Sheet } from "./Sheet";
 import type { SurfaceColours } from "./Verdict";
 
@@ -13,15 +14,18 @@ export type EnterWeight = (kg: number) => Promise<GoogleHealthResult<null>>;
 /**
  * The round button in the corner of the window, and the sheet it opens from
  * the bottom to enter today's weight with `onEnter`; while that is `null`,
- * the sheet waits to open until it is not. The sheet closes once the weight
- * is saved, and not while it is being saved.
+ * the sheet waits to open until it is not. The empty field suggests
+ * `latestKg`, the Letzte Messung, where there is one. The sheet closes once
+ * the weight is saved, and not while it is being saved.
  */
 export function EntrySheet({
   colours,
   onEnter,
+  latestKg,
 }: {
   colours: SurfaceColours;
   onEnter: EnterWeight | null;
+  latestKg: number | null;
 }) {
   const [opened, setOpened] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -67,6 +71,7 @@ export function EntrySheet({
         >
           <EntryForm
             colours={sheetColours(colours)}
+            suggestion={latestKg === null ? "98,6" : formatKg(latestKg)}
             saving={saving}
             onSave={(kg) => save(kg, onEnter)}
           />
@@ -77,16 +82,19 @@ export function EntrySheet({
 }
 
 /**
- * „Gewicht heute“ and „Eintragen“, which checks the weight and saves it with
- * `onSave`: the hint under the field for a weight it does not take, the
- * failure under the form for one it could not save.
+ * „Gewicht heute“, empty with `suggestion` in grey, and „Eintragen“, which
+ * checks the weight and saves it with `onSave`: the hint under the field for
+ * a weight it does not take, the failure under the form for one it could not
+ * save.
  */
 function EntryForm({
   colours,
+  suggestion,
   saving,
   onSave,
 }: {
   colours: SurfaceColours;
+  suggestion: string;
   saving: boolean;
   onSave: EnterWeight;
 }) {
@@ -122,7 +130,7 @@ function EntryForm({
             error: classes.hint,
           }}
           label="Gewicht heute"
-          placeholder="98,6"
+          placeholder={suggestion}
           inputMode="decimal"
           autoComplete="off"
           rightSection="kg"
@@ -130,8 +138,8 @@ function EntryForm({
           value={input}
           onChange={(event) => setInput(event.currentTarget.value)}
           // Past Mantine's error state, which would turn the border and the
-          // placeholder red: a red „98,6“ in an empty field reads as a refused
-          // weight. The hint under the field says what is wrong.
+          // placeholder red: a red suggestion in an empty field reads as a
+          // refused weight. The hint under the field says what is wrong.
           styles={{
             input: {
               "--input-bd": colours.ink,

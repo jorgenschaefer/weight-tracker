@@ -29,23 +29,41 @@ export default function Page() {
   const measurements = useMeasurements();
   const today = useToday();
   if (measurements === null) {
-    return <Surface colours={NEUTRAL} measurements={null} today={today} />;
+    return (
+      <Surface
+        colours={NEUTRAL}
+        measurements={null}
+        today={today}
+        latestKg={null}
+      />
+    );
   }
   const { cache, enteredMeasurements } = measurements;
   if (cache === null && enteredMeasurements.length === 0) {
     return (
-      <Surface colours={NEUTRAL} measurements={measurements} today={today}>
+      <Surface
+        colours={NEUTRAL}
+        measurements={measurements}
+        today={today}
+        latestKg={null}
+      >
         <FirstVisit measurements={measurements} />
       </Surface>
     );
   }
   const shown = [...(cache?.measurements ?? []), ...enteredMeasurements];
+  const latest = latestMeasurement(shown);
   const assessment = assess(countingMeasurements(shown), today);
   const colours = surfaceColours(assessment.status);
   return (
-    <Surface colours={colours} measurements={measurements} today={today}>
+    <Surface
+      colours={colours}
+      measurements={measurements}
+      today={today}
+      latestKg={latest?.kg ?? null}
+    >
       <CachedMeasurements
-        shown={shown}
+        latest={latest}
         assessment={assessment}
         today={today}
         measurements={measurements}
@@ -74,17 +92,19 @@ function useToday(): CalendarDay {
  * The browser around the page, Android's status bar and address bar, takes
  * its colour. `measurements` is `null` for the moment before the page has
  * read its cache, in which neither the status line nor the button does
- * anything.
+ * anything; the sheet suggests `latestKg`, the Letzte Messung.
  */
 function Surface({
   colours,
   measurements,
   today,
+  latestKg,
   children,
 }: {
   colours: SurfaceColours;
   measurements: Measurements | null;
   today: CalendarDay;
+  latestKg: number | null;
   children?: React.ReactNode;
 }) {
   return (
@@ -101,6 +121,7 @@ function Surface({
       <EntrySheet
         colours={colours}
         onEnter={measurements === null ? null : measurements.enter}
+        latestKg={latestKg}
       />
     </main>
   );
@@ -129,17 +150,17 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 }
 
 /**
- * The page from the measurements `shown`, the cached ones and those entered
- * that Google Health has not returned yet: the verdict on `today` and the
- * four figures, and the graph under them.
+ * The page from the cached measurements and those entered that Google Health
+ * has not returned yet: their newest, `latest`, the verdict on `today` and
+ * the four figures, and the graph under them.
  */
 function CachedMeasurements({
-  shown,
+  latest,
   assessment,
   today,
   measurements,
 }: {
-  shown: Measurement[];
+  latest: Measurement | null;
   assessment: Assessment;
   today: CalendarDay;
   measurements: Measurements;
@@ -147,7 +168,7 @@ function CachedMeasurements({
   return (
     <>
       <LatestMeasurement
-        shown={shown}
+        latest={latest}
         enteredMeasurements={measurements.enteredMeasurements}
       />
       <RevokeFailure error={measurements.revokeFailure} />
@@ -165,17 +186,16 @@ function CachedMeasurements({
 }
 
 /**
- * „Letzte Messung“: the newest measurement `shown`, counting or not, and
- * whether it is one entered that no fetch has held yet.
+ * „Letzte Messung“: the newest measurement, counting or not, and whether it
+ * is one entered that no fetch has held yet.
  */
 function LatestMeasurement({
-  shown,
+  latest,
   enteredMeasurements,
 }: {
-  shown: Measurement[];
+  latest: Measurement | null;
   enteredMeasurements: Measurement[];
 }) {
-  const latest = latestMeasurement(shown);
   if (latest === null) {
     return (
       <Text className={classes.latest}>

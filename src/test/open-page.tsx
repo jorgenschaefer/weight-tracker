@@ -203,14 +203,16 @@ export async function openAndClick(button: () => Promise<HTMLElement>) {
 
 /** Opens the sheet on the page, types `input` and taps „Eintragen“. */
 export async function enterWeight(user: UserEvent, input = "98,6") {
+  await user.type(await openEntrySheet(user), input);
+  await user.click(screen.getByRole("button", { name: "Eintragen" }));
+}
+
+/** Opens the sheet to enter a weight; returns its field „Gewicht heute“. */
+export async function openEntrySheet(user: UserEvent) {
   await user.click(
     await screen.findByRole("button", { name: "Gewicht eintragen" }),
   );
-  await user.type(
-    await screen.findByRole("textbox", { name: "Gewicht heute" }),
-    input,
-  );
-  await user.click(screen.getByRole("button", { name: "Eintragen" }));
+  return screen.findByRole("textbox", { name: "Gewicht heute" });
 }
 
 /** 98,6 kg entered at {@link NOW}, as „Letzte Messung“ shows it once fetched. */

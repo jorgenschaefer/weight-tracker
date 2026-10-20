@@ -11,6 +11,7 @@ import {
 import {
   at,
   daysAgo,
+  enterWeight,
   FIRST_VISIT,
   failure,
   google,
@@ -26,8 +27,10 @@ import {
   MORNING_SHOWN,
   NOW,
   openAndClick,
+  openEntrySheet,
   openHistoryOn,
   renderPage,
+  sheet,
   signInButton,
   standInForGoogle,
   statusDetail,
@@ -395,6 +398,39 @@ describe("the button to enter a weight", () => {
 
     await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
     expect(await enterButton()).toBeInTheDocument();
+  });
+});
+
+describe("the suggestion in the field „Gewicht heute“", () => {
+  it("is the Letzte Messung, even where it does not count", async () => {
+    storeCache(daysAgo(1), [
+      at("2026-08-05T05:00:00Z", 99.7),
+      at("2026-08-05T17:30:00Z", 100.4),
+    ]);
+    const field = await openEntrySheet(renderPage());
+
+    expect(field).toHaveValue("");
+    expect(field).toHaveAttribute("placeholder", "100,4");
+  });
+
+  it("is the weight just entered, before a fetch has returned it", async () => {
+    storeMorning();
+    holdFetch();
+    const user = renderPage();
+    await enterWeight(user, "97,2");
+    await waitFor(() => expect(sheet()).not.toBeInTheDocument());
+
+    const field = await openEntrySheet(user);
+
+    expect(field).toHaveValue("");
+    expect(field).toHaveAttribute("placeholder", "97,2");
+  });
+
+  it("is 98,6 on the first visit, without any measurement", async () => {
+    const field = await openEntrySheet(renderPage());
+
+    expect(field).toHaveValue("");
+    expect(field).toHaveAttribute("placeholder", "98,6");
   });
 });
 
