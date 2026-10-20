@@ -64,31 +64,71 @@ describe("the first visit", () => {
     hasNoButton("Abmelden");
   });
 
-  it.each<[string, (() => void) | null]>([
-    ["not signed in", null],
-    ["while signing in", () => holdSignIn()],
-    ["while fetching", () => holdFetch()],
-    [
-      "after a failed fetch",
-      () =>
-        vi
-          .mocked(fetchMeasurements)
-          .mockResolvedValueOnce(failure({ kind: "unreachable" })),
-    ],
-  ])(
-    "shows the sentence about the page and the hint to tap the line, %s",
-    async (_, beforeTap) => {
-      if (beforeTap === null) renderPage();
-      else {
-        beforeTap();
-        await openAndClick(signInButton);
-      }
-
-      await isShown(FIRST_VISIT);
-      const hint = await screen.findByText(HINT);
-      expect(screen.getByText(FIRST_VISIT).compareDocumentPosition(hint)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
+  /** Each brings the first visit to a state of the status line. */
+  const notSignedIn = {
+    "not signed in": async () => {
+      renderPage();
+      await isShown("nicht angemeldet");
+    },
+    "while signing in": async () => {
+      holdSignIn();
+      await openAndClick(signInButton);
+      await isShown("meldet an …");
+    },
+    "after a declined sign-in": async () => {
+      vi.mocked(signIn).mockResolvedValueOnce(
+        failure({ kind: "signInFailed" }),
       );
+      await openAndClick(signInButton);
+      await isShown(
+        "Abruf fehlgeschlagen: Die Anmeldung bei Google wurde abgebrochen.",
+      );
+    },
+  };
+  const signedIn = {
+    "while fetching": async () => {
+      holdFetch();
+      await openAndClick(signInButton);
+      await isShown("ruft ab …");
+    },
+    "after a failed fetch": async () => {
+      vi.mocked(fetchMeasurements).mockResolvedValueOnce(
+        failure({ kind: "unreachable" }),
+      );
+      await openAndClick(signInButton);
+      await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+    },
+  };
+
+  it.each(Object.entries({ ...notSignedIn, ...signedIn }))(
+    "shows the sentence about the page, %s",
+    async (_, reach) => {
+      await reach();
+
+      expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
+    },
+  );
+
+  it.each(Object.entries(notSignedIn))(
+    "shows the hint to tap the line below the sentence, %s",
+    async (_, reach) => {
+      await reach();
+
+      expect(
+        screen
+          .getByText(FIRST_VISIT)
+          .compareDocumentPosition(screen.getByText(HINT)),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    },
+  );
+
+  // Signed in, a tap on the line opens its sheet rather than signing in.
+  it.each(Object.entries(signedIn))(
+    "has no hint to tap the line, %s",
+    async (_, reach) => {
+      await reach();
+
+      expect(screen.queryByText(HINT)).not.toBeInTheDocument();
     },
   );
 

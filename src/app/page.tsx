@@ -107,8 +107,8 @@ function Surface({
 }
 
 /**
- * The page before the first fetch: what it does, and where to sign in. A
- * failed „Abmelden“ ends here.
+ * The page before the first fetch: what it does, and, while the page is not
+ * signed in, where to sign in. A failed „Abmelden“ ends here.
  */
 function FirstVisit({ measurements }: { measurements: Measurements }) {
   return (
@@ -117,9 +117,12 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
         Diese Seite liest deine Gewichtsmessungen aus Google Health, trägt neue
         ein und zeigt dir, ob du noch abnimmst.
       </Text>
-      <Text className={classes.hint}>
-        Tippe oben auf die Zeile, um dich bei Google anzumelden.
-      </Text>
+      {/* Signed in, a tap on the line opens its sheet instead. */}
+      {measurements.signIn === null && (
+        <Text className={classes.hint}>
+          Tippe oben auf die Zeile, um dich bei Google anzumelden.
+        </Text>
+      )}
       <RevokeFailure error={measurements.revokeFailure} />
     </>
   );
