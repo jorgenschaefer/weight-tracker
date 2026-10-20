@@ -1,19 +1,16 @@
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
-import type { GoogleHealthError } from "@/measurement/google-health";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
 import type { HeldToken } from "./held-token";
+import type { Measurements } from "./useMeasurements";
 
 /** What the page knows of its sign-in at Google and of what is running. */
-export interface GoogleState {
+export interface GoogleState
+  extends Pick<
+    Measurements,
+    "signingIn" | "savingKg" | "fetching" | "fetchFailure"
+  > {
   signedIn: boolean;
-  /** Whether a sign-in popup is open. */
-  signingIn: boolean;
-  /** The weight being entered while Google has not taken it; `null` if none. */
-  savingKg: number | null;
-  fetching: boolean;
-  /** Why the last fetch or sign-in for one failed, until the next begins. */
-  fetchFailure: GoogleHealthError | null;
   /** When the last fetch that succeeded started; `null` before the first. */
   fetchedAt: Date | null;
 }
