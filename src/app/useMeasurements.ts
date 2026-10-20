@@ -19,7 +19,15 @@ import {
   signIn,
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
-import { type HeldToken, hasExpired, held, maySave } from "./held-token";
+import {
+  type HeldToken,
+  hasExpired,
+  held,
+  maySave,
+  parseHeldToken,
+  serializeHeldToken,
+  TOKEN_KEY,
+} from "./held-token";
 import { useEnteredMeasurements } from "./useEnteredMeasurements";
 
 /** What went wrong on the page, and in doing what. */
@@ -56,8 +64,9 @@ export interface Measurements {
 /**
  * The measurements of the page, read from the cache and the entered
  * measurements in this browser once the page is mounted - `null` until then -
- * and fetched from Google Health. The access token lives here, in memory
- * only.
+ * and fetched from Google Health. The access token lives here, and in this
+ * browser until it expires, so the page opened again within its lifetime
+ * holds it and fetches at once.
  */
 export function useMeasurements(): Measurements | null {
   const [cache, setCache] = useState<MeasurementCache | null | undefined>();
@@ -77,9 +86,17 @@ export function useMeasurements(): Measurements | null {
   // not fetch again.
   const lastFetchStarted = useRef<number | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on mount. fetchData is handed the cache and token it fetches with; what else it uses - refs, state setters, the entered measurements read from this browser - is the same in every render.
   useEffect(() => {
     loadGoogleSignIn();
-    setCache(loadCache());
+    const cached = loadCache();
+    setCache(cached);
+    // A token a sign-in left in this browser counts as this visit's own until
+    // it expires, so the page fetches with it at once.
+    const stored = loadToken();
+    if (stored === null) return;
+    if (hasExpired(stored, new Date())) removeToken();
+    else void fetchData(cached, stored);
   }, []);
 
   // While this visit holds a token, the page fetches by itself when it comes
@@ -91,7 +108,7 @@ export function useMeasurements(): Measurements | null {
     const fetchOnReturn = () => {
       if (document.visibilityState !== "visible" || fetching) return;
       if (hasExpired(token, new Date())) {
-        setToken(null);
+        dropToken(token);
         return;
       }
       const since = Date.now() - (lastFetchStarted.current ?? 0);
@@ -130,6 +147,7 @@ export function useMeasurements(): Measurements | null {
       setProblem({ action: "fetch", error: access.error });
       return;
     }
+    if (heldToken === null) saveToken(access.value);
     setToken(access.value);
 
     const period = periodToFetch(cached, new Date());
@@ -137,7 +155,7 @@ export function useMeasurements(): Measurements | null {
     if (!isCurrent()) return;
     setFetching(false);
     if (!fetched.ok) {
-      if (fetched.error.kind === "tokenRejected") setToken(null);
+      if (fetched.error.kind === "tokenRejected") dropToken(access.value);
       setProblem({ action: "fetch", error: fetched.error });
       return;
     }
@@ -154,7 +172,8 @@ export function useMeasurements(): Measurements | null {
     const measurement: Measurement = { time: new Date(), kg };
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
-    const access = maySave(token, new Date())
+    const holdsOne = maySave(token, new Date());
+    const access = holdsOne
       ? signedInWith(token)
       : held(await signIn(), new Date());
     if (!access.ok) return access;
@@ -164,15 +183,26 @@ export function useMeasurements(): Measurements | null {
 
     const saved = await enterMeasurement(access.value.token, measurement);
     if (!saved.ok) {
-      if (saved.error.kind === "tokenRejected") setToken(null);
+      if (saved.error.kind === "tokenRejected") dropToken(access.value);
       return saved;
     }
     entered.add(measurement);
     // The fetch holds the sign-in from here on. One whose save failed is not
     // held: it has fetched nothing, and holding it would take „Daten abrufen“
     // away.
+    if (!holdsOne) saveToken(access.value);
     void fetchData(cached, access.value);
     return saved;
+  }
+
+  /**
+   * Drops `unusable`, which Google no longer accepts, from this visit and
+   * from this browser - there only while it is still the one kept, since
+   * another tab may have signed in for a newer one since.
+   */
+  function dropToken(unusable: HeldToken) {
+    setToken(null);
+    if (loadToken()?.token === unusable.token) removeToken();
   }
 
   async function revoke(heldToken: HeldToken | null) {
@@ -200,6 +230,7 @@ export function useMeasurements(): Measurements | null {
       removeCache();
       setCache(null);
       entered.clear();
+      removeToken();
       setToken(null);
       setFetching(false);
       setProblem(null);
@@ -228,4 +259,19 @@ function saveCache(cache: MeasurementCache): void {
 
 function removeCache(): void {
   localStorage.removeItem(CACHE_KEY);
+}
+
+function loadToken(): HeldToken | null {
+  return parseHeldToken(localStorage.getItem(TOKEN_KEY));
+}
+
+// The token of a sign-in is kept in this browser, not only in memory, so a
+// reload, a new tab or the app opened anew within its lifetime fetches
+// without a new sign-in.
+function saveToken(token: HeldToken): void {
+  localStorage.setItem(TOKEN_KEY, serializeHeldToken(token));
+}
+
+function removeToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
 }

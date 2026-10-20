@@ -58,3 +58,11 @@ The move of `HeldToken`, `hasExpired` and `maySave` into `held-token.ts`, with b
 - Out of scope: Dass „Abmelden“ in einem Tab auf andere, schon offene Tabs wirkt.
 
 ## Left standing
+- Departure from "Geschrieben bei jeder Anmeldung": only a sign-in the page goes on to hold is written - that of a fetch, and that of „Eintragen“ once the weight is saved. Not written: the sign-in „Abmelden“ makes to revoke, one a log-out overtook, and one of „Eintragen“ whose save failed or that may not write. Writing those would hide „Daten abrufen“ after a reload where it shows before it (AC-1), or bring back a log-out's token (AC-5). Tests pin each case.
+- Removal on expiry happens on opening and also when the page comes back into view with an expired token; both removals after the open, like the one on rejection, happen only while the entry still holds that token.
+- The mount effect calls `fetchData` under the repo's first `biome-ignore` (`useExhaustiveDependencies`), with the reason beside it: it has to run once.
+- `parseTime` is now exported from `src/measurement/cache.ts`, so the token's expiry is read with the same rule as the cache's times.
+- AC-1's "dieselbe Anzeige wie bei einem Abruf nach Klick" is pinned by a test that passed at once, since the open goes through the same `fetchData`; it was never seen red. Both reviews drove AC-1 to AC-6 in the running page with the Google stand-in.
+- Names not from the glossary, which has no entry for the token: `TOKEN_KEY`, `parseHeldToken`, `serializeHeldToken`, `dropToken`, and `standInReopen` in the run skill (`HeldToken` existed before).
+- Under `next dev` the page fetches twice on opening with a kept token (StrictMode runs the mount effect twice; the first fetch is dropped as overtaken). Not in a production build.
+- Seen in review, outside this change: in one walk the headline showed 80,1 kg while „Gemessen“ still showed 80,5 kg.

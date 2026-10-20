@@ -1,8 +1,16 @@
+import { parseTime } from "@/measurement/cache";
 import type {
   AccessToken,
   GoogleHealthResult,
   SignedIn,
 } from "@/measurement/google-health";
+import { isRecord, parseJson } from "@/measurement/json";
+
+/**
+ * The `localStorage` key of the token the page holds. The format's version is
+ * part of the key, so an entry of another version is never read as this one.
+ */
+export const TOKEN_KEY = "gewicht:token:v1";
 
 /**
  * The access token the page holds, when Google stops accepting it, and
@@ -42,4 +50,34 @@ export function maySave(
 /** Whether Google no longer accepts `token` at `now`. */
 export function hasExpired(token: HeldToken, now: Date): boolean {
   return now >= token.expiresAt;
+}
+
+/** The stored form of `token`, as kept under {@link TOKEN_KEY}. */
+export function serializeHeldToken(token: HeldToken): string {
+  return JSON.stringify({
+    token: token.token,
+    expiresAt: token.expiresAt.toISOString(),
+    writeGranted: token.writeGranted,
+  });
+}
+
+/**
+ * The token stored as `stored`, or `null` where there is no valid one: the
+ * entry is missing or not the stored form of a token.
+ */
+export function parseHeldToken(stored: string | null): HeldToken | null {
+  if (stored === null) return null;
+  const entry = parseJson(stored);
+  if (!isRecord(entry)) return null;
+  const { token, writeGranted } = entry;
+  const expiresAt = parseTime(entry.expiresAt);
+  if (
+    typeof token !== "string" ||
+    token === "" ||
+    typeof writeGranted !== "boolean" ||
+    expiresAt === null
+  ) {
+    return null;
+  }
+  return { token, expiresAt, writeGranted };
 }

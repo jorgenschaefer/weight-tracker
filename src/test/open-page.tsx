@@ -1,5 +1,5 @@
 import { MantineProvider } from "@mantine/core";
-import { act, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 import Page from "@/app/page";
@@ -137,6 +137,15 @@ export function renderPage(width = 320) {
     </MantineProvider>,
   );
   return userEvent.setup();
+}
+
+/**
+ * Closes the page and opens it again, as a reload, a new tab or the app
+ * opened anew does; returns the user to click on with.
+ */
+export function reload() {
+  cleanup();
+  return renderPage();
 }
 
 export const comeIntoView = () => changeVisibility("visible");

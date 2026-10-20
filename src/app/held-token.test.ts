@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type HeldToken, hasExpired, held, maySave } from "./held-token";
+import {
+  type HeldToken,
+  hasExpired,
+  held,
+  maySave,
+  parseHeldToken,
+  serializeHeldToken,
+} from "./held-token";
 
 const NOW = new Date("2026-10-17T08:00:00.000Z");
 const later = (ms: number) => new Date(NOW.getTime() + ms);
@@ -50,5 +57,58 @@ describe("maySave", () => {
     ["no token", null, 0, false],
   ])("for %s is %s", (_, heldToken, ms, may) => {
     expect(maySave(heldToken, later(ms))).toBe(may);
+  });
+});
+
+describe("the stored form", () => {
+  it("holds the token, its expiry as ISO time and whether it may write", () => {
+    expect(JSON.parse(serializeHeldToken(token(false)))).toEqual({
+      token: "token-1",
+      expiresAt: "2026-10-17T08:59:59.000Z",
+      writeGranted: false,
+    });
+  });
+
+  it.each([true, false])(
+    "is read back as the token it stores, writeGranted %s",
+    (writeGranted) => {
+      expect(parseHeldToken(serializeHeldToken(token(writeGranted)))).toEqual(
+        token(writeGranted),
+      );
+    },
+  );
+
+  const stored = { token: "token-1", expiresAt: "2026-10-17T08:59:59.000Z" };
+  it.each([
+    ["missing", null],
+    ["no JSON", "{not json"],
+    ["not an object", "[]"],
+    ["without the token", { ...stored, token: undefined, writeGranted: true }],
+    [
+      "with a token that is no text",
+      { ...stored, token: 1, writeGranted: true },
+    ],
+    ["with an empty token", { ...stored, token: "", writeGranted: true }],
+    ["without whether it may write", stored],
+    [
+      "with a „writeGranted“ that is no truth value",
+      { ...stored, writeGranted: "true" },
+    ],
+    [
+      "with an expiry that is no time",
+      { ...stored, expiresAt: "bald", writeGranted: true },
+    ],
+    [
+      "with an expiry that is no ISO time",
+      { ...stored, expiresAt: "2026-10-17", writeGranted: true },
+    ],
+  ])("is no token where the entry is %s", (_, entry) => {
+    expect(
+      parseHeldToken(
+        entry === null || typeof entry === "string"
+          ? entry
+          : JSON.stringify(entry),
+      ),
+    ).toBeNull();
   });
 });

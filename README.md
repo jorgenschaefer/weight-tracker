@@ -33,8 +33,10 @@ page uses and the name the code uses.
 
 There is no server-side logic and no database. The page runs in the browser:
 
-1. It signs in with Google Identity Services for a short-lived access token,
-   held in memory only.
+1. It signs in with Google Identity Services for a short-lived access token
+   and keeps it in `localStorage` until it expires (about an hour), so a
+   reload within that time fetches without signing in again. Any script on
+   the page can read it there; "Abmelden" removes it.
 2. It fetches the weight measurements from the Google Health API and keeps
    them in `localStorage` in that browser.
 3. Everything else - trend, verdict, graph - is computed in the browser from

@@ -28,8 +28,10 @@ Measurements of the test data are at 07:00 Berlin. A fetch from this state
 goes to the real Google.
 
 To move the clock of the page itself (for example to see it fetch again on
-coming back into view after a real sign-in), replace `window.Date` with a
-subclass whose `now()` is later and dispatch `visibilitychange` on
+coming back into view after a real sign-in, or to let its kept token
+expire), replace `window.Date` with a subclass whose `now()` and whose
+constructor without arguments are both later, as `walk-on.js` does - the
+page reads the clock both ways - and dispatch `visibilitychange` on
 `document`.
 
 ## Signing in, fetching and entering without Google
@@ -42,8 +44,16 @@ puts a Google in memory in place of the real one until the next reload;
 reading, declines, hangs, answers 403 - and every request the page sent.
 Its header lists the settings.
 
+The page keeps the token of each sign-in under `gewicht:token:v1` until it
+expires and fetches with it at once when opened again. A reload removes the
+stand-in, so the page then sends the stand-in's token to the real Google,
+which rejects it. To see the page opened again with the token, call
+`await standInReopen()` in place of the reload: it opens the page anew in a
+frame whose Google is the same stand-in, with the same measurements and
+tokens. `walkOn` removes the entry before it opens the page.
+
 ## Clean up
 
-Remove `walk:fixture`, `gewicht:v1` and `gewicht:eingetragen:v1` from
-`localStorage` (or click „Abmelden“), close the frames, and stop the dev
-server.
+Remove `walk:fixture`, `gewicht:v1`, `gewicht:eingetragen:v1` and
+`gewicht:token:v1` from `localStorage` (or click „Abmelden“), close the
+frames, and stop the dev server.

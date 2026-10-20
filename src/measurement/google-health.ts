@@ -5,7 +5,7 @@ import type { Measurement } from "./measurement";
  * The one module that talks to Google: it loads Google Identity Services,
  * signs in for an access token, reads weight measurements from the Google
  * Health API, enters new ones into it and revokes the page's access. The
- * token it hands out is the caller's to keep, in memory only.
+ * token it hands out is the caller's to keep.
  */
 
 /** Read access to Health Metrics & Measurements. */

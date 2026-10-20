@@ -28,6 +28,9 @@ window.walkOn = async (day, opts = {}) => {
     kg: r.kg,
   }));
   const now = new Date(`${day}T${time}`).getTime();
+  // Without a kept token the page does not fetch on opening: neither from the
+  // real Google nor with a token of the stand-in.
+  localStorage.removeItem("gewicht:token:v1");
   localStorage.setItem(
     "gewicht:v1",
     JSON.stringify({ fetchedAt: new Date(now).toISOString(), measurements }),

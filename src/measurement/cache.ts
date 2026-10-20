@@ -122,8 +122,11 @@ export function parseStoredMeasurement(stored: unknown): Measurement | null {
   return time === null ? null : { time, kg: stored.kg };
 }
 
-/** The time written as `stored`, exactly as `toISOString` writes it. */
-function parseTime(stored: unknown): Date | null {
+/**
+ * The time written as `stored`, exactly as `toISOString` writes it, or `null`
+ * where it is not one.
+ */
+export function parseTime(stored: unknown): Date | null {
   if (typeof stored !== "string") return null;
   const time = new Date(stored);
   if (Number.isNaN(time.getTime()) || time.toISOString() !== stored) {

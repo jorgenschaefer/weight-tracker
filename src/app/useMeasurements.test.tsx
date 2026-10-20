@@ -15,6 +15,7 @@ import {
   changeVisibility,
   comeIntoView,
   daysAgo,
+  deferred,
   ENTERED_SHOWN,
   enterWeight,
   FIRST_VISIT,
@@ -32,6 +33,7 @@ import {
   NOT_YET_FETCHED,
   NOW,
   openAndClick,
+  reload,
   renderPage,
   sheet,
   standInForGoogle,
@@ -41,6 +43,7 @@ import {
   storeMorning,
   TOKEN_LIFETIME_S,
 } from "@/test/open-page";
+import { serializeHeldToken, TOKEN_KEY } from "./held-token";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -61,6 +64,15 @@ describe("the first visit", () => {
 
     await isShown(MORNING_SHOWN);
     expect(storedCache()?.measurements).toEqual(google.measurements);
+  });
+
+  it("is what a token entry that cannot be read shows, without fetching", async () => {
+    localStorage.setItem(TOKEN_KEY, "{not json");
+    renderPage();
+
+    await fetchButton();
+    await isShown(FIRST_VISIT);
+    expect(fetchMeasurements).not.toHaveBeenCalled();
   });
 });
 
@@ -167,6 +179,7 @@ describe("coming back into view", () => {
     await fetchButton();
     isNotShown(/Abruf fehlgeschlagen/);
     isNotShown(LATER_SHOWN);
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
   it("does not fetch again while a fetch still runs", async () => {
@@ -190,6 +203,104 @@ describe("coming back into view", () => {
 
     await isShown("Abruf fehlgeschlagen: Die Anmeldung ist abgelaufen.");
     await fetchButton();
+  });
+});
+
+describe("opening the page again", () => {
+  const LATER = at("2026-10-17T08:05:00Z", 98.2);
+  const LATER_SHOWN = "Letzte Messung 17.10. um 10:05 Uhr: 98,2 kg";
+
+  /** Fetches once, then weighs again in Google Health `minutes` later. */
+  async function fetchThenWeighAgain(minutes: number) {
+    google.measurements = [MORNING];
+    await openAndClick(fetchButton);
+    await isShown(MORNING_SHOWN);
+    google.measurements = [MORNING, LATER];
+    vi.setSystemTime(new Date(NOW.getTime() + minutes * 60_000));
+  }
+
+  it.each([
+    ["at once", 10],
+    ["up to just before the token expires", TOKEN_LIFETIME_S / 60 - 0.1],
+  ])(
+    "fetches %s with the token of the last sign-in, without signing in",
+    async (_, minutes) => {
+      await fetchThenWeighAgain(minutes);
+
+      reload();
+
+      await isShown(LATER_SHOWN);
+      hasNoButton("Daten abrufen");
+      expect(google.tokensIssued).toBe(1);
+    },
+  );
+
+  it("shows the fetch as one after a click does", async () => {
+    await fetchThenWeighAgain(10);
+    holdFetch();
+
+    reload();
+
+    await isShown("Vorläufig, wird aktualisiert …");
+    hasNoButton("Daten abrufen");
+  });
+
+  it("shows the cache and „Daten abrufen“, without asking Google, once the token has expired", async () => {
+    await fetchThenWeighAgain(TOKEN_LIFETIME_S / 60);
+
+    reload();
+
+    await fetchButton();
+    await isShown(MORNING_SHOWN);
+    isNotShown(/Abruf fehlgeschlagen/);
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+
+  it("says so and shows „Daten abrufen“ where Google rejects the token, and does not fetch on the next open", async () => {
+    await fetchThenWeighAgain(10);
+    google.grants = [];
+    reload();
+    await isShown("Abruf fehlgeschlagen: Die Anmeldung ist abgelaufen.");
+    await fetchButton();
+
+    reload();
+
+    await fetchButton();
+    isNotShown(/Abruf fehlgeschlagen/);
+    expect(fetchMeasurements).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fetch on the next open where Google rejected the token on „Eintragen“", async () => {
+    const user = await openAndClick(fetchButton);
+    await isShown(
+      "Noch keine Messung in Google Health in den letzten 90 Tagen",
+    );
+    google.grants = [];
+    await enterWeight(user);
+    await isShown("Speichern fehlgeschlagen: Die Anmeldung ist abgelaufen.");
+
+    reload();
+
+    await fetchButton();
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the token another tab has signed in for since, where Google rejects the old one", async () => {
+    await fetchThenWeighAgain(10);
+    const answer = holdFetch();
+    reload();
+    const newer = serializeHeldToken({
+      token: "token-2",
+      expiresAt: new Date(NOW.getTime() + 20 * 60_000),
+      writeGranted: true,
+    });
+    localStorage.setItem(TOKEN_KEY, newer);
+
+    answer.resolve(failure({ kind: "tokenRejected" }));
+
+    await isShown("Abruf fehlgeschlagen: Die Anmeldung ist abgelaufen.");
+    expect(localStorage.getItem(TOKEN_KEY)).toBe(newer);
   });
 });
 
@@ -256,6 +367,61 @@ describe("„Abmelden“", () => {
     await waitFor(() => expect(google.tokensIssued).toBe(2));
     // Revoking the new token withdraws the page's access at Google.
     await waitFor(() => expect(google.grants).not.toContain("token-2"));
+  });
+
+  it("leaves the first visit to the next open, which does not fetch", async () => {
+    google.measurements = [MORNING];
+    const user = await openAndClick(fetchButton);
+    await user.click(await logoutButton());
+    await isShown(FIRST_VISIT);
+
+    reload();
+
+    await fetchButton();
+    await isShown(FIRST_VISIT);
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+  });
+
+  it("revokes the access with the token of the sign-in before the open", async () => {
+    google.measurements = [MORNING];
+    await openAndClick(fetchButton);
+    await isShown(MORNING_SHOWN);
+    const user = reload();
+
+    await user.click(await logoutButton());
+
+    await isShown(FIRST_VISIT);
+    await waitFor(() => expect(google.grants).toEqual([]));
+    expect(google.tokensIssued).toBe(1);
+  });
+
+  it("does not keep the sign-in it makes to revoke the access for the next open", async () => {
+    storeMorning();
+    await openAndClick(logoutButton);
+    await waitFor(() => expect(google.tokensIssued).toBe(1));
+
+    reload();
+
+    await fetchButton();
+    expect(fetchMeasurements).not.toHaveBeenCalled();
+  });
+
+  it("does not keep the sign-in of a fetch it overtook for the next open", async () => {
+    storeMorning();
+    const signedIn = deferred<GoogleHealthResult<SignedIn>>();
+    vi.mocked(signIn).mockReturnValueOnce(signedIn.promise);
+    const user = await openAndClick(fetchButton);
+    await user.click(await logoutButton());
+    signedIn.resolve({
+      ok: true,
+      value: { token: "late", expiresInSeconds: 3599, writeGranted: true },
+    });
+    await isShown(FIRST_VISIT);
+
+    reload();
+
+    await fetchButton();
+    expect(fetchMeasurements).not.toHaveBeenCalled();
   });
 
   it("drops what a fetch still running brings back", async () => {
@@ -361,6 +527,57 @@ describe("entering a weight", () => {
       expect(google.tokensIssued).toBe(signIns);
     },
   );
+
+  it.each([
+    ["may write, with it", true, 0],
+    ["only reads, anew", false, 1],
+  ])(
+    "after opening the page again, signs in where the sign-in before %s",
+    async (_, writeGranted, signIns) => {
+      vi.mocked(signIn).mockResolvedValueOnce({
+        ok: true,
+        value: { token: "held", writeGranted, expiresInSeconds: 3599 },
+      });
+      google.grants = ["held"];
+      await openAndClick(fetchButton);
+      await isShown(
+        "Noch keine Messung in Google Health in den letzten 90 Tagen",
+      );
+      const user = reload();
+      await isShown(
+        "Noch keine Messung in Google Health in den letzten 90 Tagen",
+      );
+
+      await enterWeight(user);
+
+      await isShown(ENTERED_SHOWN);
+      expect(google.tokensIssued).toBe(signIns);
+    },
+  );
+
+  it("keeps its sign-in for the next open", async () => {
+    const user = renderPage();
+    await enterWeight(user);
+    await isShown(ENTERED_SHOWN);
+
+    reload();
+
+    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
+    hasNoButton("Daten abrufen");
+    expect(google.tokensIssued).toBe(1);
+  });
+
+  it("does not keep a sign-in whose weight was not saved for the next open", async () => {
+    vi.mocked(signIn).mockResolvedValueOnce(readOnlySignIn());
+    const user = renderPage();
+    await enterWeight(user);
+    await screen.findByText(/^Speichern fehlgeschlagen/);
+
+    reload();
+
+    await fetchButton();
+    expect(fetchMeasurements).not.toHaveBeenCalled();
+  });
 
   it("says so where the sign-in does not allow writing, and fetches still", async () => {
     vi.mocked(signIn).mockResolvedValue(readOnlySignIn());
