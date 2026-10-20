@@ -12,18 +12,21 @@ import type { SurfaceColours } from "./Verdict";
 export type EnterWeight = (kg: number) => Promise<GoogleHealthResult<null>>;
 
 /**
- * The round button in the corner of the window, and the sheet it opens from
- * the bottom to enter today's weight with `onEnter`; while that is `null`,
- * the sheet waits to open until it is not. The empty field suggests
- * `latestKg`, the Letzte Messung, where there is one. The sheet closes once
- * the weight is saved, and not while it is being saved.
+ * The round button in the corner of the window, in the `colours` of the page
+ * shown, and the sheet it opens from the bottom to enter today's weight with
+ * `onEnter`, in the `todayColours` of today's page whichever day is shown;
+ * while `onEnter` is `null`, the sheet waits to open until it is not. The
+ * empty field suggests `latestKg`, today's Letzte Messung, where there is one.
+ * The sheet closes once the weight is saved, and not while it is being saved.
  */
 export function EntrySheet({
   colours,
+  todayColours,
   onEnter,
   latestKg,
 }: {
   colours: SurfaceColours;
+  todayColours: SurfaceColours;
   onEnter: EnterWeight | null;
   latestKg: number | null;
 }) {
@@ -70,7 +73,7 @@ export function EntrySheet({
           }}
         >
           <EntryForm
-            colours={sheetColours(colours)}
+            colours={sheetColours(todayColours)}
             suggestion={latestKg === null ? "68,9" : formatKg(latestKg)}
             saving={saving}
             onSave={(kg) => save(kg, onEnter)}

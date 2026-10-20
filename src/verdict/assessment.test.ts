@@ -8,7 +8,7 @@ import {
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
 import { trends } from "@/trend/trend";
-import { assess, measurementsKnownOn } from "./assessment";
+import { assess, isEarlierDay, measurementsKnownOn } from "./assessment";
 
 /** Counting measurements of [day, kg] pairs, each at 05:00 UTC. */
 const countingFrom = (days: [string, number][]) =>
@@ -260,5 +260,30 @@ describe("measurementsKnownOn: the page of an earlier day", () => {
         "2026-06-30" as CalendarDay,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("isEarlierDay: whether the page of a day is that of an earlier day", () => {
+  const counting = countingFrom([
+    ["2026-10-14", 97.4],
+    ["2026-10-18", 98.4],
+    ["2026-10-20", 98.0],
+  ]);
+
+  it("is for a day with a counting measurement before the last", () => {
+    expect(isEarlierDay(counting, "2026-10-18" as CalendarDay)).toBe(true);
+    expect(isEarlierDay(counting, "2026-10-14" as CalendarDay)).toBe(true);
+  });
+
+  it("is not for the last day with a measurement", () => {
+    expect(isEarlierDay(counting, "2026-10-20" as CalendarDay)).toBe(false);
+  });
+
+  it("is not for a day without a measurement", () => {
+    expect(isEarlierDay(counting, "2026-10-16" as CalendarDay)).toBe(false);
+  });
+
+  it("is not for any day without any measurement", () => {
+    expect(isEarlierDay([], "2026-10-18" as CalendarDay)).toBe(false);
   });
 });

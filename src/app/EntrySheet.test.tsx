@@ -19,7 +19,8 @@ const SAVED: Saved = { ok: true, value: null };
 
 /**
  * Renders the sheet, saving with `onEnter`, after the Letzte Messung of
- * `latestKg`; by default every save succeeds and there is no measurement.
+ * `latestKg`, with today's page shown in `colours`; by default every save
+ * succeeds and there is no measurement.
  */
 function renderSheet(
   colours = NEUTRAL,
@@ -28,7 +29,12 @@ function renderSheet(
 ) {
   render(
     <MantineProvider>
-      <EntrySheet colours={colours} onEnter={onEnter} latestKg={latestKg} />
+      <EntrySheet
+        colours={colours}
+        todayColours={colours}
+        onEnter={onEnter}
+        latestKg={latestKg}
+      />
     </MantineProvider>,
   );
   return userEvent.setup();

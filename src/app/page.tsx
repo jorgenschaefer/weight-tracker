@@ -13,9 +13,10 @@ import type { SixWeekSeries } from "@/trend/six-week-series";
 import {
   type Assessment,
   assess,
+  isEarlierDay,
   measurementsKnownOn,
 } from "@/verdict/assessment";
-import { EntrySheet } from "./EntrySheet";
+import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
 import { GoogleStatus } from "./GoogleStatus";
@@ -34,14 +35,17 @@ import { WeightGraph } from "./WeightGraph";
 export default function Page() {
   const measurements = useMeasurements();
   const today = useToday();
-  // The earlier day whose page is shown, chosen in the graph; `null` for today.
-  const [shownDay, setShownDay] = useState<CalendarDay | null>(null);
+  const [chosenDay, setChosenDay] = useChosenDay(
+    measurements?.fetchFailure ?? null,
+  );
   const graph = useRef<SVGSVGElement>(null);
   if (measurements === null) {
     return (
       <Surface
         colours={NEUTRAL}
+        todayColours={NEUTRAL}
         measurements={null}
+        onEnter={null}
         today={today}
         latestKg={null}
         shown={null}
@@ -53,7 +57,9 @@ export default function Page() {
     return (
       <Surface
         colours={NEUTRAL}
+        todayColours={NEUTRAL}
         measurements={measurements}
+        onEnter={measurements.enter}
         today={today}
         latestKg={null}
         shown={null}
@@ -63,8 +69,15 @@ export default function Page() {
     );
   }
   const all = [...(cache?.measurements ?? []), ...enteredMeasurements];
+  const counting = countingMeasurements(all);
+  // A fetch may take the chosen day's counting measurement, or those after
+  // it; the page then shows today, and the choice ends, so a later fetch
+  // that brings them back does not bring it back too.
+  const shownDay =
+    chosenDay !== null && isEarlierDay(counting, chosenDay) ? chosenDay : null;
+  if (shownDay !== chosenDay) setChosenDay(null);
   const latestToday = latestMeasurement(all);
-  const assessmentToday = assess(countingMeasurements(all), today);
+  const assessmentToday = assess(counting, today);
   const known = shownDay === null ? all : measurementsKnownOn(all, shownDay);
   const assessment =
     shownDay === null
@@ -74,13 +87,21 @@ export default function Page() {
   // The graph takes the focus, ringed only where the keyboard brought it,
   // as after a tap the page is to look as if no day had been chosen.
   const backToToday = (byKeyboard: boolean) => {
-    setShownDay(null);
+    setChosenDay(null);
     graph.current?.focus({ focusVisible: byKeyboard });
+  };
+  // A weight entered is today's, so the page shows today once it is saved.
+  const enter: EnterWeight = async (kg) => {
+    const saved = await measurements.enter(kg);
+    if (saved.ok) setChosenDay(null);
+    return saved;
   };
   return (
     <Surface
       colours={colours}
+      todayColours={surfaceColours(assessmentToday.status)}
       measurements={measurements}
+      onEnter={enter}
       today={today}
       latestKg={latestToday?.kg ?? null}
       shown={shownDay === null ? null : { day: shownDay, backToToday }}
@@ -91,7 +112,7 @@ export default function Page() {
         graph={{
           series: assessmentToday.sixWeekSeries,
           shownDay,
-          onShowDay: setShownDay,
+          onShowDay: setChosenDay,
           surface: colours.surface,
           ref: graph,
         }}
@@ -117,24 +138,53 @@ function useToday(): CalendarDay {
 }
 
 /**
+ * The earlier day chosen in the graph, whose page is shown while it is still
+ * an earlier day; `null` for today. The page comes back into view on today,
+ * as it opens on it, and shows today as a fetch fails, so the status line can
+ * say why: a new `fetchFailure`, not one that still stands from before.
+ */
+function useChosenDay(fetchFailure: GoogleHealthError | null) {
+  const [chosenDay, setChosenDay] = useState<CalendarDay | null>(null);
+  const [failureSeen, setFailureSeen] = useState(fetchFailure);
+  if (fetchFailure !== failureSeen) {
+    setFailureSeen(fetchFailure);
+    if (fetchFailure !== null) setChosenDay(null);
+  }
+  useEffect(() => {
+    const showToday = () => {
+      if (document.visibilityState === "visible") setChosenDay(null);
+    };
+    document.addEventListener("visibilitychange", showToday);
+    return () => document.removeEventListener("visibilitychange", showToday);
+  }, []);
+  return [chosenDay, setChosenDay] as const;
+}
+
+/**
  * The colour field: the whole screen, its content in the middle under the
  * status line, and the button to enter a weight, in every state of the page.
  * The browser around the page, Android's status bar and address bar, takes
  * its colour. `measurements` is `null` for the moment before the page has
  * read its cache, in which neither the status line nor the button does
- * anything; the sheet suggests `latestKg`, the Letzte Messung. While the page
- * of an earlier day is `shown`, its band stands in place of the status line.
+ * anything; the button enters with `onEnter`. The page shown takes
+ * `colours`; the sheet to enter a weight takes today's, `todayColours`, and
+ * suggests today's Letzte Messung, `latestKg`. While the page of an earlier
+ * day is `shown`, its band stands in place of the status line.
  */
 function Surface({
   colours,
+  todayColours,
   measurements,
+  onEnter,
   today,
   latestKg,
   shown,
   children,
 }: {
   colours: SurfaceColours;
+  todayColours: SurfaceColours;
   measurements: Measurements | null;
+  onEnter: EnterWeight | null;
   today: CalendarDay;
   latestKg: number | null;
   shown: {
@@ -165,7 +215,8 @@ function Surface({
       </div>
       <EntrySheet
         colours={colours}
-        onEnter={measurements === null ? null : measurements.enter}
+        todayColours={todayColours}
+        onEnter={onEnter}
         latestKg={latestKg}
       />
     </main>

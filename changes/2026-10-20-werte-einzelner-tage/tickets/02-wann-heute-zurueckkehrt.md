@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-6, AC-7, AC-8
 advances:  
 after:     01-stand-eines-frueheren-tags
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -44,3 +44,24 @@ Ein gewählter früherer Tag endet, wenn die Seite wieder sichtbar wird, ein Ein
 - Weitere Messungen eines Tags außer der zählenden und der letzten.
 
 ## Left standing
+
+**Review-Befunde, nicht behoben**
+- Nit (1. und 2. Runde): Die Regel „der letzte Tag mit einer Messung ist kein früherer Tag“ steht zweimal: in `useDayChoice` (`src/app/WeightGraph.tsx`, `day === lastDay ? null : day`, über die `sixWeekSeries`) und neu in `isEarlierDay` (`src/verdict/assessment.ts`, über die zählenden Messungen), das `page.tsx` bei jedem Rendern anwendet. Heute stimmen beide überein, weil jeder Punkt im Graphen eine zählende Messung ist. Den Graphen auf `isEarlierDay` umzustellen ändert Code, den 01 gebaut hat und dieses Ticket nicht braucht.
+- Nit (2. Runde): Die Wahl endet an drei Stellen in `src/app/page.tsx`: in `useChosenDay` (Seite wieder sichtbar, neuer Fehler eines Abrufs), im Rendern von `Page` (Tag ist nach einem Abruf kein früherer Tag mehr) und in `enter` (Eintragen gelungen). `Page` hat damit etwa 45 Zeilen Logik. Die Prüfung mit `isEarlierDay` braucht die zählenden Messungen, die es erst nach den frühen Returns gibt; sie in den Hook zu ziehen hätte ihn umständlicher gemacht.
+
+**Nach der letzten Review behoben, von keinem Reviewer gesehen**
+- Keine. Der Test zum Should-fix der 1. Runde (ein späterer Abruf bringt einen beendeten Tag nicht zurück) und das Umbenennen aus dem Nit der 1. Runde (`useShownDay`/`setShownDay` → `useChosenDay`/`setChosenDay`, weil der Zustand der gewählte und nicht der gezeigte Tag ist) hat die 2. Runde gesehen.
+
+**Nicht ausgeführte Prüfungen**
+- Nach der 2. Runde hat niemand die Seite im Browser bedient; die Fixes danach ändern nichts, was die Seite zeigt. Kein echtes Handy.
+
+**Kriterien, die kein automatischer Test ganz beweist**
+- AC-6 (Seite wird wieder sichtbar): Getestet ist ein `visibilitychange` mit `visibilityState` „visible“ in jsdom. Der Reviewer der 1. Runde hat dasselbe Ereignis in headless Chromium ausgelöst; ein echter Wechsel von Tab oder App ist nicht geprüft, weil headless Chromium immer sichtbar bleibt.
+- AC-7 (Farben des Blatts): Getestet sind die CSS-Variablen von +, Feld und „Eintragen“. Gesehen hat sie der Reviewer der 1. Runde auf 360 px und 1280 px: + gelb wie der 18.10., das Blatt grün wie heute, Vorschlag 96,9.
+
+**Abweichungen von den Nudges**
+- Nudge „Der gewählte Tag lebt in `src/app/page.tsx`“: so gebaut, aber als zwei Werte. `chosenDay` (Zustand aus `useChosenDay`) ist, was im Graphen gewählt wurde; `shownDay` ist der Tag, dessen Seite gezeigt wird, nämlich `chosenDay`, solange er nach `isEarlierDay` ein früherer Tag ist. Ist er es nach einem Abruf nicht mehr, wird `chosenDay` beim Rendern auf `null` gesetzt, damit ein späterer Abruf ihn nicht zurückbringt. `WeightGraph` bekommt weiter `shownDay`.
+- `EntrySheet` bekommt neben `colours` (für +, die Farben des gezeigten Tags) neu `todayColours` (für das Blatt), und `Surface` bekommt `todayColours` und `onEnter`, damit `Page` das Eintragen umschließen und danach heute zeigen kann.
+
+**Namen, die nicht aus dem Glossar kommen**
+- `isEarlierDay` (ob die Seite eines Tags die eines früheren Tags ist: ein Tag mit einer zählenden Messung, aber nicht der letzte), `useChosenDay`/`chosenDay`/`setChosenDay` (der im Graphen gewählte Tag, vor der Prüfung) und `todayColours` (die Farben der Seite von heute, für das Blatt).

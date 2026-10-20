@@ -10,17 +10,24 @@ import {
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
-import type { CalendarDay } from "@/measurement/calendar-day";
+import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
 import {
+  enterMeasurement,
   fetchMeasurements,
+  type GoogleHealthResult,
   revokeAccess,
   signIn,
 } from "@/measurement/google-health";
-import { countingMeasurements } from "@/measurement/measurement";
+import {
+  countingMeasurements,
+  type Measurement,
+} from "@/measurement/measurement";
 import {
   at,
+  comeIntoView,
   daysAgo,
   enterWeight,
+  evening,
   FIRST_VISIT,
   failure,
   google,
@@ -40,6 +47,7 @@ import {
   openHistoryOn,
   openOn,
   refreshButton,
+  reload,
   renderPage,
   sheet,
   signInButton,
@@ -920,6 +928,223 @@ describe("an earlier day", () => {
       await user.click(await backToToday());
 
       expect(await graph()).toHaveFocus();
+    });
+
+    it("when the page comes back into view", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await comeIntoView();
+
+      await isToday(page);
+    });
+
+    it("when the page is opened again", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      reload();
+
+      await isToday(page);
+    });
+  });
+
+  describe("with + while chosen", () => {
+    /** How the sheet to enter a weight looks: its colours and suggestion. */
+    async function entrySheet(user: UserEvent) {
+      const field = await openEntrySheet(user);
+      return {
+        border: field.style.getPropertyValue("--input-bd"),
+        suggestion: field.getAttribute("placeholder"),
+        button: screen
+          .getByRole("button", { name: "Eintragen" })
+          .style.getPropertyValue("--button-bg"),
+      };
+    }
+
+    const enterButton = () =>
+      screen.findByRole("button", { name: "Gewicht eintragen" });
+
+    /** The colours of +. */
+    async function enterButtonColours() {
+      const { style } = await enterButton();
+      return [
+        style.getPropertyValue("--ai-bg"),
+        style.getPropertyValue("--ai-color"),
+      ];
+    }
+
+    it("keeps + in the colours of the day shown", async () => {
+      openHistoryOn("2026-10-18");
+      const onThatDay = await enterButtonColours();
+      cleanup();
+      const user = openHistoryOn("2026-10-20");
+      const today = await enterButtonColours();
+      await tapOn(user, "2026-10-18");
+
+      expect(await enterButtonColours()).toEqual(onThatDay);
+      expect(onThatDay).not.toEqual(today);
+    });
+
+    it("opens the sheet of today, in its colours and with its Letzte Messung", async () => {
+      const today = await entrySheet(openHistoryOn("2026-10-20"));
+      cleanup();
+      const onThatDay = await entrySheet(openHistoryOn("2026-10-18"));
+      cleanup();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      const chosen = await entrySheet(user);
+
+      expect(chosen).toEqual(today);
+      expect(chosen).not.toEqual(onThatDay);
+    });
+
+    it("enters for today, and shows today once entered", async () => {
+      google.measurements = weightHistoryUntil("2026-10-20");
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await enterWeight(user, "97,2");
+
+      await waitFor(() => expect(band()).toBeNull());
+      expect(await statusLine()).toBeInTheDocument();
+      expect(google.measurements.at(-1)).toEqual(
+        at(evening("2026-10-20"), 97.2),
+      );
+      await isShown("Letzte Messung 20.10. um 18:00 Uhr: 97,2 kg");
+    });
+
+    it("keeps the day chosen where entering fails", async () => {
+      vi.mocked(enterMeasurement).mockResolvedValueOnce(
+        failure({ kind: "unreachable" }),
+      );
+      google.measurements = weightHistoryUntil("2026-10-20");
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await enterWeight(user, "97,2");
+
+      await isShown("Speichern fehlgeschlagen: Google antwortet nicht.");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+    });
+
+    it("keeps the day chosen where the sheet closes without entering", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+      await openEntrySheet(user);
+
+      await user.click(screen.getByRole("button", { name: "Schließen" }));
+
+      await waitFor(() => expect(sheet()).not.toBeInTheDocument());
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      expect(figure("Gemessen")).toBe("98,4 kg");
+    });
+  });
+
+  describe("while a fetch runs", () => {
+    /**
+     * Opens the page on 20.10. with the test data, starts a fetch with ⟳,
+     * chooses `day` while it runs and lets Google answer with `measurements`.
+     */
+    async function fetchWhileChosen(
+      day: string,
+      measurements: GoogleHealthResult<Measurement[]>,
+    ) {
+      const fetching = holdFetch();
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await signInButton());
+      await tapOn(user, day);
+      expect(band()).not.toBeNull();
+      await act(async () => fetching.resolve(measurements));
+      return user;
+    }
+
+    const fetched = (measurements: Measurement[]) => ({
+      ok: true as const,
+      value: measurements,
+    });
+
+    it("keeps the day chosen where it brings new measurements, and shows it anew", async () => {
+      await fetchWhileChosen(
+        "2026-10-18",
+        fetched(
+          weightHistoryUntil("2026-10-20", [
+            at("2026-10-18T19:30:00+02:00", 99.1),
+          ]),
+        ),
+      );
+
+      await isShown("Letzte Messung 18.10. um 19:30 Uhr: 99,1 kg");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      expect(figure("Gemessen")).toBe("98,4 kg");
+    });
+
+    it("shows today where it leaves the day without a counting measurement", async () => {
+      await fetchWhileChosen(
+        "2026-10-18",
+        fetched(
+          weightHistoryUntil("2026-10-20").filter(
+            (m) => berlinDay(m.time) !== "2026-10-18",
+          ),
+        ),
+      );
+
+      await waitFor(() => expect(band()).toBeNull());
+      expect(await statusLine()).toBeInTheDocument();
+      expect(screen.getByText(/^Letzte Messung /)).toHaveTextContent(
+        /^Letzte Messung 20\.10\./,
+      );
+    });
+
+    it("shows today where it leaves the day the last with a measurement", async () => {
+      await fetchWhileChosen(
+        "2026-10-18",
+        fetched(weightHistoryUntil("2026-10-18")),
+      );
+
+      await waitFor(() => expect(band()).toBeNull());
+      expect(await statusLine()).toBeInTheDocument();
+    });
+
+    it("keeps showing today where a later fetch brings the day back as an earlier one", async () => {
+      const user = await fetchWhileChosen(
+        "2026-10-18",
+        fetched(weightHistoryUntil("2026-10-18")),
+      );
+      await waitFor(() => expect(band()).toBeNull());
+      google.measurements = weightHistoryUntil("2026-10-20");
+
+      await user.click(await refreshButton());
+
+      expect(
+        await screen.findByText(/^Letzte Messung 20\.10\./),
+      ).toBeInTheDocument();
+      expect(band()).toBeNull();
+    });
+
+    it("shows today where it fails, and the failure in the status line", async () => {
+      await fetchWhileChosen("2026-10-18", failure({ kind: "unreachable" }));
+
+      await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+      expect(band()).toBeNull();
+      expect(await statusLine()).toContainElement(
+        screen.getByText("Abruf fehlgeschlagen: Google antwortet nicht."),
+      );
+    });
+
+    it("lets a day be chosen again after it failed", async () => {
+      const user = await fetchWhileChosen(
+        "2026-10-18",
+        failure({ kind: "unreachable" }),
+      );
+      await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+
+      await tapOn(user, "2026-10-14");
+
+      expect(band()).toHaveTextContent("Stand 14.10.");
     });
   });
 

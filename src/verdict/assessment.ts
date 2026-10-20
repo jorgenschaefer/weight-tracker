@@ -104,6 +104,17 @@ export function measurementsKnownOn(
   );
 }
 
+/**
+ * Whether the page of `day` is that of an earlier day, given `counting`
+ * (ordered by day): a day with a counting measurement, but not the last.
+ */
+export function isEarlierDay(
+  counting: CountingMeasurement[],
+  day: CalendarDay,
+): boolean {
+  return counting.slice(0, -1).some((measurement) => measurement.day === day);
+}
+
 const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
 
 /** The verdict of the last of `everyTrend`, of which there is at least one. */
