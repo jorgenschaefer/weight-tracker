@@ -7,6 +7,7 @@ import {
   formatPace,
   formatPaceDeviation,
   formatTime,
+  isPaceShownAsZero,
 } from "./format";
 
 describe("formatKg", () => {
@@ -33,6 +34,18 @@ describe("formatPace", () => {
       expect(formatPace(kgPerWeek)).toBe(text);
     },
   );
+});
+
+describe("isPaceShownAsZero", () => {
+  it.each([
+    [0, true],
+    [0.0049, true],
+    [-0.0049, true],
+    [0.005, false],
+    [-0.005, false],
+  ])("says of a pace of %d kg per week %s", (kgPerWeek, zero) => {
+    expect(isPaceShownAsZero(kgPerWeek)).toBe(zero);
+  });
 });
 
 describe("formatPaceDeviation", () => {

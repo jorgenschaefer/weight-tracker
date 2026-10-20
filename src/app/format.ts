@@ -15,6 +15,14 @@ export function formatPace(kgPerWeek: number): string {
   return signed(kgPerWeek, PACE);
 }
 
+/**
+ * Whether {@link formatPace} shows `kgPerWeek` as `±0,00`: a pace too small
+ * to show a sign.
+ */
+export function isPaceShownAsZero(kgPerWeek: number): boolean {
+  return roundsToZero(kgPerWeek, PACE);
+}
+
 /** The standard deviation of a pace in kg per week, with two decimals: `0,29`. */
 export function formatPaceDeviation(kgPerWeek: number): string {
   return PACE.format(kgPerWeek);
@@ -42,8 +50,13 @@ export function formatTime(instant: Date): string {
  */
 function signed(value: number, format: Intl.NumberFormat): string {
   const magnitude = format.format(Math.abs(value));
-  if (magnitude === format.format(0)) return `±${magnitude}`;
+  if (roundsToZero(value, format)) return `±${magnitude}`;
   return `${value > 0 ? "+" : "−"}${magnitude}`;
+}
+
+/** Whether `value` in `format` comes out as zero. */
+function roundsToZero(value: number, format: Intl.NumberFormat): boolean {
+  return format.format(Math.abs(value)) === format.format(0);
 }
 
 const KG = new Intl.NumberFormat("de-DE", {

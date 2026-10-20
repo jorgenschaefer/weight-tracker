@@ -354,16 +354,68 @@ describe("the four figures (AC-5)", () => {
     },
   );
 
-  it("say „Überschuss“ at a pace of 0, after the first counting measurement", async () => {
+  it("say „Bilanz“ at a pace of 0, after the first counting measurement (AC-4)", async () => {
     openOn("2026-10-17", steady("2026-10-17", 1, 0, 95.2));
 
     await headline();
     expect(figure("Gewicht, geschätzt")).toBe("95,2 ± 1,0 kg");
     expect(figure("Gemessen")).toBe("95,2 kg");
     expect(figure("Tempo")).toBe("±0,00 ± 0,50 kg/Wo");
-    expect(figure("Überschuss")).toBe("0 ± 550 kcal/Tag");
+    expect(figure("Bilanz")).toBe("0 ± 550 kcal/Tag");
     expect(figure("Defizit")).toBeNull();
+    expect(figure("Überschuss")).toBeNull();
   });
+
+  it("say „Bilanz 0“ where „Tempo“ shows ±0,00, on 3.7. (AC-4)", async () => {
+    openHistoryOn("2026-07-03");
+
+    await headline();
+    expect(figure("Tempo")).toMatch(/^±0,00 /);
+    expect(figure("Bilanz")).toBe("0 ± 560 kcal/Tag");
+    expect(figure("Defizit")).toBeNull();
+    expect(figure("Überschuss")).toBeNull();
+  });
+
+  // A second morning 180 g off the first gives a pace of about ±0,0049 kg
+  // per week: ±0,00 on the page, though 10 kcal a day unrounded.
+  it.each([
+    ["under", -0.18],
+    ["over", 0.18],
+  ])(
+    "say „Bilanz 0“ at a pace just %s 0 that „Tempo“ shows as ±0,00 (AC-4)",
+    async (_, kgOff) => {
+      openOn("2026-10-17", [
+        at("2026-10-16T07:00:00+02:00", 95),
+        at("2026-10-17T07:00:00+02:00", 95 + kgOff),
+      ]);
+
+      await headline();
+      expect(figure("Tempo")).toBe("±0,00 ± 0,50 kg/Wo");
+      expect(figure("Bilanz")).toBe("0 ± 550 kcal/Tag");
+      expect(figure("Defizit")).toBeNull();
+      expect(figure("Überschuss")).toBeNull();
+    },
+  );
+
+  // 190 g off gives about ±0,0052 kg per week, the least that shows a sign.
+  it.each([
+    ["−0,01", "Defizit", -0.19, "Überschuss"],
+    ["+0,01", "Überschuss", 0.19, "Defizit"],
+  ])(
+    "say the least pace „Tempo“ shows with a sign, %s, as „%s“ (AC-5)",
+    async (pace, shown, kgOff, absent) => {
+      openOn("2026-10-17", [
+        at("2026-10-16T07:00:00+02:00", 95),
+        at("2026-10-17T07:00:00+02:00", 95 + kgOff),
+      ]);
+
+      await headline();
+      expect(figure("Tempo")).toBe(`${pace} ± 0,50 kg/Wo`);
+      expect(figure(shown)).toBe("10 ± 550 kcal/Tag");
+      expect(figure(absent)).toBeNull();
+      expect(figure("Bilanz")).toBeNull();
+    },
+  );
 
   it("say a gain with its sign and „Überschuss“", async () => {
     openOn("2026-10-17", steady("2026-10-17", 35, 0.5));

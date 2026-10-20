@@ -2,7 +2,12 @@ import { kcalPerDay } from "@/trend/pace";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
 import type { MorningSentence } from "@/verdict/morning-sentence";
 import { isLossLikelier, type TrafficLight } from "@/verdict/traffic-light";
-import { formatKg, formatPace, formatPaceDeviation } from "./format";
+import {
+  formatKg,
+  formatPace,
+  formatPaceDeviation,
+  isPaceShownAsZero,
+} from "./format";
 import classes from "./Verdict.module.css";
 
 /**
@@ -34,8 +39,8 @@ export function Verdict({ status }: { status: AssessmentStatus }) {
 
 /**
  * The four figures of `assessment`, where it has a measurement: „Gewicht,
- * geschätzt“, „Gemessen“, „Tempo“, and „Defizit“ or „Überschuss“, each
- * estimate beside its standard deviation.
+ * geschätzt“, „Gemessen“, „Tempo“, and its calories a day, each estimate
+ * beside its standard deviation.
  */
 export function Figures({ assessment }: { assessment: Assessment }) {
   const { trend, measuredKg } = assessment;
@@ -57,8 +62,7 @@ export function Figures({ assessment }: { assessment: Assessment }) {
         unit="kg/Wo"
       />
       <Figure
-        label={trend.pace < 0 ? "Defizit" : "Überschuss"}
-        value={`${kcalPerDay(trend.pace)}`}
+        {...balanceFigure(trend.pace)}
         sd={`${kcalPerDay(paceSd)}`}
         unit="kcal/Tag"
       />
@@ -136,6 +140,17 @@ function sentenceText(sentence: MorningSentence): string {
     case "gainingForWeeks":
       return "Du nimmst seit Wochen zu.";
   }
+}
+
+/**
+ * The label and value of the calories a day `pace` stands for, by the sign
+ * „Tempo“ shows: „Bilanz“ 0 where it shows `±0,00`, so no kcal stand beside
+ * a pace shown as none, otherwise „Defizit“ or „Überschuss“.
+ */
+function balanceFigure(pace: number): { label: string; value: string } {
+  if (isPaceShownAsZero(pace)) return { label: "Bilanz", value: "0" };
+  const label = pace < 0 ? "Defizit" : "Überschuss";
+  return { label, value: `${kcalPerDay(pace)}` };
 }
 
 /** `value` under `label`, then „± `sd`“ where it is an estimate, then `unit`. */

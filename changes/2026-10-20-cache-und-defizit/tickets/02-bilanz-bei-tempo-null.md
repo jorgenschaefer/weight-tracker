@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-4, AC-5
 advances:  
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -45,3 +45,21 @@ Bilanz    0 ± 560 kcal/Tag        Defizit   510 ± 320 kcal/Tag
 Den run-Skill baut 01.
 
 ## Left standing
+
+- **Fix after the last review** (answers its only finding, a nit: the AC-5
+  test's title called the 0,19 kg between two mornings a pace): the test in
+  `src/app/Verdict.test.tsx` is now titled „say the least pace „Tempo“ shows
+  with a sign, −0,01 / +0,01, as „Defizit“ / „Überschuss“ (AC-5)“. Only the
+  title and the order of its cases changed. No reviewer saw this fix.
+- **Not checked in the running page.** The reviewer had no browser, so
+  nobody walked 3.7. or 20.10. on walk.localhost with the `run` skill, and I
+  did not either. The jsdom tests in `src/app/Verdict.test.tsx` render the
+  real page from the cache and check both days: on 3.7. „Bilanz
+  0 ± 560 kcal/Tag“ beside „±0,00“, and on 20.10. „Defizit
+  510 ± 320 kcal/Tag“.
+- **Name not taken from the glossary:** `balanceFigure` in
+  `src/app/Verdict.tsx`, which gives the label and value of the fourth
+  figure. „Bilanz“ is now in the „Tempo“ entry of the glossary, but the entry
+  gives it no identifier, so I used the plain English word "balance". The new
+  `isPaceShownAsZero` in `src/app/format.ts` describes what it checks rather
+  than naming a domain concept.
