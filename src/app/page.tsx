@@ -70,9 +70,10 @@ export default function Page() {
   }
   const all = [...(cache?.measurements ?? []), ...enteredMeasurements];
   const counting = countingMeasurements(all);
-  // A fetch may take the chosen day's counting measurement, or those after
-  // it; the page then shows today, and the choice ends, so a later fetch
-  // that brings them back does not bring it back too.
+  // A day chosen that is no earlier day shows today and ends the choice: the
+  // last day with a measurement, chosen in the graph, or a day whose counting
+  // measurement, or those after it, a fetch took, so a later fetch that
+  // brings them back does not bring it back too.
   const shownDay =
     chosenDay !== null && isEarlierDay(counting, chosenDay) ? chosenDay : null;
   if (shownDay !== chosenDay) setChosenDay(null);

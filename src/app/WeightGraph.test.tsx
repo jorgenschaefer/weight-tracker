@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import {
@@ -533,6 +539,26 @@ describe("WeightGraph: the day shown", () => {
     expect(radius(shown)).toBeGreaterThan(radius(last));
     expect(shown).toHaveAttribute("fill", SURFACE);
     expect(shown).toHaveAttribute("stroke", "currentColor");
+  });
+
+  // Whether the last day is an earlier day is the page's to judge.
+  it("reports the last day with a measurement as it is, chosen with →", async () => {
+    stubContainerWidth(320);
+    const onShowDay = vi.fn();
+    render(
+      <WeightGraph
+        series={withOutlierInTheMiddle}
+        today={october17}
+        shownDay={october16}
+        onShowDay={onShowDay}
+        surface={SURFACE}
+      />,
+    );
+    const graph = await screen.findByRole("img");
+
+    fireEvent.keyDown(graph, { key: "ArrowRight" });
+
+    expect(onShowDay).toHaveBeenCalledWith(october17);
   });
 
   const css = readFileSync(

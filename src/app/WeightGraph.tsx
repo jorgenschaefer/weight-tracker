@@ -22,9 +22,9 @@ import classes from "./WeightGraph.module.css";
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
  * `surface`, the colour of the surface. A tap, a drag or ← and → choose the
  * day with a measurement nearest across or next to it, and report it to
- * `onShowDay`; the last day with a measurement is no earlier day and is
- * reported as `null`, as are a second tap on the day shown and Escape. `ref`
- * reaches the drawing, which takes the focus.
+ * `onShowDay`, which judges whether it is an earlier day; a second tap on the
+ * day shown and Escape report `null`. `ref` reaches the drawing, which takes
+ * the focus.
  */
 export function WeightGraph({
   series,
@@ -337,9 +337,10 @@ function ShownDayMark({
  * press that began on the day shown without choosing another goes back to
  * today. A press the browser takes over to scroll the page leaves the day
  * shown before it; a finger chooses only once it has let go or moved more
- * across than up or down, so a swipe to scroll shows no other day meanwhile. ← and → choose the day with a measurement before and after, Escape
- * goes back to today. The last day with a measurement is today's page,
- * `null`, as is `shownDay` where no earlier day is shown.
+ * across than up or down, so a swipe to scroll shows no other day meanwhile.
+ * ← and → choose the day with a measurement before and after, Escape goes
+ * back to today. Where no earlier day is shown, `shownDay` is `null` and the
+ * point of the last day with a measurement stands for today's page.
  */
 function useDayChoice(
   series: SixWeekSeries,
@@ -361,7 +362,6 @@ function useDayChoice(
   // Safe: the drawing has at least one measurement, so a last day.
   const lastDay = days.at(-1) as CalendarDay;
   const current = shownDay ?? lastDay;
-  const show = (day: CalendarDay) => onShowDay(day === lastDay ? null : day);
   const nearestTo = (event: React.PointerEvent<SVGSVGElement>) =>
     nearestDay(
       days,
@@ -378,7 +378,7 @@ function useDayChoice(
         onShownDay: day === current,
         fingerDown: finger ? { x: event.clientX, y: event.clientY } : null,
       };
-      if (!finger) show(day);
+      if (!finger) onShowDay(day);
     },
     onPointerMove(event: React.PointerEvent<SVGSVGElement>) {
       if (event.buttons === 0) return;
@@ -391,11 +391,11 @@ function useDayChoice(
       const day = nearestTo(event);
       if (day === current) return;
       if (press.current !== null) press.current.onShownDay = false;
-      show(day);
+      onShowDay(day);
     },
     onPointerUp() {
       if (press.current?.onShownDay) onShowDay(null);
-      else if (press.current?.fingerDown) show(press.current.pressedDay);
+      else if (press.current?.fingerDown) onShowDay(press.current.pressedDay);
       press.current = null;
     },
     onPointerCancel() {
@@ -407,10 +407,10 @@ function useDayChoice(
       const i = days.indexOf(current);
       switch (event.key) {
         case "ArrowLeft":
-          show(days[Math.max(0, i - 1)]);
+          onShowDay(days[Math.max(0, i - 1)]);
           break;
         case "ArrowRight":
-          show(days[Math.min(days.length - 1, i + 1)]);
+          onShowDay(days[Math.min(days.length - 1, i + 1)]);
           break;
         case "Escape":
           onShowDay(null);
