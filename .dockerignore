@@ -17,6 +17,7 @@ next-env.d.ts
 
 # Files for development and documentation, not for building or running
 changes
+analysis
 *.md
 biome.json
 vitest.config.mts
