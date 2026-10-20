@@ -5,7 +5,9 @@ import { type Ref, useRef } from "react";
 import {
   type CalendarDay,
   calendarDayBefore,
+  dayOfMonth,
   daysBetween,
+  yearAndMonth,
 } from "@/measurement/calendar-day";
 import type { GraphWindow, Span } from "@/trend/graph-window/graph-window";
 import type { WindowSeries } from "@/trend/graph-window/window-series";
@@ -601,18 +603,11 @@ function monthLabels(
   monthsPerLabel: number,
 ): ChartScale["timeLabels"] {
   const labels: ChartScale["timeLabels"] = [];
-  let year = Number(graphWindow.firstDay.slice(0, 4));
-  let month = Number(graphWindow.firstDay.slice(5, 7));
-  for (;;) {
-    // Safe: a valid `YYYY-MM-DD`.
-    const day = `${year}-${String(month).padStart(2, "0")}-15` as CalendarDay;
+  const [year, firstMonth] = yearAndMonth(graphWindow.firstDay);
+  for (let month = firstMonth; ; month += monthsPerLabel) {
+    const day = dayOfMonth(year, month, 15);
     if (day > graphWindow.lastDay) return labels;
     labels.push({ day, text: formatMonth(day) });
-    month += monthsPerLabel;
-    if (month > 12) {
-      month -= 12;
-      year += 1;
-    }
   }
 }
 

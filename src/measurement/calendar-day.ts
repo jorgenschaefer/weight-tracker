@@ -22,6 +22,32 @@ export function calendarDayBefore(day: CalendarDay, days: number): CalendarDay {
   return midnight.toISOString().slice(0, 10) as CalendarDay;
 }
 
+/** The day `days` days after `day`. */
+export function calendarDayAfter(day: CalendarDay, days: number): CalendarDay {
+  return calendarDayBefore(day, -days);
+}
+
+/** The year of `day` and its month, January 0. */
+export function yearAndMonth(day: CalendarDay): [number, number] {
+  return [Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1];
+}
+
+/**
+ * Day `date` of `month` (January 0) in `year`; a month or date past either
+ * end counts on into the next or back into the one before, so date 0 is the
+ * last day of the month before.
+ */
+export function dayOfMonth(
+  year: number,
+  month: number,
+  date: number,
+): CalendarDay {
+  // Safe: an ISO date in UTC starts with its `YYYY-MM-DD`.
+  return new Date(Date.UTC(year, month, date))
+    .toISOString()
+    .slice(0, 10) as CalendarDay;
+}
+
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Midnight UTC of `day`: a calendar day, free of Berlin's daylight saving. */

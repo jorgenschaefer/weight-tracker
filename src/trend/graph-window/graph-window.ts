@@ -1,6 +1,9 @@
 import {
   type CalendarDay,
+  calendarDayAfter,
   calendarDayBefore,
+  dayOfMonth,
+  yearAndMonth,
 } from "@/measurement/calendar-day";
 
 /** „Zeitraum“: how much the graph shows at once. */
@@ -123,7 +126,7 @@ function aSpanLater(span: Span, day: CalendarDay): CalendarDay {
   const [year, month] = yearAndMonth(day);
   switch (span) {
     case "sixWeeks":
-      return dayOfMonth(year, month, Number(day.slice(8, 10)) + 42);
+      return calendarDayAfter(day, 42);
     case "threeMonths":
       return dayOfMonth(year, month + 3, 1);
     case "oneYear":
@@ -138,21 +141,4 @@ function beforeToday(
 ): GraphWindow | null {
   // `YYYY-MM-DD` orders as text the way the days do.
   return graphWindow.lastDay < today ? graphWindow : null;
-}
-
-/** The year of `day` and its month, January 0. */
-function yearAndMonth(day: CalendarDay): [number, number] {
-  return [Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1];
-}
-
-/**
- * Day `date` of `month` (January 0) in `year`; a month or date past either
- * end counts on into the next or back into the one before, so date 0 is the
- * last day of the month before.
- */
-function dayOfMonth(year: number, month: number, date: number): CalendarDay {
-  // Safe: an ISO date in UTC starts with its `YYYY-MM-DD`.
-  return new Date(Date.UTC(year, month, date))
-    .toISOString()
-    .slice(0, 10) as CalendarDay;
 }
