@@ -267,7 +267,8 @@ function loadToken(): HeldToken | null {
 
 // The token of a sign-in is kept in this browser, not only in memory, so a
 // reload, a new tab or the app opened anew within its lifetime fetches
-// without a new sign-in.
+// without a new sign-in. It is `localStorage` because `sessionStorage` is
+// neither shared with a new tab nor kept when the installed app is closed.
 function saveToken(token: HeldToken): void {
   localStorage.setItem(TOKEN_KEY, serializeHeldToken(token));
 }
