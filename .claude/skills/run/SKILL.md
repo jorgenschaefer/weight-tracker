@@ -15,11 +15,13 @@ worker another project registered for localhost:3000
 
 ## The page on a date of the test data
 
-1. Once per browser profile: `node .claude/skills/run/fixture-snippet.mjs`
+1. Once per browser profile, and again after either CSV changes: `node .claude/skills/run/fixture-snippet.mjs`
    prints a snippet; run it on the page (javascript tool). It stores the
    test data under `walk:fixture`: the extract
    `src/test/fixtures/gewicht-2026-07-bis-10.csv` and 18.10. to 20.10. from
-   `gewicht-2026-10-18-bis-20.csv`.
+   `gewicht-2026-10-18-bis-20.csv`. If `walk:fixture` holds fewer days
+   than the snippet reports (a profile stored before 18.10. to 20.10. were
+   added has 97), run it again.
 2. Run `walk-on.js` on the page once. Then `await walkOn("2026-08-30")`
    returns the surface's colour and the page's text on that day;
    `{ keep: true }` leaves the frame open to screenshot, and `only` puts
