@@ -37,9 +37,12 @@ export function repositoryFiles(dir: string): string[] {
 
 const TEST_FILE = /^(.*)\.test\.(tsx?)$/;
 
-/** The source extensions a test file of each extension may test. */
+/**
+ * The source extensions a test file of each extension may test; a `.test.ts`
+ * also tests a browser snippet in `.js` or `.mjs`.
+ */
 const SOURCE_EXTENSIONS: Record<string, string[]> = {
-  ts: ["ts", "tsx"],
+  ts: ["ts", "tsx", "js", "mjs"],
   tsx: ["ts", "tsx"],
 };
 
@@ -52,9 +55,8 @@ function testFileWithoutSource(test: string, listed: Set<string>): string[] {
   const extensions = SOURCE_EXTENSIONS[extension];
   if (extensions.some((source) => listed.has(`${stem}.${source}`))) return [];
 
-  const missing = extensions
-    .map((source) => `${basename(stem)}.${source}`)
-    .join(" or ");
+  const names = extensions.map((source) => `${basename(stem)}.${source}`);
+  const missing = `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
   return [
     `${test}: no source file ${missing} beside it - move each test into the test file of the source file whose behaviour it tests${example(stem, extension, listed)}`,
   ];

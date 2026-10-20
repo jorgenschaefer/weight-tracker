@@ -73,13 +73,13 @@ describe("checkTestFiles: one test file per source file", () => {
         "next.config.headers.test.ts",
       ]),
     ).toEqual([
-      "next.config.headers.test.ts: no source file next.config.headers.ts or next.config.headers.tsx beside it - move each test into the test file of the source file whose behaviour it tests, such as next.config.test.ts for next.config.ts",
+      "next.config.headers.test.ts: no source file next.config.headers.ts, next.config.headers.tsx, next.config.headers.js or next.config.headers.mjs beside it - move each test into the test file of the source file whose behaviour it tests, such as next.config.test.ts for next.config.ts",
     ]);
   });
 
   it("refuses a test file with no source of any shorter name", () => {
     expect(checkTestFiles(["src/journal/flows.test.ts"])).toEqual([
-      "src/journal/flows.test.ts: no source file flows.ts or flows.tsx beside it - move each test into the test file of the source file whose behaviour it tests",
+      "src/journal/flows.test.ts: no source file flows.ts, flows.tsx, flows.js or flows.mjs beside it - move each test into the test file of the source file whose behaviour it tests",
     ]);
   });
 
@@ -90,6 +90,17 @@ describe("checkTestFiles: one test file per source file", () => {
         "src/map/Panel.test.ts",
         "next.config.ts",
         "next.config.test.ts",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("accepts a .test.ts beside the browser snippet it tests, a .js or .mjs", () => {
+    expect(
+      checkTestFiles([
+        ".claude/skills/run/walk-on.js",
+        ".claude/skills/run/walk-on.test.ts",
+        ".claude/skills/run/fixture-snippet.mjs",
+        ".claude/skills/run/fixture-snippet.test.ts",
       ]),
     ).toEqual([]);
   });
