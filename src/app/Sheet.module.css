@@ -1,0 +1,22 @@
+/* The sheet: light, its top corners round, across the whole window. */
+.sheet {
+  background: #fff8f0;
+  color: #20262c;
+  border-radius: 14px 14px 0 0;
+}
+
+/* Its header and body, each no wider than the page's content, in the
+   middle, with the page's padding at the sides. */
+.part {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  box-sizing: border-box;
+  padding-inline: 20px;
+  background: inherit;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+}

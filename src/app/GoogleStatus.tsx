@@ -1,7 +1,14 @@
-import { UnstyledButton, VisuallyHidden } from "@mantine/core";
+import { Text, UnstyledButton, VisuallyHidden } from "@mantine/core";
+import { useState } from "react";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import classes from "./GoogleStatus.module.css";
-import { type StatusMark, statusLine } from "./google-status";
+import {
+  lastFetch,
+  type StatusMark,
+  signedInUntil,
+  statusLine,
+} from "./google-status";
+import { Sheet } from "./Sheet";
 import type { Measurements } from "./useMeasurements";
 
 /**
@@ -9,8 +16,9 @@ import type { Measurements } from "./useMeasurements";
  * mark of the sign-in before it - and ⟳ beside it, on a page that judges on
  * `today`. A tap on either signs in and fetches where the page is not signed
  * in, and ⟳ fetches where it is; neither does anything while something runs.
- * Before the page has read this browser, `measurements` is `null` and only
- * „Google Health“ stands there, taking no tap.
+ * Where the page is signed in, a tap on the status line opens its sheet,
+ * whatever runs. Before the page has read this browser, `measurements` is
+ * `null` and only „Google Health“ stands there, taking no tap.
  */
 export function GoogleStatus({
   measurements,
@@ -19,6 +27,12 @@ export function GoogleStatus({
   measurements: Measurements | null;
   today: CalendarDay;
 }) {
+  const [sheetOpened, setSheetOpened] = useState(false);
+  // The sheet closes by itself once the sign-in ends - on „Abmelden“ or as
+  // it expires - and does not open again with the next one.
+  const signIn = measurements?.signIn ?? null;
+  if (sheetOpened && signIn === null) setSheetOpened(false);
+
   if (measurements === null) {
     return (
       <div className={classes.status}>
@@ -40,7 +54,7 @@ export function GoogleStatus({
 
   const { mark, detail, busy } = statusLine(
     {
-      signedIn: measurements.signedIn,
+      signedIn: signIn !== null,
       signingIn: measurements.signingIn,
       savingKg: measurements.savingKg,
       fetching: measurements.fetching,
@@ -57,7 +71,8 @@ export function GoogleStatus({
         aria-label={name}
         data-failed={mark === "failed" || undefined}
         onClick={() => {
-          if (!measurements.signedIn && !busy) measurements.fetchData();
+          if (signIn !== null) setSheetOpened(true);
+          else if (!busy) measurements.fetchData();
         }}
       >
         <span className={classes.mark} data-mark={mark}>
@@ -73,7 +88,7 @@ export function GoogleStatus({
       </UnstyledButton>
       <UnstyledButton
         className={classes.refresh}
-        aria-label={measurements.signedIn ? "Abrufen" : "Anmelden und abrufen"}
+        aria-label={signIn !== null ? "Abrufen" : "Anmelden und abrufen"}
         data-busy={busy || undefined}
         disabled={busy}
         onClick={measurements.fetchData}
@@ -84,6 +99,24 @@ export function GoogleStatus({
       <VisuallyHidden role="status" aria-live="polite">
         {name}
       </VisuallyHidden>
+      {signIn !== null && (
+        <Sheet
+          title="Google Health"
+          opened={sheetOpened}
+          onClose={() => setSheetOpened(false)}
+        >
+          <Text className={classes.sheetLine}>{signedInUntil(signIn)}</Text>
+          <Text className={classes.sheetLine}>
+            {lastFetch(measurements.cache?.fetchedAt ?? null, today)}
+          </Text>
+          <UnstyledButton
+            className={classes.logOut}
+            onClick={measurements.logOut}
+          >
+            Abmelden
+          </UnstyledButton>
+        </Sheet>
+      )}
     </div>
   );
 }

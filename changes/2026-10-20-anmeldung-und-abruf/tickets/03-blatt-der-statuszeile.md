@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-4, AC-5, AC-6, AC-7, AC-9, AC-13
 advances:  
 after:     01-statuszeile
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -62,3 +62,31 @@ Das Muster ist `specimens/StatuszeileAbruf.dc.html` (Variante D) neben `CRITERIA
 - Ein Profilbild von Google.
 
 ## Left standing
+
+**Befunde des Reviews, nicht behoben**
+- Nit (1. und 2. Runde): der Name des Felds für die Anmeldung in `Measurements`. Die 1. Runde fand `signedIn` für ein Objekt irreführend, es heißt jetzt `signIn`; die 2. Runde findet, `signIn` lese sich wie eine Aktion und teile den Namen mit der Funktion `signIn` aus `google-health.ts`. Bleibt so: der Compiler hält beides auseinander, siehe unten bei den Namen.
+- Nit (1. Runde): unter `next dev` liegt das Abzeichen von Next.js bei 360 px über „Abmelden“ im Blatt. Nur im Entwicklungsmodus, kein Fehler der Seite; in `.claude/skills/run/SKILL.md` vermerkt.
+
+**Nach dem letzten Review behoben**
+- Should-fix der 2. Runde, kein Test hielt fest, dass beide Blätter über `Sheet` gezeichnet werden: je ein Test in `EntrySheet.test.tsx` und `GoogleStatus.test.tsx` prüft die Klassen von `Sheet.module.css` am Blatt, an dessen Kopf und Inhalt. Gegengeprüft: mit Mantines `Drawer` statt `Sheet` in `GoogleStatus.tsx` schlägt der Test fehl.
+
+**Nicht automatisch geprüft**
+- AC-4 „im Stil des Blatts zum Eintragen“ und AC-9 auf echten Bildschirmen: beide Reviews haben die Seite mit `google-stand-in.js` in Chromium bei 360 × 640 und 1440 × 900 gefahren (gleiche Farben, Ecken, Titel, Breite, Overlay; X, Escape und ein Tipp daneben schließen beide Blätter; kein „Abmelden“ und kein „Daten abrufen“ unten). Die Tests prüfen nur Klassen und Stylesheet.
+- AC-7 und das Schließen des Blatts beim Ablauf: in den Tests mit gefälschter Uhr und gefälschtem `setTimeout`, im Review mit Playwrights Uhr (59:57 noch angemeldet, 60:00 „nicht angemeldet“, Blatt zu, keine Anfrage). Auf einem echten Gerät, das schläft, nicht geprüft; dafür lässt die Seite ein abgelaufenes Token auch beim Zurückkehren in den Tab fallen.
+- AC-13 mit nur lesender Anmeldung im Browser mit der Google-Attrappe geprüft; gegen das echte Google nicht gefahren.
+
+**Schwer umkehrbare Entscheidungen**
+- `Measurements.signedIn: boolean` ist jetzt `signIn: Omit<HeldToken, "token"> | null` (Ablaufzeitpunkt und Schreibrecht, `null` ohne Anmeldung).
+- Neue Komponente `src/app/Sheet.tsx` mit `Sheet.module.css`: das helle Blatt von unten, das „Gewicht eintragen“ und das Blatt der Statuszeile teilen (Should-fix der 1. Runde). `.sheet`, `.part` und `.title` sind aus `EntrySheet.module.css` dorthin umgezogen, mit ihrem Test zur Breite.
+- `src/test/open-page.tsx`: `logoutButton` ist ersetzt durch `logOut(user)` (öffnet das Blatt und tippt „Abmelden“) und `statusSheet()`; neu sind `runTimersFrom(now)` und `passTime(ms)`, die auch `setTimeout` fälschen; `changeVisibility` ist in `comeIntoView` aufgegangen.
+- In `google-status.ts` stehen die Zeilen des Blatts als `signedInUntil` und `lastFetch`.
+
+**Abweichungen von Nudges und Auslegungen**
+- Nudge „ein Timer auf den Ablaufzeitpunkt“: gebaut, und zusätzlich lässt die Seite ein abgelaufenes Token fallen, wenn sie wieder sichtbar wird (ohne abzurufen). Ein Timeout läuft nicht unbedingt, während das Gerät schläft; so zeigt die Seite nach dem Aufwachen nicht weiter „angemeldet“.
+- Nudge „das Blatt nimmt die Farben und Klassen von `EntrySheet.tsx`“: statt die Einstellungen des `Drawer` zu kopieren, nutzen beide Blätter `Sheet` (siehe oben).
+- „Abmelden“ tut, was es heute tut: hat das Token zwischen Ablauf und Timeout schon keine Gültigkeit mehr, meldet es weiter neu an, um zu widerrufen. Zwei Tests fallen weg, deren Ausgang die Seite nicht mehr erreicht, weil es „Abmelden“ nur noch im Blatt einer angemeldeten Seite gibt: „signs in first where it has no token, to revoke the access“ und „does not keep the sign-in of a fetch it overtook for the next open“. Ebenso fallen die Tests zum Abruf beim Zurückkehren weg; „does not fetch, however long ago the last fetch was“ hält AC-6 fest.
+- `src/app/EntrySheet.tsx` nannte „Daten abrufen“ nicht mehr; der Kommentar in `enter` (`useMeasurements.ts`) ist ersetzt.
+
+**Namen nicht aus dem Glossar, zu bestätigen**
+- `Sheet` (Komponente) und „Blatt der Statuszeile“ im Text der Tests und Kommentare; „Blatt“ steht nicht im Glossar.
+- `signIn` (Feld von `Measurements`), `signedInUntil`, `lastFetch`, `logOut` und `statusSheet` (Testhelfer), `runTimersFrom`, `passTime`.

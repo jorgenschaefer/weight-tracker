@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
-import { type GoogleState, statusLine } from "./google-status";
+import {
+  type GoogleState,
+  lastFetch,
+  signedInUntil,
+  statusLine,
+} from "./google-status";
 
 const TODAY = "2026-10-20" as CalendarDay;
 
@@ -151,5 +156,45 @@ describe("statusLine", () => {
     [{}, false],
   ])("counts %o as running: %s", (state, busy) => {
     expect(statusLine({ ...IDLE, ...state }, TODAY).busy).toBe(busy);
+  });
+});
+
+describe("signedInUntil", () => {
+  const expiresAt = new Date("2026-10-20T10:59:00+02:00");
+
+  it("says until when the page is signed in", () => {
+    expect(signedInUntil({ expiresAt, writeGranted: true })).toBe(
+      `Angemeldet bis 10:59${NBSP}Uhr`,
+    );
+  });
+
+  it("adds „, nur Lesen“ where the sign-in does not allow entering", () => {
+    expect(signedInUntil({ expiresAt, writeGranted: false })).toBe(
+      `Angemeldet bis 10:59${NBSP}Uhr, nur Lesen`,
+    );
+  });
+});
+
+describe("lastFetch", () => {
+  it.each([
+    [
+      "on the day the page judges on",
+      "2026-10-20T07:14:00+02:00",
+      `Abgerufen 7:14${NBSP}Uhr`,
+    ],
+    [
+      "the day before",
+      "2026-10-19T22:10:00+02:00",
+      `Abgerufen 19.10. um 22:10${NBSP}Uhr`,
+    ],
+  ])(
+    "says when the last fetch was, %s, with a capital A",
+    (_, fetched, said) => {
+      expect(lastFetch(new Date(fetched), TODAY)).toBe(said);
+    },
+  );
+
+  it("says „Noch nicht abgerufen“ before the first fetch", () => {
+    expect(lastFetch(null, TODAY)).toBe("Noch nicht abgerufen");
   });
 });

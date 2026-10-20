@@ -12,7 +12,6 @@ import {
 import type { Measurement } from "@/measurement/measurement";
 import {
   at,
-  changeVisibility,
   comeIntoView,
   daysAgo,
   deferred,
@@ -26,17 +25,21 @@ import {
   isNotShown,
   isShown,
   leavePage,
-  logoutButton,
+  logOut,
   MORNING,
   MORNING_SHOWN,
   NOT_YET_FETCHED,
   NOW,
   openAndClick,
+  passTime,
   reload,
   renderPage,
+  runTimersFrom,
   sheet,
   signInButton,
   standInForGoogle,
+  statusDetail,
+  statusMark,
   steady,
   storeCache,
   storedCache,
@@ -135,29 +138,14 @@ describe("coming back into view", () => {
     vi.setSystemTime(new Date(NOW.getTime() + minutes * 60_000));
   }
 
-  it.each<[string, number, DocumentVisibilityState, boolean]>([
-    ["fetches by itself, with the token it holds,", 10, "visible", true],
-    [
-      "fetches with the token up to just before it expires",
-      TOKEN_LIFETIME_S / 60 - 0.1,
-      "visible",
-      true,
-    ],
-    [
-      "does not fetch again within 5 minutes of the last fetch",
-      4.9,
-      "visible",
-      false,
-    ],
-    ["does not fetch while the page goes out of view", 10, "hidden", false],
-  ])("%s", async (_, minutes, state, fetches) => {
-    await fetchThenWeighAgain(minutes);
+  it("does not fetch, however long ago the last fetch was", async () => {
+    await fetchThenWeighAgain(TOKEN_LIFETIME_S / 60 - 0.1);
 
-    await changeVisibility(state);
+    await comeIntoView();
 
-    if (fetches) await isShown(LATER_SHOWN);
-    else isNotShown(LATER_SHOWN);
-    expect(google.tokensIssued).toBe(1);
+    isNotShown(LATER_SHOWN);
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(await statusMark()).toBe("signedIn");
   });
 
   it("does not sign in by itself where it holds no token", async () => {
@@ -171,6 +159,7 @@ describe("coming back into view", () => {
     await signInButton();
   });
 
+  // A timeout may not have run while the device slept.
   it("offers to sign in, without asking Google, once the token has expired", async () => {
     await fetchThenWeighAgain(TOKEN_LIFETIME_S / 60);
 
@@ -181,28 +170,52 @@ describe("coming back into view", () => {
     isNotShown(LATER_SHOWN);
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
+});
 
-  it("does not fetch again while a fetch still runs", async () => {
-    storeMorning();
-    holdFetch();
+describe("the sign-in expiring while the page is open", () => {
+  beforeEach(() => runTimersFrom(NOW));
+
+  it("says „nicht angemeldet“ with the empty circle from that moment, without a tap or asking Google", async () => {
+    google.measurements = [MORNING];
     await openAndClick(signInButton);
-    google.measurements = [MORNING, LATER];
-    vi.setSystemTime(new Date(NOW.getTime() + 10 * 60_000));
+    await isShown(MORNING_SHOWN);
 
-    await comeIntoView();
+    await passTime((TOKEN_LIFETIME_S - 1) * 1000);
+    expect(await statusMark()).toBe("signedIn");
+    await passTime(1000);
 
-    isNotShown(LATER_SHOWN);
-    await isShown("ruft ab …");
+    await waitFor(async () =>
+      expect(await statusDetail()).toBe("nicht angemeldet"),
+    );
+    expect(await statusMark()).toBe("signedOut");
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
   });
 
-  it("offers to sign in again where Google rejects the token before it expires", async () => {
-    await fetchThenWeighAgain(10);
-    google.grants = [];
+  it("does so with the sign-in from before the open too", async () => {
+    await openAndClick(signInButton);
+    await statusMark();
+    await passTime(10 * 60_000);
+    reload();
+    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
 
-    await comeIntoView();
+    await passTime((TOKEN_LIFETIME_S - 10 * 60) * 1000);
 
-    await isShown("Abruf fehlgeschlagen: Die Anmeldung ist abgelaufen.");
-    await signInButton();
+    await waitFor(async () => expect(await statusMark()).toBe("signedOut"));
+  });
+
+  it("does not drop a newer sign-in for the one that expired", async () => {
+    google.measurements = [MORNING];
+    const user = await openAndClick(signInButton);
+    await isShown(MORNING_SHOWN);
+    await logOut(user);
+    await passTime(30 * 60_000);
+    await user.click(await signInButton());
+    await isShown(MORNING_SHOWN);
+
+    await passTime((TOKEN_LIFETIME_S - 30 * 60) * 1000);
+
+    expect(await statusMark()).toBe("signedIn");
   });
 });
 
@@ -326,7 +339,7 @@ describe("„Abmelden“", () => {
     google.measurements = [MORNING];
     const user = await openAndClick(signInButton);
 
-    await user.click(await logoutButton());
+    await logOut(user);
 
     await isShown(FIRST_VISIT);
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
@@ -337,7 +350,7 @@ describe("„Abmelden“", () => {
   it("discards the token, so the next fetch signs in anew", async () => {
     google.measurements = [MORNING];
     const user = await openAndClick(signInButton);
-    await user.click(await logoutButton());
+    await logOut(user);
 
     await user.click(await signInButton());
 
@@ -345,23 +358,15 @@ describe("„Abmelden“", () => {
     expect(google.tokensIssued).toBe(2);
   });
 
-  it("signs in first where it has no token, to revoke the access", async () => {
-    storeMorning();
-    await openAndClick(logoutButton);
-
-    await isShown(FIRST_VISIT);
-    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    await waitFor(() => expect(google.tokensIssued).toBe(1));
-    expect(google.grants).toEqual([]);
-  });
-
+  // The token expires as its timeout runs, which these tests leave unrun:
+  // the moment between expiring and the timeout.
   it("signs in anew to revoke the access where its token has expired", async () => {
     google.measurements = [MORNING];
     const user = await openAndClick(signInButton);
     await isShown(MORNING_SHOWN);
     vi.setSystemTime(new Date(NOW.getTime() + TOKEN_LIFETIME_S * 1000));
 
-    await user.click(await logoutButton());
+    await logOut(user);
 
     await isShown(FIRST_VISIT);
     await waitFor(() => expect(google.tokensIssued).toBe(2));
@@ -369,10 +374,23 @@ describe("„Abmelden“", () => {
     await waitFor(() => expect(google.grants).not.toContain("token-2"));
   });
 
+  it("does not keep the sign-in it makes to revoke the access for the next open", async () => {
+    const user = await openAndClick(signInButton);
+    await statusMark();
+    vi.setSystemTime(new Date(NOW.getTime() + TOKEN_LIFETIME_S * 1000));
+    await logOut(user);
+    await waitFor(() => expect(google.tokensIssued).toBe(2));
+
+    reload();
+
+    await signInButton();
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves the first visit to the next open, which does not fetch", async () => {
     google.measurements = [MORNING];
     const user = await openAndClick(signInButton);
-    await user.click(await logoutButton());
+    await logOut(user);
     await isShown(FIRST_VISIT);
 
     reload();
@@ -387,49 +405,22 @@ describe("„Abmelden“", () => {
     await openAndClick(signInButton);
     await isShown(MORNING_SHOWN);
     const user = reload();
+    await isShown(MORNING_SHOWN);
 
-    await user.click(await logoutButton());
+    await logOut(user);
 
     await isShown(FIRST_VISIT);
     await waitFor(() => expect(google.grants).toEqual([]));
     expect(google.tokensIssued).toBe(1);
   });
 
-  it("does not keep the sign-in it makes to revoke the access for the next open", async () => {
-    storeMorning();
-    await openAndClick(logoutButton);
-    await waitFor(() => expect(google.tokensIssued).toBe(1));
-
-    reload();
-
-    await signInButton();
-    expect(fetchMeasurements).not.toHaveBeenCalled();
-  });
-
-  it("does not keep the sign-in of a fetch it overtook for the next open", async () => {
-    storeMorning();
-    const signedIn = deferred<GoogleHealthResult<SignedIn>>();
-    vi.mocked(signIn).mockReturnValueOnce(signedIn.promise);
-    const user = await openAndClick(signInButton);
-    await user.click(await logoutButton());
-    signedIn.resolve({
-      ok: true,
-      value: { token: "late", expiresInSeconds: 3599, writeGranted: true },
-    });
-    await isShown(FIRST_VISIT);
-
-    reload();
-
-    await signInButton();
-    expect(fetchMeasurements).not.toHaveBeenCalled();
-  });
-
   it("drops what a fetch still running brings back", async () => {
     storeMorning();
     const answer = holdFetch();
     const user = await openAndClick(signInButton);
+    await statusMark();
 
-    await user.click(await logoutButton());
+    await logOut(user);
     answer.resolve({ ok: true, value: [MORNING] });
 
     await isShown(FIRST_VISIT);
@@ -567,14 +558,50 @@ describe("entering a weight", () => {
     expect(google.tokensIssued).toBe(1);
   });
 
-  it("does not keep a sign-in whose weight was not saved for the next open", async () => {
-    vi.mocked(signIn).mockResolvedValueOnce(readOnlySignIn());
+  it.each<[string, () => void]>([
+    [
+      "Google does not answer",
+      () =>
+        vi
+          .mocked(enterMeasurement)
+          .mockResolvedValueOnce(failure({ kind: "unreachable" })),
+    ],
+    [
+      "the sign-in only reads",
+      () => {
+        vi.mocked(signIn).mockResolvedValueOnce(readOnlySignIn());
+        google.grants = ["read"];
+      },
+    ],
+  ])(
+    "keeps its sign-in where %s on saving, fetches with it, and keeps it for the next open",
+    async (_, fail) => {
+      fail();
+      const user = renderPage();
+
+      await enterWeight(user);
+
+      await screen.findByText(/^Speichern fehlgeschlagen/);
+      await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(1));
+      expect(await statusMark()).toBe("signedIn");
+      reload();
+      await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
+      expect(signIn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not keep its sign-in where Google rejects it on saving", async () => {
+    vi.mocked(enterMeasurement).mockResolvedValueOnce(
+      failure({ kind: "tokenRejected" }),
+    );
     const user = renderPage();
+
     await enterWeight(user);
-    await screen.findByText(/^Speichern fehlgeschlagen/);
 
+    await isShown("Speichern fehlgeschlagen: Die Anmeldung ist abgelaufen.");
+    expect(await statusMark()).toBe("signedOut");
+    expect(fetchMeasurements).not.toHaveBeenCalled();
     reload();
-
     await signInButton();
     expect(fetchMeasurements).not.toHaveBeenCalled();
   });
@@ -600,7 +627,7 @@ describe("entering a weight", () => {
     vi.mocked(signIn).mockResolvedValueOnce(answer);
 
   it.each<[string, () => void, number]>([
-    ["Google does not answer", () => saveFails("unreachable"), 2],
+    ["Google does not answer", () => saveFails("unreachable"), 1],
     [
       "the sign-in fails",
       () => signInAnswers(failure({ kind: "signInFailed" })),
@@ -608,7 +635,7 @@ describe("entering a weight", () => {
     ],
     ["the sign-in only reads", () => signInAnswers(readOnlySignIn()), 1],
   ])(
-    "does not show the weight where %s, stays signed out and saves the weight on the next tap",
+    "does not show the weight where %s, and saves it on the next tap",
     async (_, fail, signIns) => {
       fail();
       const user = renderPage();
@@ -616,14 +643,24 @@ describe("entering a weight", () => {
       await enterWeight(user);
 
       await screen.findByText(/^Speichern fehlgeschlagen/);
-      expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
-      expect(await signInButton()).toBeInTheDocument();
-      expect(fetchMeasurements).not.toHaveBeenCalled();
+      isNotShown(/Letzte Messung/);
       await user.click(screen.getByRole("button", { name: "Eintragen" }));
       await isShown(ENTERED_SHOWN);
       expect(google.tokensIssued).toBe(signIns);
     },
   );
+
+  it("stays signed out where its sign-in fails, without fetching", async () => {
+    signInAnswers(failure({ kind: "signInFailed" }));
+    const user = renderPage();
+
+    await enterWeight(user);
+
+    await screen.findByText(/^Speichern fehlgeschlagen/);
+    expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
+    expect(await signInButton()).toBeInTheDocument();
+    expect(fetchMeasurements).not.toHaveBeenCalled();
+  });
 
   it("signs in anew on the next tap where Google rejected the sign-in the visit holds", async () => {
     vi.mocked(enterMeasurement).mockResolvedValueOnce(

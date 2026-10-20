@@ -1,6 +1,6 @@
 "use client";
 
-import { Anchor, Text, UnstyledButton } from "@mantine/core";
+import { Anchor, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
 import type { GoogleHealthError } from "@/measurement/google-health";
@@ -157,9 +157,6 @@ function CachedMeasurements({
       <div className={classes.graph}>
         <WeightGraph series={assessment.sixWeekSeries} today={today} />
       </div>
-      <UnstyledButton className={classes.logout} onClick={measurements.logOut}>
-        Abmelden
-      </UnstyledButton>
     </>
   );
 }

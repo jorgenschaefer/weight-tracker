@@ -13,7 +13,6 @@ import {
 import type { Measurement } from "@/measurement/measurement";
 import {
   at,
-  comeIntoView,
   ENTERED_SHOWN,
   enterWeight,
   FIRST_VISIT,
@@ -23,10 +22,11 @@ import {
   isNotShown,
   isShown,
   leavePage,
-  logoutButton,
+  logOut,
   NOT_YET_FETCHED,
   NOW,
   openAndClick,
+  refreshButton,
   renderPage,
   signInButton,
   standInForGoogle,
@@ -69,7 +69,7 @@ describe("an entered weight", () => {
 
     google.measurements = [at(new Date(NOW.getTime() + 30_000), 98.64)];
     vi.setSystemTime(NOW.getTime() + 10 * 60_000);
-    await comeIntoView();
+    await user.click(await refreshButton());
 
     await isShown(ENTERED_SHOWN);
     isNotShown(/noch nicht/);
@@ -180,7 +180,7 @@ describe("an entered weight", () => {
     await enterWeight(user);
     await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
 
-    await user.click(await logoutButton());
+    await logOut(user);
 
     await isShown(FIRST_VISIT);
     isNotShown(/Letzte Messung/);
@@ -190,8 +190,10 @@ describe("an entered weight", () => {
 
   it("is discarded by „Abmelden“ after a reload too", async () => {
     storeEntered([ENTERED]);
+    const user = await openAndClick(signInButton);
+    await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
 
-    await openAndClick(logoutButton);
+    await logOut(user);
 
     await isShown(FIRST_VISIT);
     expect(localStorage.getItem(ENTERED_KEY)).toBeNull();

@@ -83,6 +83,24 @@ export function standInForGoogle(now: Date) {
 /** How long Google accepts an access token: an hour, less a second. */
 export const TOKEN_LIFETIME_S = 3599;
 
+/**
+ * Lets the page's timeouts run on the faked clock, set to `now`, which moves
+ * on with the real one too, so Testing Library's waiting still ends.
+ */
+export function runTimersFrom(now: Date) {
+  vi.useFakeTimers({
+    toFake: ["Date", "setTimeout", "clearTimeout"],
+    shouldAdvanceTime: true,
+  });
+  vi.setSystemTime(now);
+}
+
+/** Moves the faked clock and the timeouts on it by `ms`. */
+export const passTime = (ms: number) =>
+  act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+
 export function leavePage() {
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -150,11 +168,9 @@ export function reload() {
   return renderPage();
 }
 
-export const comeIntoView = () => changeVisibility("visible");
-
-/** The page goes into or out of view, as on switching tabs or apps. */
-export async function changeVisibility(state: DocumentVisibilityState) {
-  vi.spyOn(document, "visibilityState", "get").mockReturnValue(state);
+/** The page comes back into view, as on switching tabs or apps. */
+export async function comeIntoView() {
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   await act(async () => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
@@ -224,8 +240,16 @@ export const statusDetail = async () =>
 /** The mark before „Google Health“: `signedIn`, `signedOut` or `failed`. */
 export const statusMark = async () =>
   (await statusLine()).querySelector("[data-mark]")?.getAttribute("data-mark");
-export const logoutButton = () =>
-  screen.findByRole("button", { name: "Abmelden" });
+
+/** The sheet a tap on the status line of a signed-in page opens. */
+export const statusSheet = () =>
+  screen.queryByRole("dialog", { name: "Google Health" });
+
+/** Opens the sheet of the status line and taps „Abmelden“ in it. */
+export async function logOut(user: UserEvent) {
+  await user.click(await statusLine());
+  await user.click(await screen.findByRole("button", { name: "Abmelden" }));
+}
 
 export const isShown = async (text: string) =>
   expect(await screen.findByText(text)).toBeInTheDocument();

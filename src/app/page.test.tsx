@@ -18,7 +18,7 @@ import {
   isNotShown,
   isShown,
   leavePage,
-  logoutButton,
+  logOut,
   MORNING,
   MORNING_SHOWN,
   NOW,
@@ -138,11 +138,17 @@ describe("opening the page with a cache", () => {
     );
   });
 
-  it("puts „Abmelden“ at the bottom", async () => {
+  it("has no „Abmelden“ of its own, signed in or not", async () => {
     storeMorning();
-    renderPage();
+    const user = renderPage();
+    await isShown(MORNING_SHOWN);
+    hasNoButton("Abmelden");
 
-    expect(await logoutButton()).toBeInTheDocument();
+    await user.click(await signInButton());
+
+    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalled());
+    await statusLine();
+    hasNoButton("Abmelden");
   });
 });
 
@@ -234,23 +240,29 @@ describe("a failed fetch", () => {
 
 describe("„Abmelden“", () => {
   it("clears the cache even where the access cannot be revoked, and says so", async () => {
-    storeMorning();
-    vi.mocked(signIn).mockResolvedValueOnce(failure({ kind: "signInFailed" }));
-    await openAndClick(logoutButton);
-
-    await isShown(
-      "Widerruf fehlgeschlagen: Die Anmeldung bei Google wurde abgebrochen.",
+    google.measurements = [MORNING];
+    const user = await openAndClick(signInButton);
+    await isShown(MORNING_SHOWN);
+    vi.mocked(revokeAccess).mockResolvedValueOnce(
+      failure({ kind: "unreachable" }),
     );
+
+    await logOut(user);
+
+    await isShown("Widerruf fehlgeschlagen: Google antwortet nicht.");
     expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
   });
 
   it("says so where Google does not revoke, and where to remove the access", async () => {
-    storeMorning();
+    google.measurements = [MORNING];
+    const user = await openAndClick(signInButton);
+    await isShown(MORNING_SHOWN);
     vi.mocked(revokeAccess).mockResolvedValueOnce(
       failure({ kind: "revokeFailed" }),
     );
-    await openAndClick(logoutButton);
+
+    await logOut(user);
 
     await isShown(
       "Widerruf fehlgeschlagen: Google hat den Zugriff nicht widerrufen.",

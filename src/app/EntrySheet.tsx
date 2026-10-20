@@ -1,9 +1,10 @@
-import { ActionIcon, Button, Drawer, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Button, Text, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { parseEnteredKg } from "@/measurement/entered-measurement";
 import type { GoogleHealthResult } from "@/measurement/google-health";
 import classes from "./EntrySheet.module.css";
 import { failureReason } from "./failure-reason";
+import { Sheet } from "./Sheet";
 import type { SurfaceColours } from "./Verdict";
 
 /** Enters a weight in kg; the sheet calls it straight from the tap. */
@@ -57,24 +58,11 @@ export function EntrySheet({
         <Plus />
       </ActionIcon>
       {onEnter !== null && (
-        <Drawer
+        <Sheet
+          title="Gewicht eintragen"
           opened={opened}
-          // The X, Escape and a tap beside the sheet all close it through here.
           onClose={() => {
             if (!saving) setOpened(false);
-          }}
-          position="bottom"
-          // Only as tall as its content. Mantine's `size="auto"` would name a
-          // variable `--drawer-size-auto` that Mantine never defines.
-          vars={() => ({ root: { "--drawer-size": "auto" } })}
-          overlayProps={{ color: "#20262c", backgroundOpacity: 0.35 }}
-          title="Gewicht eintragen"
-          closeButtonProps={{ "aria-label": "Schließen" }}
-          classNames={{
-            content: classes.sheet,
-            header: classes.part,
-            title: classes.title,
-            body: classes.part,
           }}
         >
           <EntryForm
@@ -82,7 +70,7 @@ export function EntrySheet({
             saving={saving}
             onSave={(kg) => save(kg, onEnter)}
           />
-        </Drawer>
+        </Sheet>
       )}
     </>
   );

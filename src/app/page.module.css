@@ -59,11 +59,6 @@
   flex-direction: column;
 }
 
-.logout:focus-visible {
-  outline: 3px solid currentColor;
-  outline-offset: 3px;
-}
-
 /* The space the graph will take, held before it has measured its width:
    WeightGraph.tsx draws 190 px tall below 600 px wide and 380 px from
    there. 40em is a 640 px screen, whose padding leaves the graph 600 px. */
@@ -76,16 +71,6 @@
   .graph {
     min-height: 380px;
   }
-}
-
-.logout {
-  margin-top: auto;
-  align-self: flex-start;
-  min-height: 44px;
-  color: inherit;
-  font-size: 14px;
-  text-decoration: underline;
-  opacity: 0.8;
 }
 
 /* The wide screen: the verdict on the left, the four figures beside it,

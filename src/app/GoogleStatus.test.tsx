@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { MantineProvider } from "@mantine/core";
 import { render, screen, waitFor } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import {
@@ -23,23 +24,28 @@ import {
   isNotShown,
   isShown,
   leavePage,
+  logOut,
   MORNING,
   MORNING_SHOWN,
   NOT_YET_FETCHED,
   NOW,
   openAndClick,
+  passTime,
   refreshButton,
   renderPage,
+  runTimersFrom,
   signInButton,
   standInForGoogle,
   statusDetail,
   statusLine,
   statusMark,
+  statusSheet,
   storeLoss,
   storeMorning,
   TOKEN_LIFETIME_S,
 } from "@/test/open-page";
 import { GoogleStatus } from "./GoogleStatus";
+import sheetClasses from "./Sheet.module.css";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -307,13 +313,14 @@ describe("a tap", () => {
     expect(google.tokensIssued).toBe(2);
   });
 
-  it("on the status line of a page that is signed in does nothing", async () => {
+  it("on the status line of a page that is signed in opens its sheet, without fetching", async () => {
     const user = await signInAndFetch();
 
     await user.click(await statusLine());
 
+    await waitFor(() => expect(statusSheet()).toBeInTheDocument());
     expect(fetchMeasurements).toHaveBeenCalledTimes(1);
-    expect(await statusDetail()).toBe("abgerufen 10:00 Uhr");
+    expect(google.tokensIssued).toBe(1);
   });
 
   it("on the status line of a page that is not signed in does nothing while something runs", async () => {
@@ -325,6 +332,159 @@ describe("a tap", () => {
     await user.click(await statusLine());
 
     expect(signIn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the sheet of the status line", () => {
+  /** The text of the sheet, spaces that do not break as spaces. */
+  const sheetText = () => statusSheet()?.textContent?.replaceAll("\u00a0", " ");
+
+  it("says until when the page is signed in and when it fetched, and offers „Abmelden“", async () => {
+    const user = await signInAndFetch();
+
+    await user.click(await statusLine());
+
+    const sheet = await screen.findByRole("dialog", { name: "Google Health" });
+    expect(sheet).toHaveTextContent("Angemeldet bis 10:59 Uhr");
+    expect(sheet).toHaveTextContent("Abgerufen 10:00 Uhr");
+    isNotShown(/nur Lesen/);
+    expect(
+      await screen.findByRole("button", { name: "Abmelden" }),
+    ).toBeInTheDocument();
+  });
+
+  it("is the light sheet of „Gewicht eintragen“, its content as wide as the page's at most", async () => {
+    const user = await signInAndFetch();
+
+    await user.click(await statusLine());
+
+    const sheet = await screen.findByRole("dialog", { name: "Google Health" });
+    expect(sheet).toHaveClass(sheetClasses.sheet);
+    expect(
+      screen.getByRole("heading", { name: "Google Health" }).parentElement,
+    ).toHaveClass(sheetClasses.part);
+    expect(
+      screen.getByRole("button", { name: "Abmelden" }).parentElement,
+    ).toHaveClass(sheetClasses.part);
+  });
+
+  it("says „, nur Lesen“ where the sign-in does not allow entering", async () => {
+    vi.mocked(signIn).mockResolvedValueOnce({
+      ok: true,
+      value: { token: "read", expiresInSeconds: 3599, writeGranted: false },
+    });
+    google.grants = ["read"];
+    const user = await signInAndFetch();
+
+    await user.click(await statusLine());
+
+    await waitFor(() =>
+      expect(sheetText()).toContain("Angemeldet bis 10:59 Uhr, nur Lesen"),
+    );
+  });
+
+  it("says the day of the fetch where it was before the day the page judges on", async () => {
+    storeMorning();
+    const answer = holdFetch();
+    const user = await openAndClick(signInButton);
+    answer.resolve(failure({ kind: "unreachable" }));
+    await detailIs("Abruf fehlgeschlagen: Google antwortet nicht.");
+
+    await user.click(await statusLine());
+
+    await waitFor(() =>
+      expect(sheetText()).toContain("Abgerufen 16.10. um 10:00 Uhr"),
+    );
+  });
+
+  it("says „Noch nicht abgerufen“ before the first fetch, and opens while one runs", async () => {
+    holdFetch();
+    const user = await openAndClick(signInButton);
+    await detailIs("ruft ab …");
+
+    await user.click(await statusLine());
+
+    await waitFor(() => expect(sheetText()).toContain("Noch nicht abgerufen"));
+  });
+
+  it("opens after a failed fetch too", async () => {
+    const user = await signInAndFetch();
+    vi.mocked(fetchMeasurements).mockResolvedValueOnce(
+      failure({ kind: "unreachable" }),
+    );
+    await user.click(await refreshButton());
+    await detailIs("Abruf fehlgeschlagen: Google antwortet nicht.");
+
+    await user.click(await statusLine());
+
+    await waitFor(() => expect(statusSheet()).toBeInTheDocument());
+    expect(fetchMeasurements).toHaveBeenCalledTimes(2);
+  });
+
+  it.each<[string, (user: UserEvent) => Promise<void>]>([
+    [
+      "the X",
+      (user) => user.click(screen.getByRole("button", { name: "Schließen" })),
+    ],
+    ["Escape", (user) => user.keyboard("{Escape}")],
+  ])("closes on %s", async (_, close) => {
+    const user = await signInAndFetch();
+    await user.click(await statusLine());
+    await screen.findByRole("dialog", { name: "Google Health" });
+
+    await close(user);
+
+    await waitFor(() => expect(statusSheet()).not.toBeInTheDocument());
+  });
+
+  it("closes on a tap beside it", async () => {
+    const user = await signInAndFetch();
+    await user.click(await statusLine());
+    await screen.findByRole("dialog", { name: "Google Health" });
+
+    // Mantine's overlay beside the sheet takes the tap.
+    const overlay = document.querySelector(".mantine-Drawer-overlay");
+    expect(overlay).not.toBeNull();
+    // Safe: checked just above.
+    await user.click(overlay as Element);
+
+    await waitFor(() => expect(statusSheet()).not.toBeInTheDocument());
+  });
+
+  it("closes by itself as the sign-in expires", async () => {
+    runTimersFrom(NOW);
+    const user = await signInAndFetch();
+    await user.click(await statusLine());
+    await screen.findByRole("dialog", { name: "Google Health" });
+
+    await passTime(TOKEN_LIFETIME_S * 1000);
+
+    await waitFor(() => expect(statusSheet()).not.toBeInTheDocument());
+    expect(await statusMark()).toBe("signedOut");
+  });
+
+  it("„Abmelden“ asks nothing, shows the first visit and says „nicht angemeldet“", async () => {
+    const user = await signInAndFetch();
+
+    await logOut(user);
+
+    await isShown(FIRST_VISIT);
+    await isShown(HINT);
+    await detailIs("nicht angemeldet");
+    expect(await statusMark()).toBe("signedOut");
+    await waitFor(() => expect(statusSheet()).not.toBeInTheDocument());
+    expect(google.grants).toEqual([]);
+  });
+
+  it("does not open again by itself on the next sign-in after „Abmelden“", async () => {
+    const user = await signInAndFetch();
+    await logOut(user);
+    await detailIs("nicht angemeldet");
+
+    await user.click(await signInButton());
+
+    await isShown(MORNING_SHOWN);
+    expect(statusSheet()).not.toBeInTheDocument();
   });
 });
 

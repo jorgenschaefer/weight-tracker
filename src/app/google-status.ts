@@ -2,6 +2,7 @@ import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
 import type { GoogleHealthError } from "@/measurement/google-health";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
+import type { HeldToken } from "./held-token";
 
 /** What the page knows of its sign-in at Google and of what is running. */
 export interface GoogleState {
@@ -39,6 +40,21 @@ export interface StatusLine {
 export function statusLine(state: GoogleState, today: CalendarDay): StatusLine {
   const busy = state.signingIn || state.savingKg !== null || state.fetching;
   return { ...markAndDetail(state, today), busy };
+}
+
+/**
+ * Until when the page is signed in, in the sheet of the status line, with
+ * „, nur Lesen“ where the sign-in does not allow entering.
+ */
+export function signedInUntil(signIn: Omit<HeldToken, "token">): string {
+  const readOnly = signIn.writeGranted ? "" : ", nur Lesen";
+  return `Angemeldet bis ${clock(signIn.expiresAt)}${readOnly}`;
+}
+
+/** When the last fetch was, in the sheet of the status line. */
+export function lastFetch(fetchedAt: Date | null, today: CalendarDay): string {
+  const said = fetched(fetchedAt, today);
+  return said.charAt(0).toUpperCase() + said.slice(1);
 }
 
 /** The mark and the second line of {@link statusLine}. */

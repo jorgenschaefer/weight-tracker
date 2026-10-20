@@ -11,6 +11,7 @@ import type {
 import { deferred } from "@/test/open-page";
 import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import classes from "./EntrySheet.module.css";
+import sheetClasses from "./Sheet.module.css";
 import { NEUTRAL, type SurfaceColours } from "./Verdict";
 
 type Saved = GoogleHealthResult<null>;
@@ -325,20 +326,21 @@ describe("the colours of the sheet", () => {
   });
 });
 
-describe("the sheet on a wide screen", () => {
-  it("keeps its content as wide as the page's at most, 960 px, in the middle", async () => {
+describe("the sheet's look", () => {
+  it("is the light sheet, its content as wide as the page's at most", async () => {
     await openSheet();
 
-    for (const part of [
+    expect(sheet()).toHaveClass(sheetClasses.sheet);
+    expect(
       screen.getByRole("heading", { name: "Gewicht eintragen" }).parentElement,
-      field().closest("form")?.parentElement,
-    ]) {
-      expect(part).toHaveClass(classes.part);
-    }
-    expect(cssRule("part")).toMatch(/max-width:\s*960px/);
-    expect(cssRule("part")).toMatch(/margin-inline:\s*auto/);
+    ).toHaveClass(sheetClasses.part);
+    expect(field().closest("form")?.parentElement).toHaveClass(
+      sheetClasses.part,
+    );
   });
+});
 
+describe("the stylesheet", () => {
   it("sets nothing wider than a 360 px screen, but the content's width", () => {
     const lengths = [
       ...stylesheet.replaceAll("960px", "").matchAll(/(\d+(?:\.\d+)?)px/g),

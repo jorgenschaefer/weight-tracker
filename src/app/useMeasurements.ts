@@ -41,8 +41,11 @@ export interface Measurements {
   /** The weight being entered while Google has not taken it; `null` if none. */
   savingKg: number | null;
   fetching: boolean;
-  /** Whether this visit holds an access token; without one a fetch signs in. */
-  signedIn: boolean;
+  /**
+   * Until when the sign-in this visit holds lasts and whether it may enter
+   * measurements; `null` where it holds none, and a fetch signs in.
+   */
+  signIn: Omit<HeldToken, "token"> | null;
   /**
    * Why the last fetch or its sign-in failed, until the next fetch or
    * sign-in begins.
@@ -93,10 +96,6 @@ export function useMeasurements(): Measurements | null {
   // overwriting the later one's result.
   const fetchesStarted = useRef(0);
 
-  // When the last fetch started, so coming back into view soon after it does
-  // not fetch again.
-  const lastFetchStarted = useRef<number | null>(null);
-
   const loadOnOpen = useEffectEvent(() => {
     loadGoogleSignIn();
     const cached = loadCache();
@@ -110,27 +109,28 @@ export function useMeasurements(): Measurements | null {
   });
   useEffect(() => loadOnOpen(), []);
 
-  // While this visit holds a token, the page fetches by itself when it comes
-  // back into view: a tab left open gets a weighing of the last hour without
-  // a click. Once the token has expired it drops it instead, and the status
-  // line says the page is not signed in. Subscribed anew on each render, so
-  // it sees the current state.
+  // The page drops the token it holds as the token expires, without a tap,
+  // and the status line says the page is not signed in. A timeout may not
+  // have run while the device slept, so coming back into view drops an
+  // expired one too.
+  const dropOnExpiry = useEffectEvent((expiring: HeldToken) =>
+    dropToken(expiring),
+  );
   useEffect(() => {
-    if (token === null || cache === undefined) return;
-    const fetchOnReturn = () => {
-      if (document.visibilityState !== "visible" || fetching) return;
-      if (hasExpired(token, new Date())) {
-        dropToken(token);
-        return;
-      }
-      const since = Date.now() - (lastFetchStarted.current ?? 0);
-      if (since < REFETCH_AFTER_MS) return;
-      void fetchData(cache, token);
+    if (token === null) return;
+    const expire = setTimeout(
+      () => dropOnExpiry(token),
+      token.expiresAt.getTime() - Date.now(),
+    );
+    const dropIfExpired = () => {
+      if (hasExpired(token, new Date())) dropOnExpiry(token);
     };
-    document.addEventListener("visibilitychange", fetchOnReturn);
-    return () =>
-      document.removeEventListener("visibilitychange", fetchOnReturn);
-  });
+    document.addEventListener("visibilitychange", dropIfExpired);
+    return () => {
+      clearTimeout(expire);
+      document.removeEventListener("visibilitychange", dropIfExpired);
+    };
+  }, [token]);
 
   const enteredMeasurements = entered.measurements;
   if (cache === undefined || enteredMeasurements === null) return null;
@@ -139,7 +139,6 @@ export function useMeasurements(): Measurements | null {
     cached: MeasurementCache | null,
     heldToken: HeldToken | null,
   ) {
-    lastFetchStarted.current = Date.now();
     const started = logOuts.current;
     const thisFetch = ++fetchesStarted.current;
     const isCurrent = () =>
@@ -187,23 +186,23 @@ export function useMeasurements(): Measurements | null {
     if (!holdsOne) setFetchFailure(null);
     const access = holdsOne ? signedInWith(token) : await signInWithPopup();
     if (!access.ok) return access;
-    if (!access.value.writeGranted) {
-      return { ok: false, error: { kind: "writeNotGranted" } };
+    let saved: GoogleHealthResult<null> = {
+      ok: false,
+      error: { kind: "writeNotGranted" },
+    };
+    if (access.value.writeGranted) {
+      setSavingKg(kg);
+      saved = await enterMeasurement(access.value.token, measurement);
+      setSavingKg(null);
     }
-
-    setSavingKg(kg);
-    const saved = await enterMeasurement(access.value.token, measurement);
-    setSavingKg(null);
-    if (!saved.ok) {
-      if (saved.error.kind === "tokenRejected") dropToken(access.value);
+    if (!saved.ok && saved.error.kind === "tokenRejected") {
+      dropToken(access.value);
       return saved;
     }
-    entered.add(measurement);
-    // The fetch holds the sign-in from here on. One whose save failed is not
-    // held: it has fetched nothing, and holding it would take „Daten abrufen“
-    // away.
+    if (saved.ok) entered.add(measurement);
+    // A sign-in of its own is kept, and fetches, even where saving failed.
     if (!holdsOne) saveToken(access.value);
-    void fetchData(cached, access.value);
+    if (saved.ok || !holdsOne) void fetchData(cached, access.value);
     return saved;
   }
 
@@ -245,7 +244,10 @@ export function useMeasurements(): Measurements | null {
     signingIn: signInsOpen > 0,
     savingKg,
     fetching,
-    signedIn: token !== null,
+    signIn:
+      token === null
+        ? null
+        : { expiresAt: token.expiresAt, writeGranted: token.writeGranted },
     fetchFailure,
     revokeFailure,
     // An expired token cannot fetch; a new sign-in gets one that can.
@@ -266,8 +268,6 @@ export function useMeasurements(): Measurements | null {
     },
   };
 }
-
-const REFETCH_AFTER_MS = 5 * 60_000;
 
 /** `token` where Google still accepts it at `now`, otherwise `null`. */
 function unexpired(token: HeldToken | null, now: Date): HeldToken | null {
