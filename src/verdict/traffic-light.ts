@@ -44,9 +44,9 @@ function normalCdf(x: number): number {
   return 0.5 * (1 + erf(x / Math.SQRT2));
 }
 
-// JavaScript has no erf: this is CPython's `math.erf` as it was written in C,
-// a series near 0 and a continued fraction for erfc further out, both precise
-// to about 1e-15, so the Ampel agrees with `kalman.py` to that.
+// JavaScript has no erf: this is the series near 0 and the continued fraction
+// for erfc further out from CPython's C source. On -6 to 6 it differs from
+// Python's `math.erf`, which `kalman.py` uses, by at most about 4e-16.
 const ERF_SERIES_CUTOFF = 1.5;
 const ERF_SERIES_TERMS = 25;
 const ERFC_CONTFRAC_CUTOFF = 30;

@@ -364,12 +364,25 @@ describe("the layout", () => {
     readFileSync(join(import.meta.dirname, file), "utf8"),
   );
 
-  it("dims the headline of a verdict marked provisional", () => {
-    const provisional = /\.verdict\[aria-busy="true"\] h1\s*\{([^}]*)\}/.exec(
-      stylesheets[0],
-    )?.[1];
+  it("dims what stands under the busy line of a verdict marked provisional: the line above the Satz and the Satz, or the headline", () => {
+    expect(stylesheets[0]).toMatch(
+      /\.verdict\[aria-busy="true"\] \.busy ~ \*\s*\{[^}]*opacity:\s*0\.45/,
+    );
+  });
 
-    expect(provisional).toMatch(/opacity:\s*0\.45/);
+  it("puts the line above the Satz and the Satz under the busy line while a fetch runs", async () => {
+    storeLoss();
+    holdFetch();
+    await openAndClick(fetchButton);
+
+    const busy = await screen.findByText("Vorläufig, wird aktualisiert …");
+    const line = screen.getByText(/% sicher, dass du/);
+    for (const provisional of [line, verdict()]) {
+      expect(provisional.parentElement).toBe(busy.parentElement);
+      expect(busy.compareDocumentPosition(provisional)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }
   });
 
   it("leaves room below the page for the button to enter a weight, 20 px over it, so it covers nothing scrolled to the bottom", () => {

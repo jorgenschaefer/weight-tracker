@@ -50,9 +50,10 @@
   flex-direction: column;
 }
 
-/* Provisional while a fetch runs: the headline, the Satz zum Morgen where
-   there is a verdict, dimmed under the busy line. */
-.verdict[aria-busy="true"] h1 {
+/* Provisional while a fetch runs: what stands under the busy line - the line
+   above the Satz zum Morgen and the Satz where there is a verdict, otherwise
+   the headline - dimmed. The busy line itself stays clear. */
+.verdict[aria-busy="true"] .busy ~ * {
   opacity: 0.45;
 }
 
