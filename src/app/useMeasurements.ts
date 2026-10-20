@@ -30,22 +30,26 @@ import {
 } from "./held-token";
 import { useEnteredMeasurements } from "./useEnteredMeasurements";
 
-/** What went wrong on the page, and in doing what. */
-export interface Problem {
-  action: "fetch" | "revoke";
-  error: GoogleHealthError;
-}
-
 /** The measurements on the page and what the person can do with them. */
 export interface Measurements {
   /** The cached measurements; `null` before the first fetch. */
   cache: MeasurementCache | null;
   /** The measurements entered that Google Health has not returned yet. */
   enteredMeasurements: Measurement[];
+  /** Whether a sign-in popup is open. */
+  signingIn: boolean;
+  /** The weight being entered while Google has not taken it; `null` if none. */
+  savingKg: number | null;
   fetching: boolean;
   /** Whether this visit holds an access token; without one a fetch signs in. */
   signedIn: boolean;
-  problem: Problem | null;
+  /**
+   * Why the last fetch or its sign-in failed, until the next fetch or
+   * sign-in begins.
+   */
+  fetchFailure: GoogleHealthError | null;
+  /** Why revoking the page's access on „Abmelden“ failed. */
+  revokeFailure: GoogleHealthError | null;
   /** Signs in where needed and fetches. Call it straight from the click. */
   fetchData(): void;
   /**
@@ -72,8 +76,15 @@ export function useMeasurements(): Measurements | null {
   const [cache, setCache] = useState<MeasurementCache | null | undefined>();
   const entered = useEnteredMeasurements();
   const [token, setToken] = useState<HeldToken | null>(null);
+  const [signInsOpen, setSignInsOpen] = useState(0);
+  const [savingKg, setSavingKg] = useState<number | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [fetchFailure, setFetchFailure] = useState<GoogleHealthError | null>(
+    null,
+  );
+  const [revokeFailure, setRevokeFailure] = useState<GoogleHealthError | null>(
+    null,
+  );
   // Counts the log-outs, so a fetch that outlives one is dropped rather than
   // filling the cache it just cleared.
   const logOuts = useRef(0);
@@ -101,8 +112,9 @@ export function useMeasurements(): Measurements | null {
 
   // While this visit holds a token, the page fetches by itself when it comes
   // back into view: a tab left open gets a weighing of the last hour without
-  // a click. Once the token has expired it drops it instead, and the button
-  // shows. Subscribed anew on each render, so it sees the current state.
+  // a click. Once the token has expired it drops it instead, and the status
+  // line says the page is not signed in. Subscribed anew on each render, so
+  // it sees the current state.
   useEffect(() => {
     if (token === null || cache === undefined) return;
     const fetchOnReturn = () => {
@@ -133,18 +145,16 @@ export function useMeasurements(): Measurements | null {
     const isCurrent = () =>
       logOuts.current === started && fetchesStarted.current === thisFetch;
     setFetching(true);
-    setProblem(null);
+    setFetchFailure(null);
 
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
     const access =
-      heldToken === null
-        ? held(await signIn(), new Date())
-        : signedInWith(heldToken);
+      heldToken === null ? await signInWithPopup() : signedInWith(heldToken);
     if (!isCurrent()) return;
     if (!access.ok) {
       setFetching(false);
-      setProblem({ action: "fetch", error: access.error });
+      setFetchFailure(access.error);
       return;
     }
     if (heldToken === null) saveToken(access.value);
@@ -156,7 +166,7 @@ export function useMeasurements(): Measurements | null {
     setFetching(false);
     if (!fetched.ok) {
       if (fetched.error.kind === "tokenRejected") dropToken(access.value);
-      setProblem({ action: "fetch", error: fetched.error });
+      setFetchFailure(fetched.error);
       return;
     }
     const replaced = replaceFetchedPeriod(cached, period, fetched.value);
@@ -173,15 +183,17 @@ export function useMeasurements(): Measurements | null {
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
     const holdsOne = maySave(token, new Date());
-    const access = holdsOne
-      ? signedInWith(token)
-      : held(await signIn(), new Date());
+    // A sign-in beginning ends what a failed fetch says, as a fetch does.
+    if (!holdsOne) setFetchFailure(null);
+    const access = holdsOne ? signedInWith(token) : await signInWithPopup();
     if (!access.ok) return access;
     if (!access.value.writeGranted) {
       return { ok: false, error: { kind: "writeNotGranted" } };
     }
 
+    setSavingKg(kg);
     const saved = await enterMeasurement(access.value.token, measurement);
+    setSavingKg(null);
     if (!saved.ok) {
       if (saved.error.kind === "tokenRejected") dropToken(access.value);
       return saved;
@@ -193,6 +205,18 @@ export function useMeasurements(): Measurements | null {
     if (!holdsOne) saveToken(access.value);
     void fetchData(cached, access.value);
     return saved;
+  }
+
+  /**
+   * Signs in with Google's popup, which counts as open until Google answers.
+   * Call it before the first await of a click, so the popup still counts as
+   * opened by it.
+   */
+  async function signInWithPopup(): Promise<GoogleHealthResult<HeldToken>> {
+    setSignInsOpen((open) => open + 1);
+    const signedIn = await signIn();
+    setSignInsOpen((open) => open - 1);
+    return held(signedIn, new Date());
   }
 
   /**
@@ -208,22 +232,24 @@ export function useMeasurements(): Measurements | null {
   async function revoke(heldToken: HeldToken | null) {
     const started = logOuts.current;
     const access =
-      heldToken === null
-        ? held(await signIn(), new Date())
-        : signedInWith(heldToken);
+      heldToken === null ? await signInWithPopup() : signedInWith(heldToken);
     const revoked = access.ok ? await revokeAccess(access.value.token) : access;
     if (!revoked.ok && logOuts.current === started) {
-      setProblem({ action: "revoke", error: revoked.error });
+      setRevokeFailure(revoked.error);
     }
   }
 
   return {
     cache,
     enteredMeasurements,
+    signingIn: signInsOpen > 0,
+    savingKg,
     fetching,
     signedIn: token !== null,
-    problem,
-    fetchData: () => void fetchData(cache, token),
+    fetchFailure,
+    revokeFailure,
+    // An expired token cannot fetch; a new sign-in gets one that can.
+    fetchData: () => void fetchData(cache, unexpired(token, new Date())),
     enter: (kg) => enter(kg, cache),
     logOut: () => {
       logOuts.current += 1;
@@ -233,16 +259,20 @@ export function useMeasurements(): Measurements | null {
       removeToken();
       setToken(null);
       setFetching(false);
-      setProblem(null);
+      setFetchFailure(null);
+      setRevokeFailure(null);
       // An expired token cannot revoke; a new sign-in gets one that can.
-      void revoke(
-        token !== null && !hasExpired(token, new Date()) ? token : null,
-      );
+      void revoke(unexpired(token, new Date()));
     },
   };
 }
 
 const REFETCH_AFTER_MS = 5 * 60_000;
+
+/** `token` where Google still accepts it at `now`, otherwise `null`. */
+function unexpired(token: HeldToken | null, now: Date): HeldToken | null {
+  return token !== null && !hasExpired(token, now) ? token : null;
+}
 
 /** The sign-in this visit already holds, as a sign-in would yield it. */
 function signedInWith(token: HeldToken): GoogleHealthResult<HeldToken> {

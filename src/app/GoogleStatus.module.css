@@ -1,0 +1,115 @@
+/* The status line and ⟳ beside it, at the top of the page, on a light veil
+   over the surface in its text colour. */
+.status {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.line {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 35%);
+  color: inherit;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Signed in. */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Not signed in. */
+.circle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+/* „Google Health“ over the second line, which wraps between words only:
+   the time and „Uhr“ are joined by a space that does not break
+   (google-status.ts). */
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 0;
+}
+
+.detail {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* „Abruf fehlgeschlagen: …“ is neither faded nor light. */
+.line[data-failed] .detail {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.chevron {
+  flex-shrink: 0;
+}
+
+.refresh {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 35%);
+  color: inherit;
+}
+
+/* Turning while a sign-in, a fetch or an entry runs. */
+.refresh[data-busy] svg {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.line:focus-visible,
+.refresh:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* The wide screen of page.module.css: at the right, as wide as the column
+   of the four figures there and right above it. */
+@media (min-width: 65em) {
+  .status {
+    width: 420px;
+    margin-left: auto;
+  }
+}

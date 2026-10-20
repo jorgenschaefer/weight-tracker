@@ -1,23 +1,21 @@
 "use client";
 
-import { Anchor, Button, Text, UnstyledButton } from "@mantine/core";
+import { Anchor, Text, UnstyledButton } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
+import type { GoogleHealthError } from "@/measurement/google-health";
 import {
   countingMeasurements,
   latestMeasurement,
   type Measurement,
 } from "@/measurement/measurement";
 import { type Assessment, assess } from "@/verdict/assessment";
-import { type EnterWeight, EntrySheet } from "./EntrySheet";
+import { EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
+import { GoogleStatus } from "./GoogleStatus";
 import classes from "./page.module.css";
-import {
-  type Measurements,
-  type Problem,
-  useMeasurements,
-} from "./useMeasurements";
+import { type Measurements, useMeasurements } from "./useMeasurements";
 import {
   Figures,
   NEUTRAL,
@@ -31,12 +29,12 @@ export default function Page() {
   const measurements = useMeasurements();
   const today = useToday();
   if (measurements === null) {
-    return <Surface colours={NEUTRAL} onEnter={null} />;
+    return <Surface colours={NEUTRAL} measurements={null} today={today} />;
   }
   const { cache, enteredMeasurements } = measurements;
   if (cache === null && enteredMeasurements.length === 0) {
     return (
-      <Surface colours={NEUTRAL} onEnter={measurements.enter}>
+      <Surface colours={NEUTRAL} measurements={measurements} today={today}>
         <FirstVisit measurements={measurements} />
       </Surface>
     );
@@ -45,12 +43,11 @@ export default function Page() {
   const assessment = assess(countingMeasurements(shown), today);
   const colours = surfaceColours(assessment.status);
   return (
-    <Surface colours={colours} onEnter={measurements.enter}>
+    <Surface colours={colours} measurements={measurements} today={today}>
       <CachedMeasurements
         shown={shown}
         assessment={assessment}
         today={today}
-        colours={colours}
         measurements={measurements}
       />
     </Surface>
@@ -72,19 +69,22 @@ function useToday(): CalendarDay {
 }
 
 /**
- * The colour field: the whole screen, its content in the middle, and the
- * button to enter a weight in every state of the page. The browser around the
- * page, Android's status bar and address bar, takes its colour. `onEnter` is
- * `null` for the moment before the page has read its cache, in which the
- * button opens nothing.
+ * The colour field: the whole screen, its content in the middle under the
+ * status line, and the button to enter a weight, in every state of the page.
+ * The browser around the page, Android's status bar and address bar, takes
+ * its colour. `measurements` is `null` for the moment before the page has
+ * read its cache, in which neither the status line nor the button does
+ * anything.
  */
 function Surface({
   colours,
-  onEnter,
+  measurements,
+  today,
   children,
 }: {
   colours: SurfaceColours;
-  onEnter: EnterWeight | null;
+  measurements: Measurements | null;
+  today: CalendarDay;
   children?: React.ReactNode;
 }) {
   return (
@@ -94,13 +94,22 @@ function Surface({
     >
       {/* React moves it into <head> and keeps it there in step. */}
       <meta name="theme-color" content={colours.surface} />
-      <div className={classes.content}>{children}</div>
-      <EntrySheet colours={colours} onEnter={onEnter} />
+      <div className={classes.content}>
+        <GoogleStatus measurements={measurements} today={today} />
+        {children}
+      </div>
+      <EntrySheet
+        colours={colours}
+        onEnter={measurements === null ? null : measurements.enter}
+      />
     </main>
   );
 }
 
-/** The page before the first fetch: one sentence and the button. */
+/**
+ * The page before the first fetch: what it does, and where to sign in. A
+ * failed „Abmelden“ ends here.
+ */
 function FirstVisit({ measurements }: { measurements: Measurements }) {
   return (
     <>
@@ -108,12 +117,10 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
         Diese Seite liest deine Gewichtsmessungen aus Google Health, trägt neue
         ein und zeigt dir, ob du noch abnimmst.
       </Text>
-      {measurements.fetching ? (
-        <Text className={classes.busy}>Wird aktualisiert …</Text>
-      ) : (
-        <FetchButton measurements={measurements} colours={NEUTRAL} />
-      )}
-      <ProblemLine problem={measurements.problem} />
+      <Text className={classes.hint}>
+        Tippe oben auf die Zeile, um dich bei Google anzumelden.
+      </Text>
+      <RevokeFailure error={measurements.revokeFailure} />
     </>
   );
 }
@@ -127,13 +134,11 @@ function CachedMeasurements({
   shown,
   assessment,
   today,
-  colours,
   measurements,
 }: {
   shown: Measurement[];
   assessment: Assessment;
   today: CalendarDay;
-  colours: SurfaceColours;
   measurements: Measurements;
 }) {
   return (
@@ -142,14 +147,10 @@ function CachedMeasurements({
         shown={shown}
         enteredMeasurements={measurements.enteredMeasurements}
       />
-      <ProblemLine problem={measurements.problem} />
+      <RevokeFailure error={measurements.revokeFailure} />
       <div className={classes.summary}>
-        <section className={classes.verdict} aria-busy={measurements.fetching}>
-          {measurements.fetching && (
-            <Text className={classes.busy}>Vorläufig, wird aktualisiert …</Text>
-          )}
+        <section className={classes.verdict}>
           <Verdict status={assessment.status} />
-          <FetchButton measurements={measurements} colours={colours} />
         </section>
         <Figures assessment={assessment} />
       </div>
@@ -192,48 +193,15 @@ function LatestMeasurement({
   );
 }
 
-/** „Daten abrufen“, where a fetch needs sign-in and none is running. */
-function FetchButton({
-  measurements,
-  colours,
-}: {
-  measurements: Measurements;
-  colours: SurfaceColours;
-}) {
-  if (measurements.fetching || measurements.signedIn) return null;
-  return (
-    <Button
-      className={classes.fetch}
-      // Mantine sets the colours on the element itself, past the class. The
-      // button is the surface turned around: its text colour, its background.
-      vars={() => ({
-        root: {
-          "--button-bg": colours.ink,
-          "--button-hover": colours.ink,
-          "--button-color": colours.surface,
-        },
-      })}
-      onClick={measurements.fetchData}
-    >
-      Daten abrufen
-    </Button>
-  );
-}
-
-function ProblemLine({ problem }: { problem: Problem | null }) {
-  if (problem === null) return null;
-  if (problem.action === "fetch") {
-    return (
-      <Text className={classes.problem} role="alert">
-        {`Abruf fehlgeschlagen: ${failureReason(problem.error)}`}
-      </Text>
-    );
-  }
+/**
+ * Why revoking the page's access failed, and where to remove it instead;
+ * nothing where it did not fail.
+ */
+function RevokeFailure({ error }: { error: GoogleHealthError | null }) {
+  if (error === null) return null;
   return (
     <div className={classes.problem} role="alert">
-      <Text
-        inherit
-      >{`Widerruf fehlgeschlagen: ${failureReason(problem.error)}`}</Text>
+      <Text inherit>{`Widerruf fehlgeschlagen: ${failureReason(error)}`}</Text>
       <Text inherit>
         Die Seite darf deine Gewichtsmessungen weiter lesen und eintragen. Den
         Zugriff entfernst du in{" "}

@@ -41,7 +41,7 @@ export function EntrySheet({
         className={classes.enter}
         aria-label="Gewicht eintragen"
         // Mantine sets the size and colours on the element itself, past the
-        // class. The button is the surface turned around, as „Daten abrufen“.
+        // class. The button is the surface turned around.
         // page.module.css leaves room below the page for its 60 px.
         vars={() => ({
           root: {

@@ -13,10 +13,8 @@ import {
   daysAgo,
   FIRST_VISIT,
   failure,
-  fetchButton,
   google,
   hasNoButton,
-  holdFetch,
   isNotShown,
   isShown,
   leavePage,
@@ -27,7 +25,9 @@ import {
   openAndClick,
   openHistoryOn,
   renderPage,
+  signInButton,
   standInForGoogle,
+  statusLine,
   steady,
   storeCache,
   storedCache,
@@ -47,41 +47,21 @@ beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
 
 const verdict = () => screen.getByRole("heading", { level: 1 });
-const verdictSection = () => verdict().closest("section");
 /** The Satz zum Morgen of {@link storeLoss}. */
 const LOSS_SENTENCE = "Du nimmst seit Wochen ab.";
 
 describe("the first visit", () => {
-  it("shows only the sentence of explanation and the button", async () => {
+  it("shows only the status line and the sentence of explanation", async () => {
     renderPage();
 
-    expect(await fetchButton()).toBeInTheDocument();
+    expect(await statusLine()).toBeInTheDocument();
     expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
     isNotShown(/Letzte Messung/);
     hasNoButton("Abmelden");
   });
-
-  it("writes the button in the surface's colour, as the design does", async () => {
-    renderPage();
-
-    expect((await fetchButton()).style.getPropertyValue("--button-color")).toBe(
-      "#DDE1E5",
-    );
-  });
 });
 
 describe("opening the page with a cache", () => {
-  it("turns the button to fetch around on the surface, so it stands out on every Ampel", async () => {
-    openHistoryOn("2026-09-12");
-
-    const button = await fetchButton();
-    expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: "#F2C6B8",
-    });
-    expect(button.style.getPropertyValue("--button-bg")).toBe("#5A1A0B");
-    expect(button.style.getPropertyValue("--button-color")).toBe("#F2C6B8");
-  });
-
   it("shows the latest measurement from the cache at once, without Google", async () => {
     storeCache(daysAgo(1), [
       at("2026-10-16T05:10:00Z", 98.3),
@@ -103,11 +83,11 @@ describe("opening the page with a cache", () => {
     await isShown("Letzte Messung 5.8. um 19:30 Uhr: 100,4 kg");
   });
 
-  it("offers the button to fetch, since this visit has no sign-in yet", async () => {
+  it("offers to sign in, since this visit has no sign-in yet", async () => {
     storeMorning();
     renderPage();
 
-    expect(await fetchButton()).toBeInTheDocument();
+    expect(await signInButton()).toBeInTheDocument();
     isNotShown(FIRST_VISIT);
   });
 
@@ -137,13 +117,12 @@ describe("opening the page with a cache", () => {
     expect(verdict()).toHaveTextContent("Letzte Messung vor 4 Tagen");
   });
 
-  it("offers the button at the verdict, which stays, and fetches with one click", async () => {
+  it("keeps the verdict, and signs in and fetches with one tap on ⟳", async () => {
     storeLoss();
     google.measurements = [MORNING];
     const user = renderPage();
 
-    const button = await fetchButton();
-    expect(verdictSection()).toContainElement(button);
+    const button = await signInButton();
     expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
     await user.click(button);
 
@@ -178,57 +157,34 @@ describe("the colour of the browser around the page", () => {
 
   it("is the neutral surface on the first visit", async () => {
     renderPage();
-    await fetchButton();
+    await statusLine();
 
     expect(themeColours()).toEqual(["#DDE1E5"]);
   });
 
   it("is the surface of the verdict from the cache", async () => {
     openHistoryOn("2026-09-12");
-    await fetchButton();
+    await statusLine();
 
     expect(themeColours()).toEqual(["#F2C6B8"]);
   });
 
   it("follows the surface when a fetch changes it, without reloading", async () => {
     google.measurements = steady("2026-10-17", 35, -0.5);
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
     await waitFor(() => expect(themeColours()).toEqual(["#D3EAD0"]));
   });
 });
 
-describe("fetching", () => {
-  it("marks the verdict from the cache provisional while the fetch runs, and not after", async () => {
-    storeLoss();
-    const answer = holdFetch();
-    await openAndClick(fetchButton);
-
-    await isShown("Vorläufig, wird aktualisiert …");
-    expect(verdictSection()).toHaveAttribute("aria-busy", "true");
-    expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
-    hasNoButton("Daten abrufen");
-    answer.resolve({ ok: true, value: [] });
-    await waitFor(() => isNotShown(/wird aktualisiert/i));
-    expect(verdictSection()).toHaveAttribute("aria-busy", "false");
-  });
-
-  it("shows „Wird aktualisiert …“ on the first visit too", async () => {
-    holdFetch();
-    await openAndClick(fetchButton);
-
-    await isShown("Wird aktualisiert …");
-  });
-});
-
 describe("a failed fetch", () => {
-  it("shows a short error next to the latest measurement and keeps the cache", async () => {
+  it("shows a short error in the status line and keeps the cache", async () => {
     const cached = [MORNING];
     storeCache(daysAgo(1), cached);
     vi.mocked(fetchMeasurements).mockResolvedValueOnce(
       failure({ kind: "unreachable" }),
     );
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
     await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
     expect(screen.getByText(MORNING_SHOWN)).toBeInTheDocument();
@@ -236,21 +192,20 @@ describe("a failed fetch", () => {
       fetchedAt: daysAgo(1),
       measurements: cached,
     });
-    isNotShown(/wird aktualisiert/i);
+    expect(await statusLine()).toContainElement(
+      screen.getByText("Abruf fehlgeschlagen: Google antwortet nicht."),
+    );
   });
 
-  it("keeps the verdict from the cache, the error right under „Letzte Messung“", async () => {
+  it("keeps the verdict from the cache", async () => {
     storeLoss();
     vi.mocked(fetchMeasurements).mockResolvedValueOnce(
       failure({ kind: "unreachable" }),
     );
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
-    const error = await screen.findByText(
-      "Abruf fehlgeschlagen: Google antwortet nicht.",
-    );
+    await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
     expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
-    expect(error.previousElementSibling).toHaveTextContent(/^Letzte Messung/);
   });
 
   it("explains a sign-in failing, and offers it again", async () => {
@@ -258,22 +213,22 @@ describe("a failed fetch", () => {
     vi.mocked(signIn).mockResolvedValueOnce(
       failure({ kind: "accessNotGranted" }),
     );
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
     await isShown(
       "Abruf fehlgeschlagen: Der Zugriff auf die Gewichtsmessungen wurde nicht erlaubt.",
     );
-    expect(await fetchButton()).toBeInTheDocument();
+    expect(await signInButton()).toBeInTheDocument();
   });
 
-  it("shows the error on the first visit too, with the button to try again", async () => {
+  it("shows the error on the first visit too, and offers to sign in again", async () => {
     vi.mocked(signIn).mockResolvedValueOnce(failure({ kind: "signInFailed" }));
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
     await isShown(
       "Abruf fehlgeschlagen: Die Anmeldung bei Google wurde abgebrochen.",
     );
-    expect(await fetchButton()).toBeInTheDocument();
+    expect(await signInButton()).toBeInTheDocument();
   });
 });
 
@@ -330,7 +285,7 @@ describe("the button to enter a weight", () => {
     vi.mocked(fetchMeasurements).mockResolvedValue(
       failure({ kind: "unreachable" }),
     );
-    await openAndClick(fetchButton);
+    await openAndClick(signInButton);
 
     await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
     expect(await enterButton()).toBeInTheDocument();
@@ -360,30 +315,11 @@ describe("the layout", () => {
   });
 
   // jsdom lays nothing out, so the stylesheets are read instead.
-  const stylesheets = ["page.module.css", "Verdict.module.css"].map((file) =>
-    readFileSync(join(import.meta.dirname, file), "utf8"),
-  );
-
-  it("dims what stands under the busy line of a verdict marked provisional: the line above the Satz and the Satz, or the headline", () => {
-    expect(stylesheets[0]).toMatch(
-      /\.verdict\[aria-busy="true"\] \.busy ~ \*\s*\{[^}]*opacity:\s*0\.45/,
-    );
-  });
-
-  it("puts the line above the Satz and the Satz under the busy line while a fetch runs", async () => {
-    storeLoss();
-    holdFetch();
-    await openAndClick(fetchButton);
-
-    const busy = await screen.findByText("Vorläufig, wird aktualisiert …");
-    const line = screen.getByText(/% sicher, dass du/);
-    for (const provisional of [line, verdict()]) {
-      expect(provisional.parentElement).toBe(busy.parentElement);
-      expect(busy.compareDocumentPosition(provisional)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    }
-  });
+  const stylesheets = [
+    "page.module.css",
+    "Verdict.module.css",
+    "GoogleStatus.module.css",
+  ].map((file) => readFileSync(join(import.meta.dirname, file), "utf8"));
 
   it("leaves room below the page for the button to enter a weight, 20 px over it, so it covers nothing scrolled to the bottom", () => {
     const surfaceRules = [

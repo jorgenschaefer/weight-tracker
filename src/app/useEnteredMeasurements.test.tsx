@@ -18,7 +18,6 @@ import {
   enterWeight,
   FIRST_VISIT,
   failure,
-  fetchButton,
   google,
   holdFetch,
   isNotShown,
@@ -29,6 +28,7 @@ import {
   NOW,
   openAndClick,
   renderPage,
+  signInButton,
   standInForGoogle,
   storeMorning,
 } from "@/test/open-page";
@@ -107,7 +107,7 @@ describe("an entered weight", () => {
     await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
     await isShown("Ob du abnimmst, ist noch offen.");
     isNotShown(FIRST_VISIT);
-    await fetchButton();
+    await signInButton();
   });
 
   it("is on the page again after a reload, beside the cached measurements", async () => {
@@ -139,12 +139,12 @@ describe("an entered weight", () => {
       storeEntered([ENTERED]);
       minutesLater(startsAfter);
       const answer = holdFetch();
-      await openAndClick(fetchButton);
+      await openAndClick(signInButton);
       minutesLater(endsAfter);
 
       answer.resolve({ ok: true, value: [] });
 
-      await waitFor(() => isNotShown(/wird aktualisiert/i));
+      await waitFor(() => isNotShown("ruft ab …"));
       expect(storedEntered()).toEqual(left);
       if (left.length > 0) await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
       else isNotShown(/Letzte Messung 17.10./);
@@ -153,19 +153,19 @@ describe("an entered weight", () => {
 
   it("stays in this browser where another tab entered it after this one opened, and this one fetches", async () => {
     const user = renderPage();
-    await fetchButton();
+    await signInButton();
     storeEntered([ENTERED]);
 
-    await user.click(await fetchButton());
+    await user.click(await signInButton());
 
-    await waitFor(() => isNotShown(/wird aktualisiert/i));
+    await waitFor(() => isNotShown("ruft ab …"));
     expect(storedEntered()).toEqual([ENTERED]);
   });
 
   it("stays in this browser where another tab entered it after this one opened, and this one enters too", async () => {
     vi.mocked(fetchMeasurements).mockResolvedValue({ ok: true, value: [] });
     const user = renderPage();
-    await fetchButton();
+    await signInButton();
     const other = at(new Date(NOW.getTime() - 60_000), 98.2);
     storeEntered([other]);
 

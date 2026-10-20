@@ -7,7 +7,8 @@ description: Start the weight-tracker page locally and drive it on any date of t
 
 1. `npm run dev` serves http://localhost:3000 (run it in the background).
 2. Open the page in Chrome (claude-in-chrome). Without a cache it shows the
-   first visit: one sentence and „Daten abrufen“.
+   first visit: the status line „Google Health, nicht angemeldet“ with ⟳
+   beside it, one sentence and the hint to tap the line.
 
 If the page shows code older than the working tree, look for a service
 worker another project registered for localhost:3000

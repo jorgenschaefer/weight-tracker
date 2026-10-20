@@ -1,12 +1,14 @@
 /* The colour field: the whole screen is the verdict surface, in the colours
    page.tsx sets on it, neutral until there is a verdict to colour it by.
-   Below the content it leaves room for the button to enter a weight: 60 px
-   tall (EntrySheet.tsx), 20 px from the bottom (EntrySheet.module.css), and
-   20 px more. */
+   Its top is the status line's (GoogleStatus.module.css). Below the content
+   it leaves room for the button to enter a weight: 60 px tall
+   (EntrySheet.tsx), 20 px from the bottom (EntrySheet.module.css), and 20 px
+   more. */
 .surface {
   min-height: 100dvh;
   box-sizing: border-box;
   padding: 20px;
+  padding-top: 12px;
   padding-bottom: 100px;
   display: flex;
   flex-direction: column;
@@ -28,7 +30,14 @@
   font-weight: 500;
 }
 
+.hint {
+  margin-top: 16px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
 .latest {
+  margin-top: 8px;
   font-size: 14px;
   line-height: 1.4;
   opacity: 0.85;
@@ -50,45 +59,9 @@
   flex-direction: column;
 }
 
-/* Provisional while a fetch runs: what stands under the busy line - the line
-   above the Satz zum Morgen and the Satz where there is a verdict, otherwise
-   the headline - dimmed. The busy line itself stays clear. */
-.verdict[aria-busy="true"] .busy ~ * {
-  opacity: 0.45;
-}
-
-.busy {
-  margin-top: 12px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.fetch {
-  --button-height: 48px;
-  --button-radius: 8px;
-  --button-fz: 17px;
-  margin-top: 24px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.verdict .fetch {
-  margin-top: 18px;
-}
-
-.fetch:focus-visible,
 .logout:focus-visible {
   outline: 3px solid currentColor;
   outline-offset: 3px;
-}
-
-/* A screen as short as 360 × 640: the verdict and the four figures fit
-   above its bottom edge in every state only with narrower gaps than the
-   specimen's. Verdict.module.css narrows its own at the same height. */
-@media (max-height: 45em) {
-  .verdict .fetch {
-    margin-top: 12px;
-  }
 }
 
 /* The space the graph will take, held before it has measured its width:
@@ -116,7 +89,9 @@
 }
 
 /* The wide screen: the verdict on the left, the four figures beside it,
-   the graph under both. Verdict.module.css switches at the same width. */
+   the graph under both. Verdict.module.css switches at the same width, and
+   GoogleStatus.module.css sets the status line as wide as the figures'
+   column. */
 @media (min-width: 65em) {
   .surface {
     padding-top: 40px;

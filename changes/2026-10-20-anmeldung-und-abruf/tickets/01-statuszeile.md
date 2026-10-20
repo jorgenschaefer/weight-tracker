@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2, AC-3, AC-8, AC-10, AC-11, AC-12
 advances:  AC-5, AC-9
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -75,3 +75,36 @@ Was dieses Ticket mit 03 teilt:
 - Eintragen ohne Anmeldung oder ohne Google-Konto, und damit „Synchronisieren“ (`changes/backlog/eintragen-ohne-anmeldung.md`).
 
 ## Left standing
+
+**Befunde des Reviews, nicht behoben**
+- Nit (1. Runde): ⟳ heißt, bevor die Seite ihren Speicher gelesen hat, „Abrufen“ (gesperrt), obwohl sie noch nicht weiß, ob sie angemeldet ist. Bleibt so: ein Knopf ohne Namen wäre schlechter, und der Zustand dauert nur einen Augenblick.
+- Nit (2. Runde): `GoogleStatus.tsx` übergibt fünf Felder von `Measurements` einzeln an `statusLine`. Bleibt so: alle Felder von `GoogleState` sind Pflicht, der Compiler meldet jedes fehlende.
+- Should-fix (1. Runde) und Nit (2. Runde): die neuen Namen stehen nicht im Glossar, siehe unten.
+
+**Nach dem letzten Review behoben**
+- Ob etwas läuft (⟳ dreht sich und sperrt, der Tipp auf die Zeile tut nichts), berechnet jetzt `statusLine` in `src/app/google-status.ts` als `busy`, neben der Reihenfolge der zweiten Zeile, statt dass `GoogleStatus.tsx` die ersten drei Fälle wiederholt. Antwort auf das Nit der 2. Runde, ein neuer laufender Zustand könnte nur in `statusLine` landen und ⟳ antippbar lassen. Durch einen Test in `google-status.test.ts` festgehalten.
+
+**Nicht automatisch geprüft**
+- AC-12: 360 × 640 (Urteil und vier Zahlen über dem unteren Rand in jedem Zustand, auch mit einem Grund über vier Zeilen am 17.10.: die Zahlen enden bei 474 px), ab 65em Statuszeile und ⟳ bündig über der Spalte der vier Zahlen, kein waagerechtes Scrollen bei 360, 1030, 1040 und 1280 px. Die Tests prüfen nur die Stylesheets; die beiden Reviews haben die Seite in Chromium mit `google-stand-in.js` gefahren und gemessen.
+- AC-1 „kleiner und blasser“ und AC-3 „dreht sich“: die Tests prüfen Attribute und Stylesheet; das Aussehen hat das Review gegen das Muster D verglichen. Die Zeile ist 52,8 px statt 48 px hoch, weil Archivo eine größere Zeilenhöhe hat als die Systemschrift des Musters.
+- AC-11: die höfliche Ansage ist eine `role="status"`-Region mit `aria-live="polite"`; mit einem echten Screenreader nicht gehört.
+- Gegen das echte Google nicht gefahren, nur mit der Google-Attrappe des run-Skills.
+
+**Schwer umkehrbare Entscheidungen**
+- `Measurements` gibt jetzt `signingIn`, `savingKg`, `fetchFailure` und `revokeFailure` heraus; `Problem` und `problem` gibt es nicht mehr. Ticket 03 baut darauf.
+- `statusLine(state, today)` liefert `{ mark, detail, busy }`; die zweite Zeile verbindet Uhrzeit und „Uhr“ mit einem geschützten Leerzeichen (U+00A0), auch im Namen für Screenreader.
+- Helfer in `src/test/open-page.tsx` für 03: `statusLine`, `refreshButton`, `signInButton`, `statusDetail`, `statusMark`; sie lesen die Attribute `data-mark` und `data-detail`. `fetchButton` ist weg. `standInForGoogle` setzt jetzt alle Mocks zurück (`vi.resetAllMocks()`), damit eine nicht verbrauchte `mockReturnValueOnce`-Antwort nicht in den nächsten Test läuft.
+- Der Text der Statuszeile steht zweimal im DOM: sichtbar im Knopf und versteckt in der Region für die Ansage.
+
+**Abweichungen von Nudges und Auslegungen**
+- Nudge „reine Funktion mit ‚jetzt‘ als Parameter“: `statusLine` bekommt den Tag, nach dem die Seite urteilt (`today` aus `useToday`), nicht „jetzt“, weil AC-2 an diesem Tag hängt.
+- Nudge zu `useMeasurements` (Timer auf den Ablaufzeitpunkt, Ablaufzeitpunkt und Schreibrecht in `Measurements`, `fetchOnReturn` usw. weg) und zu `.logout`: nicht gebaut, weil `## Context` und `## Not here` das 03 zuweisen. Ebenso bleibt der Kommentar in `enter`, der „Daten abrufen“ nennt (`useMeasurements.ts`). `walk-on.js` nannte „Daten abrufen“ nicht; nichts geändert.
+- „bis … die nächste Anmeldung beginnt“ gilt auch für die Anmeldung von „Eintragen“: deren Beginn nimmt „Abruf fehlgeschlagen: …“ weg, auch wenn das Eintragen danach scheitert.
+- ⟳ einer angemeldeten Seite, deren Token abgelaufen ist, während sie sichtbar blieb, meldet neu an und ruft dann ab, statt mit dem abgelaufenen Token abzurufen (Nit der 1. Runde). Bis zu 03s Timer zeigt die Zeile bis zum Tipp weiter den Punkt und „abgerufen …“.
+- Nach dem Muster beginnt die Fläche oben jetzt mit 12 px statt 20 px, und „Letzte Messung“ hat 8 px Abstand zur Statuszeile.
+- `changes/backlog/hauptseite-abwaegen.md` nennt den neuen ungünstigsten Fall auf 360 × 640 statt „Daten abrufen“ (Should-fix der 1. Runde).
+
+**Namen nicht aus dem Glossar, zu bestätigen**
+- Statuszeile: Komponente `GoogleStatus` (aus dem Nudge), Funktion `statusLine`, Typ `StatusLine`, im Test- und CSS-Text „status line“. „Statuszeile“ steht nicht im Glossar.
+- `StatusMark` mit `signedIn`, `signedOut` und `failed` für das Zeichen; `GoogleState` für das, was die Seite von ihrer Anmeldung und dem Laufenden weiß.
+- `signingIn`, `savingKg`, `fetchFailure`, `revokeFailure` (und die Komponente `RevokeFailure`), `signInWithPopup`, `unexpired`, `refresh` für ⟳.

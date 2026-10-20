@@ -40,9 +40,11 @@ export const google = {
 
 /**
  * Sets the clock to `now`, empties the cache and Google, and makes the
- * mocked Google module answer from {@link google}.
+ * mocked Google module answer from {@link google}, dropping every answer a
+ * test before held for it.
  */
 export function standInForGoogle(now: Date) {
+  vi.resetAllMocks();
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(now);
   localStorage.clear();
@@ -201,8 +203,27 @@ export const NOT_YET_FETCHED = ", noch nicht aus Google Health abgerufen";
 export const sheet = () =>
   screen.queryByRole("dialog", { name: "Gewicht eintragen" });
 
-export const fetchButton = () =>
-  screen.findByRole("button", { name: "Daten abrufen" });
+/** The status line, named „Google Health, <its second line>“. */
+export const statusLine = () =>
+  screen.findByRole("button", { name: /^Google Health/ });
+
+/** ⟳, whether the page is signed in or not. */
+export const refreshButton = () =>
+  screen.findByRole("button", { name: /^(Abrufen|Anmelden und abrufen)$/ });
+
+/** ⟳ on a page that is not signed in. */
+export const signInButton = () =>
+  screen.findByRole("button", { name: "Anmelden und abrufen" });
+
+/** The second line of the status line, spaces that do not break as spaces. */
+export const statusDetail = async () =>
+  (await statusLine())
+    .querySelector("[data-detail]")
+    ?.textContent?.replaceAll(" ", " ");
+
+/** The mark before „Google Health“: `signedIn`, `signedOut` or `failed`. */
+export const statusMark = async () =>
+  (await statusLine()).querySelector("[data-mark]")?.getAttribute("data-mark");
 export const logoutButton = () =>
   screen.findByRole("button", { name: "Abmelden" });
 

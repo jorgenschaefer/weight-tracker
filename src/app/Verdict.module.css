@@ -39,8 +39,7 @@
 }
 
 /* A screen as short as 360 × 640: the verdict and the four figures fit
-   above its bottom edge only with narrower gaps than the specimen's.
-   page.module.css narrows its own at the same height. */
+   above its bottom edge only with narrower gaps than the specimen's. */
 @media (max-height: 45em) {
   .line {
     margin-top: 12px;
