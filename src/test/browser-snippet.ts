@@ -29,8 +29,14 @@ export function runSnippet(
   };
   // Records writes as properties too: `localStorage[key] = value`, `delete`.
   const localStorage = new Proxy(methods, {
-    set: (_, key) => (written.push(`set ${String(key)}`), true),
-    deleteProperty: (_, key) => (written.push(`remove ${String(key)}`), true),
+    set: (_, key) => {
+      written.push(`set ${String(key)}`);
+      return true;
+    },
+    deleteProperty: (_, key) => {
+      written.push(`remove ${String(key)}`);
+      return true;
+    },
   });
   const window: Record<string, unknown> = {
     location: { hostname, host, port },
