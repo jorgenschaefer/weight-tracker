@@ -14,7 +14,6 @@ import {
   at,
   comeIntoView,
   daysAgo,
-  deferred,
   ENTERED_SHOWN,
   enterWeight,
   FIRST_VISIT,
@@ -372,6 +371,22 @@ describe("„Abmelden“", () => {
     await waitFor(() => expect(google.tokensIssued).toBe(2));
     // Revoking the new token withdraws the page's access at Google.
     await waitFor(() => expect(google.grants).not.toContain("token-2"));
+  });
+
+  it("says the revoke failed where the sign-in to revoke fails", async () => {
+    google.measurements = [MORNING];
+    const user = await openAndClick(signInButton);
+    await isShown(MORNING_SHOWN);
+    vi.setSystemTime(new Date(NOW.getTime() + TOKEN_LIFETIME_S * 1000));
+    vi.mocked(signIn).mockResolvedValueOnce(failure({ kind: "signInFailed" }));
+
+    await logOut(user);
+
+    await isShown(
+      "Widerruf fehlgeschlagen: Die Anmeldung bei Google wurde abgebrochen.",
+    );
+    expect(screen.getByText(FIRST_VISIT)).toBeInTheDocument();
+    expect(google.grants).toContain("token-1");
   });
 
   it("does not keep the sign-in it makes to revoke the access for the next open", async () => {
