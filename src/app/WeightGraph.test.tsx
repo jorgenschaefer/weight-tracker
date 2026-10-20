@@ -59,7 +59,7 @@ async function drawGraph(
       series={series}
       today={today}
       shownDay={shownDay}
-      onShowDay={() => {}}
+      onChooseDay={() => {}}
       surface={SURFACE}
     />,
   );
@@ -379,7 +379,7 @@ describe("WeightGraph", () => {
         series={{ measurements: [], trendLine: [] }}
         today={october17}
         shownDay={null}
-        onShowDay={() => {}}
+        onChooseDay={() => {}}
         surface={SURFACE}
       />,
     );
@@ -544,13 +544,13 @@ describe("WeightGraph: the day shown", () => {
   // Whether the last day is an earlier day is the page's to judge.
   it("reports the last day with a measurement as it is, chosen with →", async () => {
     stubContainerWidth(320);
-    const onShowDay = vi.fn();
+    const onChooseDay = vi.fn();
     render(
       <WeightGraph
         series={withOutlierInTheMiddle}
         today={october17}
         shownDay={october16}
-        onShowDay={onShowDay}
+        onChooseDay={onChooseDay}
         surface={SURFACE}
       />,
     );
@@ -558,7 +558,7 @@ describe("WeightGraph: the day shown", () => {
 
     fireEvent.keyDown(graph, { key: "ArrowRight" });
 
-    expect(onShowDay).toHaveBeenCalledWith(october17);
+    expect(onChooseDay).toHaveBeenCalledWith(october17);
   });
 
   const css = readFileSync(

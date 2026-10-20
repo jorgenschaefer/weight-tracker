@@ -22,7 +22,7 @@ import classes from "./WeightGraph.module.css";
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
  * `surface`, the colour of the surface. A tap, a drag or ← and → choose the
  * day with a measurement nearest across or next to it, and report it to
- * `onShowDay`, which judges whether it is an earlier day; a second tap on the
+ * `onChooseDay`, which judges whether it is an earlier day; a second tap on the
  * day shown and Escape report `null`. `ref` reaches the drawing, which takes
  * the focus.
  */
@@ -30,14 +30,14 @@ export function WeightGraph({
   series,
   today,
   shownDay,
-  onShowDay,
+  onChooseDay,
   surface,
   ref,
 }: {
   series: SixWeekSeries;
   today: CalendarDay;
   shownDay: CalendarDay | null;
-  onShowDay: (day: CalendarDay | null) => void;
+  onChooseDay: (day: CalendarDay | null) => void;
   surface: string;
   ref?: Ref<SVGSVGElement>;
 }) {
@@ -50,7 +50,7 @@ export function WeightGraph({
           today={today}
           width={width}
           shownDay={shownDay}
-          onShowDay={onShowDay}
+          onChooseDay={onChooseDay}
           surface={surface}
           ref={ref}
         />
@@ -64,7 +64,7 @@ function Drawing({
   today,
   width,
   shownDay,
-  onShowDay,
+  onChooseDay,
   surface,
   ref,
 }: {
@@ -72,13 +72,13 @@ function Drawing({
   today: CalendarDay;
   width: number;
   shownDay: CalendarDay | null;
-  onShowDay: (day: CalendarDay | null) => void;
+  onChooseDay: (day: CalendarDay | null) => void;
   surface: string;
   ref?: Ref<SVGSVGElement>;
 }) {
   const layout = width < WIDE_FROM_WIDTH ? COMPACT : WIDE;
   const scale = chartScale(series, today, width, layout);
-  const choice = useDayChoice(series, scale, shownDay, onShowDay);
+  const choice = useDayChoice(series, scale, shownDay, onChooseDay);
   const shown = series.measurements.find(
     ({ measurement }) => measurement.day === shownDay,
   );
@@ -332,7 +332,7 @@ function ShownDayMark({
 
 /**
  * The handlers by which the drawing chooses a day of `series` for
- * `onShowDay`: a press on the drawing chooses the day whose point lies
+ * `onChooseDay`: a press on the drawing chooses the day whose point lies
  * nearest across, and so does every move while it is held; letting go of a
  * press that began on the day shown without choosing another goes back to
  * today. A press the browser takes over to scroll the page leaves the day
@@ -346,7 +346,7 @@ function useDayChoice(
   series: SixWeekSeries,
   scale: ChartScale,
   shownDay: CalendarDay | null,
-  onShowDay: (day: CalendarDay | null) => void,
+  onChooseDay: (day: CalendarDay | null) => void,
 ) {
   // The press now held down: the day shown before it, the day it began on and
   // whether that is the day shown and no other has been chosen since; for a
@@ -378,7 +378,7 @@ function useDayChoice(
         onShownDay: day === current,
         fingerDown: finger ? { x: event.clientX, y: event.clientY } : null,
       };
-      if (!finger) onShowDay(day);
+      if (!finger) onChooseDay(day);
     },
     onPointerMove(event: React.PointerEvent<SVGSVGElement>) {
       if (event.buttons === 0) return;
@@ -391,29 +391,29 @@ function useDayChoice(
       const day = nearestTo(event);
       if (day === current) return;
       if (press.current !== null) press.current.onShownDay = false;
-      onShowDay(day);
+      onChooseDay(day);
     },
     onPointerUp() {
-      if (press.current?.onShownDay) onShowDay(null);
-      else if (press.current?.fingerDown) onShowDay(press.current.pressedDay);
+      if (press.current?.onShownDay) onChooseDay(null);
+      else if (press.current?.fingerDown) onChooseDay(press.current.pressedDay);
       press.current = null;
     },
     onPointerCancel() {
       if (press.current !== null && press.current.fingerDown === null)
-        onShowDay(press.current.before);
+        onChooseDay(press.current.before);
       press.current = null;
     },
     onKeyDown(event: React.KeyboardEvent<SVGSVGElement>) {
       const i = days.indexOf(current);
       switch (event.key) {
         case "ArrowLeft":
-          onShowDay(days[Math.max(0, i - 1)]);
+          onChooseDay(days[Math.max(0, i - 1)]);
           break;
         case "ArrowRight":
-          onShowDay(days[Math.min(days.length - 1, i + 1)]);
+          onChooseDay(days[Math.min(days.length - 1, i + 1)]);
           break;
         case "Escape":
-          onShowDay(null);
+          onChooseDay(null);
           break;
         default:
           return;

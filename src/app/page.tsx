@@ -113,7 +113,7 @@ export default function Page() {
         graph={{
           series: assessmentToday.sixWeekSeries,
           shownDay,
-          onShowDay: setChosenDay,
+          onChooseDay: setChosenDay,
           surface: colours.surface,
           ref: graph,
         }}
@@ -264,7 +264,7 @@ function CachedMeasurements({
   graph: {
     series: SixWeekSeries;
     shownDay: CalendarDay | null;
-    onShowDay: (day: CalendarDay | null) => void;
+    onChooseDay: (day: CalendarDay | null) => void;
     surface: string;
     ref: RefObject<SVGSVGElement | null>;
   };
@@ -289,7 +289,7 @@ function CachedMeasurements({
           series={graph.series}
           today={today}
           shownDay={graph.shownDay}
-          onShowDay={graph.onShowDay}
+          onChooseDay={graph.onChooseDay}
           surface={graph.surface}
           ref={graph.ref}
         />
