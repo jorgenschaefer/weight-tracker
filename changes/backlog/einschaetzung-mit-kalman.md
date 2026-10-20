@@ -25,9 +25,10 @@ Die Einstellung, die in der Auswertung am besten abschnitt:
   Gewicht wandert ±0,14 kg pro Tag (0,02), das Tempo ändert sich um etwa
   0,18 kg/Woche pro Woche (1e-4 (kg/Tag)²/Tag). Messungen, die mehr als 2
   Standardabweichungen von der Erwartung abweichen, zählen schwächer.
-  Messrauschen und Wandern sind an den Daten geschätzt. Wie schnell sich das
-  Tempo ändern darf, geben die Daten nicht her; das ist eine Abwägung
-  zwischen schneller Warnung und ruhiger Anzeige.
+  Das Messrauschen ist an den Daten geschätzt. Wandern und wie schnell sich
+  das Tempo ändern darf, geben die Daten nicht eindeutig her; sie sind
+  gewählt als Abwägung zwischen schneller Warnung und ruhiger Anzeige.
+  Die Auswertung lässt sich mit `analysis/kalman/kalman.py` wiederholen.
 - Ampel: Grün, wenn zu 80 % sicher ist, dass das Tempo unter −0,1 kg/Woche
   liegt; Rot, wenn zu 80 % sicher ist, dass nicht; sonst Gelb. Die Frage
   „nimmt ab, ja oder nein“ (P(Tempo < 0)) taugt nicht: Auf einem Plateau
