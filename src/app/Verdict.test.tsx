@@ -422,7 +422,7 @@ describe("the figures", () => {
     ).toBeInTheDocument();
   });
 
-  it("are all four from the first measurements on, while the graph shows only the points", async () => {
+  it("are all four from the first measurements on, and the graph draws the line and band from them", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     await headline();
@@ -434,11 +434,11 @@ describe("the figures", () => {
       name: "Messungen und Trend der letzten sechs Wochen",
     });
     expect(graph.querySelectorAll("circle")).toHaveLength(4);
-    expect(graph.querySelectorAll("polyline")).toHaveLength(0);
+    expect(graph.querySelectorAll("polyline")).toHaveLength(1);
+    expect(graph.querySelectorAll("polygon")).toHaveLength(1);
   });
 
-  it("are those of the last day after a gap with no Theil-Sen trend before it, and the graph draws its trend line", async () => {
-    // No Theil-Sen trend on 21.9. before the gap; 4.10. after it has one.
+  it("are those of the last day after a gap, and the graph breaks its line and band there", async () => {
     openOn("2026-10-04", [
       ...steady("2026-09-07", 7, 0, 99),
       at("2026-09-21T07:00:00+02:00", 98),
@@ -451,7 +451,9 @@ describe("the figures", () => {
     const graph = await screen.findByRole("img", {
       name: "Messungen und Trend der letzten sechs Wochen",
     });
-    expect(graph.querySelectorAll("polyline").length).toBeGreaterThan(0);
+    // 21.9. alone between two gaps.
+    expect(graph.querySelectorAll("polyline")).toHaveLength(3);
+    expect(graph.querySelectorAll("polygon")).toHaveLength(3);
   });
 });
 

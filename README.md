@@ -14,17 +14,17 @@ others can read it, borrow from it or run their own copy.
   is not, yellow in between - which colours the whole screen; a sentence
   about this morning ("Du nimmst seit 6 Tagen ab."), and above it how
   certain the likelier side is ("90 % sicher, dass du abnimmst").
-- **The pace over four weeks** in kg per week, sorted into "nimmt ab",
-  "stagniert" or "nimmt zu".
-- **A graph of the last six weeks**: the measurements, the trend and the
-  outliers.
+- **Four figures** of the last day with a measurement: the estimated weight,
+  the measured one, the pace in kg per week and the calories a day it stands
+  for, each estimate with its uncertainty.
+- **A graph of the last six weeks**: the measurements, the estimated weight
+  as a line inside a band of ± its uncertainty, and the outliers.
 - **A field to enter today's weight**, which writes it to Google Health.
 
 The verdict comes from a Kalman filter of weight and pace, stepping from one
 day with a measurement to the next, so a gap needs no special handling; a
 measurement far off what it expected counts less. Only the first measurement
-of a calendar day counts. The pace over four weeks and the graph's trend
-still come from a Theil-Sen estimator over the fortnight up to each day.
+of a calendar day counts. The graph draws the same filter's estimate.
 
 `UBIQUITOUS_LANGUAGE.md` defines every term and threshold, with the word the
 page uses and the name the code uses.

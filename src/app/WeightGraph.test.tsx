@@ -14,6 +14,7 @@ import {
 } from "@/test/open-page";
 import { weightHistory } from "@/test/weight-history-fixture";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
+import type { Trend } from "@/trend/trend";
 import { WeightGraph } from "./WeightGraph";
 
 vi.mock("@/measurement/google-health", () => ({
@@ -25,8 +26,6 @@ vi.mock("@/measurement/google-health", () => ({
 }));
 
 // Safe: valid `YYYY-MM-DD`s.
-const october15 = "2026-10-15" as CalendarDay;
-const october16 = "2026-10-16" as CalendarDay;
 const october17 = "2026-10-17" as CalendarDay;
 
 const realSeries = () =>
@@ -69,8 +68,19 @@ const trendPieces = (graph: SVGSVGElement) => [
   ...graph.querySelectorAll("polyline"),
 ];
 
-const corners = (piece: Element) =>
-  (piece.getAttribute("points") ?? "").trim().split(/\s+/).length;
+const bands = (graph: SVGSVGElement) => [...graph.querySelectorAll("polygon")];
+
+/** The corners of a polyline or polygon, each as its x and y. */
+const cornerPoints = (shape: Element) =>
+  (shape.getAttribute("points") ?? "")
+    .trim()
+    .split(/\s+/)
+    .map((corner) => {
+      const [x, y] = corner.split(",").map(Number);
+      return { x, y };
+    });
+
+const corners = (piece: Element) => cornerPoints(piece).length;
 
 const centre = (point: Element) => ({
   x: Number(point.getAttribute("cx")),
@@ -94,6 +104,19 @@ const measured = (day: string, kg: number): CountingMeasurement => ({
   day: day as CalendarDay,
 });
 
+/**
+ * The trend of `day` (a valid `YYYY-MM-DD`, which makes the cast safe) at
+ * `kg`, ± `sdKg`; its pace does not matter to the graph.
+ */
+const trendOn = (day: string, kg: number, sdKg = 0.3): Trend => ({
+  day: day as CalendarDay,
+  kg,
+  kgVariance: sdKg ** 2,
+  pace: 0,
+  paceVariance: 0.09,
+  z: 0,
+});
+
 /** Three days up to 17.10., the second one an outlier, without a trend. */
 const withOutlierInTheMiddle: SixWeekSeries = {
   measurements: [
@@ -114,7 +137,7 @@ describe("WeightGraph", () => {
   it("marks the outliers of the six weeks as hollow rings", async () => {
     const graph = await drawGraph(realSeries());
 
-    expect(points(graph).filter(isHollowRing)).toHaveLength(8);
+    expect(points(graph).filter(isHollowRing)).toHaveLength(6);
   });
 
   it("draws an outlier as a hollow ring, the other measurements as faint points", async () => {
@@ -184,18 +207,65 @@ describe("WeightGraph", () => {
       measurements: [
         { measurement: measured("2026-10-16", 98.0), outlier: false },
       ],
-      trendLine: [
-        [
-          { day: october16, kg: 98.0 },
-          { day: october17, kg: 97.0 },
-        ],
-      ],
+      trendLine: [[trendOn("2026-10-16", 98.0), trendOn("2026-10-17", 97.0)]],
     });
     const [point] = points(graph).map(centre);
 
-    expect(trendPieces(graph)[0].getAttribute("points")?.split(" ")[0]).toBe(
-      `${point.x},${point.y}`,
+    expect(cornerPoints(trendPieces(graph)[0])[0]).toEqual(point);
+  });
+
+  it("draws around each piece of the line a faint band in the text colour", async () => {
+    const series = realSeries();
+    const graph = await drawGraph(series);
+
+    expect(bands(graph).map((band) => cornerPoints(band).length)).toEqual(
+      series.trendLine.map((piece) => 2 * piece.length),
     );
+    for (const band of bands(graph)) {
+      expect(band).toHaveAttribute("fill", "currentColor");
+      expect(Number(band.getAttribute("fill-opacity"))).toBeLessThan(0.38);
+      expect(band).not.toHaveAttribute("stroke");
+    }
+  });
+
+  it("draws the band from the trend plus its standard deviation to the trend minus it", async () => {
+    const graph = await drawGraph({
+      measurements: [
+        { measurement: measured("2026-10-16", 98.0), outlier: false },
+      ],
+      trendLine: [
+        [trendOn("2026-10-16", 98.0, 0.5), trendOn("2026-10-17", 97.0, 0.4)],
+      ],
+    });
+    const [point] = points(graph).map(centre);
+    const [upper16, upper17, lower17, lower16] = cornerPoints(bands(graph)[0]);
+    const [, line17] = cornerPoints(trendPieces(graph)[0]);
+
+    expect([upper16.x, lower16.x]).toEqual([point.x, point.x]);
+    expect([upper17.x, lower17.x]).toEqual([line17.x, line17.x]);
+    expect(point.y - upper16.y).toBeGreaterThan(0);
+    expect(point.y - upper16.y).toBeCloseTo(lower16.y - point.y, 0);
+    expect((line17.y - upper17.y) / (point.y - upper16.y)).toBeCloseTo(0.8, 1);
+    expect(lower17.y - line17.y).toBeCloseTo(line17.y - upper17.y, 0);
+  });
+
+  it("scales the weights so the band stays inside", async () => {
+    const graph = await drawGraph({
+      measurements: [
+        { measurement: measured("2026-10-16", 98.0), outlier: false },
+        { measurement: measured("2026-10-17", 98.2), outlier: false },
+      ],
+      trendLine: [
+        [trendOn("2026-10-16", 98.0, 3), trendOn("2026-10-17", 98.1, 3)],
+      ],
+    });
+    const height = Number(graph.getAttribute("height"));
+
+    expect(labels(graph)[0]).toBe("94");
+    for (const { y } of cornerPoints(bands(graph)[0])) {
+      expect(y).toBeGreaterThan(0);
+      expect(y).toBeLessThan(height);
+    }
   });
 
   it.each([320, 960])(
@@ -302,14 +372,33 @@ describe("WeightGraph", () => {
         { measurement: measured("2026-10-10", 98.0), outlier: false },
         { measurement: measured("2026-10-15", 97.6), outlier: false },
       ],
-      trendLine: [[{ day: october15, kg: 97.3 }]],
+      trendLine: [[trendOn("2026-10-15", 97.3)]],
     });
     const [piece] = trendPieces(graph);
-    const [first, ...rest] = (piece.getAttribute("points") ?? "").split(" ");
+    const [first, ...rest] = cornerPoints(piece);
 
     // Its round caps draw a dot the width of the line on that one corner.
     expect(rest).toEqual([first]);
     expect(piece).toHaveAttribute("stroke-linecap", "round");
+  });
+
+  it("draws the band of a trend piece of a single day as a bar the width of the line", async () => {
+    const graph = await drawGraph({
+      measurements: [
+        { measurement: measured("2026-10-10", 98.0), outlier: false },
+        { measurement: measured("2026-10-15", 97.6), outlier: false },
+      ],
+      trendLine: [[trendOn("2026-10-15", 97.3, 0.4)]],
+    });
+    const [line] = cornerPoints(trendPieces(graph)[0]);
+    const band = cornerPoints(bands(graph)[0]);
+    const xs = band.map(({ x }) => x);
+    const ys = band.map(({ y }) => y);
+
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(3);
+    expect((Math.max(...xs) + Math.min(...xs)) / 2).toBeCloseTo(line.x);
+    expect(Math.min(...ys)).toBeLessThan(line.y);
+    expect(line.y - Math.min(...ys)).toBeCloseTo(Math.max(...ys) - line.y, 0);
   });
 
   it("sets each date label under the points of its day", async () => {
@@ -349,20 +438,12 @@ describe("WeightGraph", () => {
         { measurement: measured("2026-10-16", 99.0), outlier: false },
         { measurement: measured("2026-10-17", 99.2), outlier: false },
       ],
-      trendLine: [
-        [
-          { day: october16, kg: 96.0 },
-          { day: october17, kg: 96.1 },
-        ],
-      ],
+      trendLine: [[trendOn("2026-10-16", 96.0), trendOn("2026-10-17", 96.1)]],
     });
     const height = Number(graph.getAttribute("height"));
 
     expect(labels(graph)[0]).toBe("95");
-    for (const corner of trendPieces(graph)[0]
-      .getAttribute("points")
-      ?.split(" ") ?? []) {
-      const y = Number(corner.split(",")[1]);
+    for (const { y } of cornerPoints(trendPieces(graph)[0])) {
       expect(y).toBeGreaterThan(0);
       expect(y).toBeLessThan(height);
     }
@@ -384,16 +465,16 @@ describe("the outliers on the page", () => {
   }
 
   it.each([
-    // 0.83 kg over a trend of 96.78 kg, beyond 1.25 × a scatter of 0.54 kg.
-    ["2026-10-08", true],
-    // 0.97 kg over a trend of 97.33 kg, within 1.25 × a scatter of 0.81 kg.
-    ["2026-10-16", false],
-    // 1.02 kg under a trend of 99.82 kg, beyond 1.25 × a scatter of 0.69 kg.
-    ["2026-09-15", true],
-    // 0.75 kg under a trend of 100.05 kg, within 1.25 × a scatter of 0.68 kg.
+    // z 3.32, over 2.
+    ["2026-10-12", true],
+    // z 1.60, not over 2.
+    ["2026-10-17", false],
+    // z −2.50, under −2.
+    ["2026-10-03", true],
+    // z −1.70, not under −2.
     ["2026-09-14", false],
   ])(
-    "on %s marks the measurement of the day an outlier: %s, by the scatter of its day",
+    "on %s marks the measurement of the day an outlier: %s, by its z",
     async (today, outlier) => {
       const last = points(await graphOnPage(today)).at(-1);
 

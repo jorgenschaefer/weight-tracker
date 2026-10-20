@@ -27,26 +27,24 @@ describe("sixWeekSeries", () => {
     expect(series.trendLine.at(-1)?.at(-1)?.day).toBe("2026-10-12");
   });
 
-  it("marks the measurements beyond the threshold of their own day's scatter from their day's trend, above or below", () => {
+  it("marks the measurements with z over 2 or under −2 as outliers", () => {
     const outliers = sixWeekSeries(realHistory(), october17)
       .measurements.filter(({ outlier }) => outlier)
       .map(({ measurement }) => measurement.day);
 
     expect(outliers).toEqual([
-      "2026-09-12",
       "2026-09-15",
-      "2026-09-18",
-      "2026-09-20",
-      "2026-10-08",
-      "2026-10-09",
+      "2026-10-03",
+      "2026-10-04",
+      "2026-10-06",
+      "2026-10-07",
       "2026-10-12",
-      "2026-10-13",
     ]);
   });
 
-  it("marks no measurement whose day has no trend", () => {
+  it("marks outliers from the second measurement on, the first never", () => {
     const fewDays = countingMeasurements(
-      [99.0, 80.0, 99.0, 80.0].map((kg, i) => ({
+      [99.0, 80.0].map((kg, i) => ({
         time: new Date(`2026-10-1${i}T05:00:00Z`),
         kg,
       })),
@@ -56,17 +54,18 @@ describe("sixWeekSeries", () => {
       sixWeekSeries(fewDays, october17).measurements.map(
         ({ outlier }) => outlier,
       ),
-    ).toEqual([false, false, false, false]);
+    ).toEqual([false, true]);
   });
 
-  it("draws the trend of each day as a line, broken at the gap 22.9. to 1.10.", () => {
+  it("draws the filter's trend of each day as a line, broken at the gap 22.9. to 1.10.", () => {
     const line = sixWeekSeries(realHistory(), october17).trendLine;
 
     expect(line.map((piece) => piece.map((trend) => trend.day))).toEqual([
       days("2026-09-", 6, 22),
       days("2026-10-", 1, 17),
     ]);
-    expect(line[1].at(-1)?.kg).toBeCloseTo(97.75);
+    expect(line[1].at(-1)?.kg).toBeCloseTo(97.86);
+    expect(line[1].at(-1)?.kgVariance).toBeCloseTo(0.29 ** 2, 2);
   });
 
   it("uses only the first measurement of a day; a later one changes nothing", () => {

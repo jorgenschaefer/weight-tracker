@@ -40,6 +40,17 @@ export function trends(counting: CountingMeasurement[]): Trend[] {
   return result;
 }
 
+/**
+ * Whether the measurement of `trend`'s day is an Ausreißer: more than
+ * {@link OUTLIER_Z} standard deviations from what the filter expected, above
+ * or below.
+ */
+export function isOutlier(trend: Trend): boolean {
+  return Math.abs(trend.z) > OUTLIER_Z;
+}
+
+const OUTLIER_Z = 2;
+
 // The filter's settings. `analysis/kalman/kalman.py` uses the same values, and
 // the two change together.
 /** How far a measurement scatters around the weight, in kg². */

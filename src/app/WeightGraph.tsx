@@ -7,12 +7,13 @@ import {
   daysBetween,
 } from "@/measurement/calendar-day";
 import type { SixWeekSeries } from "@/trend/six-week-series";
-import type { Trend } from "@/trend/theil-sen";
+import type { Trend } from "@/trend/trend";
 import { formatCalendarDay } from "./format";
 
 /**
  * The graph of the six weeks up to `today`, as wide as the space it is given:
- * the counting measurements as points, the trend as a line broken at gaps.
+ * the counting measurements as points, the trend as a line inside a band of
+ * ± its standard deviation, both broken at gaps.
  * Drawn in the text colour it inherits; nothing where the six weeks hold no
  * measurement, as without one there is no weight to scale to.
  */
@@ -86,6 +87,14 @@ function Drawing({
           {formatCalendarDay(day)}
         </text>
       ))}
+      {series.trendLine.map((piece) => (
+        <polygon
+          key={piece[0].day}
+          points={bandCorners(piece, scale).join(" ")}
+          fill="currentColor"
+          fillOpacity={0.16}
+        />
+      ))}
       {series.measurements.map(({ measurement, outlier }, i) => (
         <Point
           key={measurement.day}
@@ -101,7 +110,7 @@ function Drawing({
           points={trendCorners(piece, scale).join(" ")}
           fill="none"
           stroke="currentColor"
-          strokeWidth={3}
+          strokeWidth={LINE_WIDTH}
           strokeLinejoin="round"
           strokeLinecap="round"
         />
@@ -109,6 +118,9 @@ function Drawing({
     </svg>
   );
 }
+
+/** The width of the trend line, in px. */
+const LINE_WIDTH = 3;
 
 /** The two arrangements of the specimens: a phone's and a wide screen's. */
 interface Layout {
@@ -222,7 +234,7 @@ interface ChartScale {
 /**
  * Where a day and a weight lie in a drawing `width` px wide: `today` and the
  * 41 days before it from left to right, and whole kilos from just below the
- * lowest to just above the highest weight drawn.
+ * lowest to just above the highest weight drawn, the band's edges included.
  */
 function chartScale(
   series: SixWeekSeries,
@@ -232,7 +244,9 @@ function chartScale(
 ): ChartScale {
   const weights = [
     ...series.measurements.map(({ measurement }) => measurement.kg),
-    ...series.trendLine.flat().map((trend) => trend.kg),
+    ...series.trendLine
+      .flat()
+      .flatMap((trend) => [trend.kg - kgSd(trend), trend.kg + kgSd(trend)]),
   ];
   const lowest = Math.floor(Math.min(...weights) - 0.3);
   const highest = Math.ceil(Math.max(...weights) + 0.3);
@@ -272,6 +286,39 @@ function trendCorners(piece: Trend[], scale: ChartScale): string[] {
     (trend) => `${scale.x(trend.day)},${scale.y(trend.kg)}`,
   );
   return corners.length === 1 ? [corners[0], corners[0]] : corners;
+}
+
+/**
+ * The corners of the band around one piece of the trend line: along the
+ * trend plus its standard deviation, and back along the trend minus it. A
+ * piece of a single day gets a bar as wide as the line, as its line is a dot.
+ */
+function bandCorners(piece: Trend[], scale: ChartScale): string[] {
+  if (piece.length === 1) {
+    const [trend] = piece;
+    const x = scale.x(trend.day);
+    const top = scale.y(trend.kg + kgSd(trend));
+    const bottom = scale.y(trend.kg - kgSd(trend));
+    const left = round(x - LINE_WIDTH / 2);
+    const right = round(x + LINE_WIDTH / 2);
+    return [
+      `${left},${top}`,
+      `${right},${top}`,
+      `${right},${bottom}`,
+      `${left},${bottom}`,
+    ];
+  }
+  const corner = (trend: Trend, side: 1 | -1) =>
+    `${scale.x(trend.day)},${scale.y(trend.kg + side * kgSd(trend))}`;
+  return [
+    ...piece.map((trend) => corner(trend, 1)),
+    ...piece.toReversed().map((trend) => corner(trend, -1)),
+  ];
+}
+
+/** The standard deviation of `trend`'s weight, in kg. */
+function kgSd(trend: Trend): number {
+  return Math.sqrt(trend.kgVariance);
 }
 
 /** To a tenth of a pixel, which is all a screen shows. */

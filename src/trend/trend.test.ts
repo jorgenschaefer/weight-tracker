@@ -6,7 +6,7 @@ import {
 } from "@/measurement/measurement";
 import reference from "@/test/fixtures/kalman-reference.json";
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
-import { trends } from "./trend";
+import { isOutlier, type Trend, trends } from "./trend";
 
 const on = (day: string, kg: number): CountingMeasurement => ({
   time: new Date(`${day}T07:00:00+02:00`),
@@ -59,4 +59,26 @@ describe("trends on the test data (AC-1)", () => {
       expect(trend.z).toBeCloseTo(expected.z, 6);
     },
   );
+});
+
+describe("isOutlier", () => {
+  const withZ = (z: number): Trend => ({
+    // Safe: a valid `YYYY-MM-DD`.
+    day: "2026-10-17" as CalendarDay,
+    kg: 97.9,
+    kgVariance: 0.09,
+    pace: -0.35,
+    paceVariance: 0.08,
+    z,
+  });
+
+  it.each([
+    [2.01, true],
+    [2, false],
+    [0, false],
+    [-2, false],
+    [-2.01, true],
+  ])("at z %s is %s: over 2 or under −2", (z, outlier) => {
+    expect(isOutlier(withZ(z))).toBe(outlier);
+  });
 });

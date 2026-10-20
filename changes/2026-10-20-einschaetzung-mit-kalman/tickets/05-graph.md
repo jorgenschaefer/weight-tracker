@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-9
 advances:
 after:     04-vier-zahlen
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -45,3 +45,31 @@ The glossary: Ausreißer is redefined (z > 2), Streuung goes, and Lücke stays f
 - Anything above the graph: 03 and 04.
 
 ## Left standing
+**Review findings not fixed**
+- None. Round 1 had one should-fix: a trend piece of a single day, between two gaps, got a band with no area. Its band is now a bar as wide as the line. Round 1 also had a nit about parsing `points` three ways in `WeightGraph.test.tsx`. Round 2 was clean apart from the nit below.
+
+**Fix made after the last review**
+- Round 2 nit: the README bullet on "the pace over four weeks" ("nimmt ab", "stagniert", "nimmt zu") has been stale since 04. It now describes the four figures. This is text only, and no reviewer saw it.
+
+**Checks**
+- `npm run check` ran whole after the band fix and exits 0 (804 tests). The only change after that run is the README bullet, and no check reads the README.
+
+**Criterion no automated test proves**
+- AC-9: the tests pin the band's corners, its fill and its scale, but jsdom cannot show whether the band is visible.
+  - Round 1 drove `next dev` in headless Chrome at 360×640 and 1440×900 on 17.10. and 4.10. Line and band break at 22.9.→1.10. and stay inside the graph. The rings are exactly 15.9., 3.10., 4.10., 6.10., 7.10. and 12.10.
+  - Round 2 drove a lone 21.9. between two gaps on the phone. The 3 px bar shows above and below the dot.
+
+**Decisions costly to reverse**
+- **The Ausreißer rule.** `isOutlier(trend)` in `src/trend/trend.ts` is now the one rule: |z| > 2, and exactly 2 is not an outlier. The graph uses it, and so does the Satz zum Morgen (`outlier` and `lightMorning`, with the sign of z). `OUTLIER_Z` moved there from `morning-sentence.ts`.
+- **A lone day's band.** A trend piece of a single day gets a band as a bar `LINE_WIDTH` (3 px) wide, from trend + SD to trend − SD. The specimen draws nothing there. I chose the bar because AC-9 asks for a band on every day, and the line of such a day is already a dot.
+- **Where I kept the current graph rather than the specimen:**
+  - The line stays 3 px; the specimen has 2.5. AC-9 says „Die Marken bleiben wie bisher“.
+  - The scale keeps its margin of 0.3 kg; the specimen has 0.2.
+  - The `aria-label` stays „Messungen und Trend der letzten sechs Wochen“; the specimen has „…und geschätztes Gewicht…“. Page tests find the graph by this label.
+  - The band lies under the points and the line over them, as the line did before; the specimen draws the points over both.
+
+**Departures from a nudge**
+- None. The first nudge was built in 01. Of the second nudge's removal list, only `theil-sen.ts`, `scatter.ts` and `outlier.ts` were left, and they are gone with their tests. The old outlier rule was not dropped but moved into `trend.ts` as `isOutlier`, because the Ausreißer stays a concept. The glossary now redefines Ausreißer, drops Streuung, and says on Lücke that the graph breaks line and band there.
+
+**Names not taken from the glossary** (please confirm)
+- „Fläche“ (± the uncertainty) is the band in the code: `bandCorners` and `kgSd` in `src/app/WeightGraph.tsx`. The glossary has no entry for it.

@@ -187,11 +187,10 @@ describe("assess: the figures beside the verdict", () => {
     expect(assessment.sixWeekSeries.measurements).toHaveLength(4);
   });
 
-  it("after a gap with no Theil-Sen trend before it, with the trend, the trend line and the outliers of the last day", () => {
-    // A Theil-Sen trend from 5.9. on; 21.9. alone, without one; after it,
-    // 4.10. the first day with one again, the 4th measurement after the gap,
-    // and 2 kg over it an outlier.
-    const noTrendBeforeTheGap = countingFrom([
+  it("after a gap, with the trend, the trend line and the outliers of the last day", () => {
+    // 21.9. alone between two gaps; 4.10., 2 kg over the days before it, an
+    // outlier.
+    const afterGaps = countingFrom([
       ["2026-09-01", 99.0],
       ["2026-09-02", 99.0],
       ["2026-09-03", 99.0],
@@ -206,15 +205,15 @@ describe("assess: the figures beside the verdict", () => {
       ["2026-10-04", 99.0],
     ]);
 
-    const assessment = assess(noTrendBeforeTheGap, "2026-10-04" as CalendarDay);
+    const assessment = assess(afterGaps, "2026-10-04" as CalendarDay);
 
     expect(assessment).toMatchObject({
       status: { kind: "verdict" },
       measuredKg: 99.0,
-      trend: trends(noTrendBeforeTheGap).at(-1),
+      trend: trends(afterGaps).at(-1),
     });
     expect(assessment.sixWeekSeries).toEqual(
-      sixWeekSeries(noTrendBeforeTheGap, "2026-10-04" as CalendarDay),
+      sixWeekSeries(afterGaps, "2026-10-04" as CalendarDay),
     );
     expect(assessment.sixWeekSeries.trendLine).not.toEqual([]);
     expect(assessment.sixWeekSeries.measurements.at(-1)?.outlier).toBe(true);

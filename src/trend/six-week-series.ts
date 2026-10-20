@@ -1,15 +1,12 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import { findGaps, type Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import { isOutlier } from "./outlier";
-import { scatter } from "./scatter";
-import { type Trend, trends } from "./theil-sen";
+import { isOutlier, type Trend, trends } from "./trend";
 
 /**
  * What the graph draws of the last 6 weeks: the counting measurements, each
- * marked whether it is an outlier on the scatter of its own day, and the
- * trend of each day as a line, in pieces broken at every gap. Both ordered
- * by day.
+ * marked whether it is an outlier, and the trend of each day as a line with
+ * its uncertainty, in pieces broken at every gap. Both ordered by day.
  */
 export interface SixWeekSeries {
   measurements: { measurement: CountingMeasurement; outlier: boolean }[];
@@ -25,22 +22,12 @@ export function sixWeekSeries(
   today: CalendarDay,
 ): SixWeekSeries {
   const everyTrend = trends(counting);
-  const trendOfDay = new Map(everyTrend.map((trend) => [trend.day, trend]));
-  const measurements = counting
-    .filter((measurement) => inSixWeeks(measurement.day, today))
-    .map((measurement) => {
-      const trend = trendOfDay.get(measurement.day);
-      return {
-        measurement,
-        outlier:
-          trend !== undefined &&
-          isOutlier(
-            measurement,
-            trend,
-            scatter(counting, everyTrend, measurement.day),
-          ),
-      };
-    });
+  // `trends` holds one trend per counting measurement, in the same order.
+  const measurements = counting.flatMap((measurement, i) =>
+    inSixWeeks(measurement.day, today)
+      ? [{ measurement, outlier: isOutlier(everyTrend[i]) }]
+      : [],
+  );
   const trendLine = breakAtGaps(
     everyTrend.filter((trend) => inSixWeeks(trend.day, today)),
     findGaps(counting),

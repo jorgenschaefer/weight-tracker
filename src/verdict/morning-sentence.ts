@@ -1,5 +1,5 @@
 import { daysBetween } from "@/measurement/calendar-day";
-import type { Trend } from "@/trend/trend";
+import { isOutlier, type Trend } from "@/trend/trend";
 import { isLossLikelier, lossCertainty, trafficLight } from "./traffic-light";
 
 /**
@@ -61,8 +61,12 @@ export function morningSentence(trends: Trend[]): MorningSentence {
   if (light === "red" && lightYesterday !== "red") {
     return { kind: "gainingAgain" };
   }
-  if (light === "green" && today.z > OUTLIER_Z) return { kind: "outlier" };
-  if (light === "red" && today.z < -OUTLIER_Z) return { kind: "lightMorning" };
+  if (light === "green" && isOutlier(today) && today.z > 0) {
+    return { kind: "outlier" };
+  }
+  if (light === "red" && isOutlier(today) && today.z < 0) {
+    return { kind: "lightMorning" };
+  }
   if (light === "green" && today.z > HEAVIER_Z && yesterday.z > HEAVIER_Z) {
     return { kind: "twoHeavierMornings" };
   }
@@ -86,8 +90,6 @@ export function morningSentence(trends: Trend[]): MorningSentence {
   }
 }
 
-/** How many standard deviations off a morning is an Ausreißer. */
-const OUTLIER_Z = 2;
 /** How many standard deviations heavier a morning counts as heavier. */
 const HEAVIER_Z = 1;
 /** From this many days of green or red on, they have held for weeks. */
