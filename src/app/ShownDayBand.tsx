@@ -24,7 +24,7 @@ export function ShownDayBand({
       className={classes.band}
       style={{ backgroundColor: colours.ink, color: colours.surface }}
     >
-      <span className={classes.day}>{standOf(shownDay)}</span>
+      <span className={classes.day}>{shownDayLabel(shownDay)}</span>
       <UnstyledButton
         className={classes.back}
         style={{
@@ -53,11 +53,11 @@ export function ShownDayAnnouncement({
 }) {
   return (
     <VisuallyHidden role="status" aria-live="polite">
-      {shownDay === null ? "" : standOf(shownDay)}
+      {shownDay === null ? "" : shownDayLabel(shownDay)}
     </VisuallyHidden>
   );
 }
 
-function standOf(day: CalendarDay): string {
+function shownDayLabel(day: CalendarDay): string {
   return `Stand ${formatCalendarDay(day)}`;
 }
