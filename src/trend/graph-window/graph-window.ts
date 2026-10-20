@@ -97,6 +97,25 @@ export function windowOnSwitch(
 }
 
 /**
+ * The window of `span` holding `day`, which ‹ or › show from `graphWindow` as
+ * often as needed; `null`, the window up to today, where it reaches today.
+ */
+export function windowHolding(
+  span: Span,
+  graphWindow: GraphWindow,
+  day: CalendarDay,
+  today: CalendarDay,
+): GraphWindow | null {
+  let held: GraphWindow | null = graphWindow;
+  // `YYYY-MM-DD` orders as text the way the days do.
+  while (day < held.firstDay) held = earlierWindow(span, held);
+  while (held !== null && held.lastDay < day) {
+    held = laterWindow(span, held, today);
+  }
+  return held === null ? null : beforeToday(held, today);
+}
+
+/**
  * A day the window of `span` a whole span after the one up to `day` is up to:
  * 42 days later, in the third month after it, or in the year after it.
  */

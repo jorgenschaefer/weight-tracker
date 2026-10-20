@@ -78,6 +78,10 @@ const viewOf = (span: Span, today: CalendarDay): View => ({
   today,
 });
 
+/** The days of the measurements of `series`, as if they were all there are. */
+const measuredDays = (series: WindowSeries) =>
+  series.measurements.map(({ measurement }) => measurement.day);
+
 /**
  * The graph of `series` in `view`, drawn into a container `width` px wide,
  * marking `shownDay`.
@@ -95,8 +99,10 @@ async function drawGraph(
       span={view.span}
       graphWindow={view.graphWindow}
       today={view.today}
+      measuredDays={measuredDays(series)}
       shownDay={shownDay}
       onChooseDay={() => {}}
+      onStepToDay={() => {}}
       surface={SURFACE}
     />,
   );
@@ -499,8 +505,10 @@ describe("WeightGraph", () => {
         span="sixWeeks"
         graphWindow={upToOctober17}
         today={october17}
+        measuredDays={[]}
         shownDay={null}
         onChooseDay={() => {}}
+        onStepToDay={() => {}}
         surface={SURFACE}
       />,
     );
@@ -781,15 +789,17 @@ describe("WeightGraph: the day shown", () => {
   // Whether the last day is an earlier day is the page's to judge.
   it("reports the last day with a measurement as it is, chosen with →", async () => {
     stubContainerWidth(320);
-    const onChooseDay = vi.fn();
+    const onStepToDay = vi.fn();
     render(
       <WeightGraph
         series={withOutlierInTheMiddle}
         span="sixWeeks"
         graphWindow={upToOctober17}
         today={october17}
+        measuredDays={measuredDays(withOutlierInTheMiddle)}
         shownDay={october16}
-        onChooseDay={onChooseDay}
+        onChooseDay={() => {}}
+        onStepToDay={onStepToDay}
         surface={SURFACE}
       />,
     );
@@ -797,7 +807,7 @@ describe("WeightGraph: the day shown", () => {
 
     fireEvent.keyDown(graph, { key: "ArrowRight" });
 
-    expect(onChooseDay).toHaveBeenCalledWith(october17);
+    expect(onStepToDay).toHaveBeenCalledWith(october17);
   });
 
   const css = readFileSync(

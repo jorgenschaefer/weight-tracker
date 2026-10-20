@@ -27,19 +27,23 @@ import classes from "./WeightGraph.module.css";
  * measurement, there is no weight to scale to, and it says so instead.
  *
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
- * `surface`, the colour of the surface. A tap, a drag or ← and → choose the
- * day with a measurement nearest across or next to it, and report it to
- * `onChooseDay`, which judges whether it is an earlier day; a second tap on the
- * day shown and Escape report `null`. `ref` reaches the drawing, which takes
- * the focus.
+ * `surface`, the colour of the surface. A tap or a drag choose the day of the
+ * window with a measurement nearest across and report it to `onChooseDay`,
+ * which judges whether it is an earlier day; a second tap on the day shown and
+ * Escape report `null`. ← and → choose the day of `measuredDays`, the days
+ * with a counting measurement in every window, those of `series` among them,
+ * next to it, inside the window or not, and report it to `onStepToDay`, which
+ * judges the same. `ref` reaches the drawing, which takes the focus.
  */
 export function WeightGraph({
   series,
   span,
   graphWindow,
   today,
+  measuredDays,
   shownDay,
   onChooseDay,
+  onStepToDay,
   surface,
   ref,
 }: {
@@ -47,8 +51,10 @@ export function WeightGraph({
   span: Span;
   graphWindow: GraphWindow;
   today: CalendarDay;
+  measuredDays: CalendarDay[];
   shownDay: CalendarDay | null;
   onChooseDay: (day: CalendarDay | null) => void;
+  onStepToDay: (day: CalendarDay) => void;
   surface: string;
   ref?: Ref<SVGSVGElement>;
 }) {
@@ -65,8 +71,10 @@ export function WeightGraph({
           graphWindow={graphWindow}
           today={today}
           width={width}
+          measuredDays={measuredDays}
           shownDay={shownDay}
           onChooseDay={onChooseDay}
+          onStepToDay={onStepToDay}
           surface={surface}
           ref={ref}
         />
@@ -81,8 +89,10 @@ function Drawing({
   graphWindow,
   today,
   width,
+  measuredDays,
   shownDay,
   onChooseDay,
+  onStepToDay,
   surface,
   ref,
 }: {
@@ -91,14 +101,23 @@ function Drawing({
   graphWindow: GraphWindow;
   today: CalendarDay;
   width: number;
+  measuredDays: CalendarDay[];
   shownDay: CalendarDay | null;
   onChooseDay: (day: CalendarDay | null) => void;
+  onStepToDay: (day: CalendarDay) => void;
   surface: string;
   ref?: Ref<SVGSVGElement>;
 }) {
   const layout = width < WIDE_FROM_WIDTH ? COMPACT : WIDE;
   const scale = chartScale(series, span, graphWindow, width, layout);
-  const choice = useDayChoice(series, scale, shownDay, onChooseDay);
+  const choice = useDayChoice(
+    series,
+    measuredDays,
+    scale,
+    shownDay,
+    onChooseDay,
+    onStepToDay,
+  );
   const shown = series.measurements.find(
     ({ measurement }) => measurement.day === shownDay,
   );
@@ -377,22 +396,25 @@ function ShownDayMark({
 }
 
 /**
- * The handlers by which the drawing chooses a day of `series` for
- * `onChooseDay`: a press on the drawing chooses the day whose point lies
+ * The handlers by which the drawing chooses a day for `onChooseDay`: a press
+ * on the drawing chooses the day of `series` whose point lies
  * nearest across, and so does every move while it is held; letting go of a
  * press that began on the day shown without choosing another goes back to
  * today. A press the browser takes over to scroll the page leaves the day
  * shown before it; a finger chooses only once it has let go or moved more
  * across than up or down, so a swipe to scroll shows no other day meanwhile.
- * ← and → choose the day with a measurement before and after, Escape goes
+ * ← and → choose the day of `measuredDays` before and after for
+ * `onStepToDay`, Escape goes
  * back to today. Where no earlier day is shown, `shownDay` is `null` and the
- * point of the last day with a measurement stands for today's page.
+ * last day with a measurement stands for today's page.
  */
 function useDayChoice(
   series: WindowSeries,
+  measuredDays: CalendarDay[],
   scale: ChartScale,
   shownDay: CalendarDay | null,
   onChooseDay: (day: CalendarDay | null) => void,
+  onStepToDay: (day: CalendarDay) => void,
 ) {
   // The press now held down: the day shown before it, the day it began on and
   // whether that is the day shown and no other has been chosen since; for a
@@ -405,8 +427,8 @@ function useDayChoice(
     fingerDown: { x: number; y: number } | null;
   } | null>(null);
   const days = series.measurements.map(({ measurement }) => measurement.day);
-  // Safe: the drawing has at least one measurement, so a last day.
-  const lastDay = days.at(-1) as CalendarDay;
+  // Safe: `measuredDays` holds the days of `series`, which has at least one.
+  const lastDay = measuredDays.at(-1) as CalendarDay;
   const current = shownDay ?? lastDay;
   const nearestTo = (event: React.PointerEvent<SVGSVGElement>) =>
     nearestDay(
@@ -450,13 +472,13 @@ function useDayChoice(
       press.current = null;
     },
     onKeyDown(event: React.KeyboardEvent<SVGSVGElement>) {
-      const i = days.indexOf(current);
+      const i = measuredDays.indexOf(current);
       switch (event.key) {
         case "ArrowLeft":
-          onChooseDay(days[Math.max(0, i - 1)]);
+          onStepToDay(measuredDays[Math.max(0, i - 1)]);
           break;
         case "ArrowRight":
-          onChooseDay(days[Math.min(days.length - 1, i + 1)]);
+          onStepToDay(measuredDays[Math.min(measuredDays.length - 1, i + 1)]);
           break;
         case "Escape":
           onChooseDay(null);

@@ -1634,13 +1634,246 @@ describe("an earlier day", () => {
       expect(band()).toHaveTextContent("Stand 22.9.");
     });
 
-    it("stays on the first day of the six weeks with ←", async () => {
+    it("stays on the first day with a measurement of all with ←", async () => {
       const user = openHistoryOn("2026-10-20");
-      await tapOn(user, "2026-09-09");
+      await tabToGraph(user);
+      for (let i = 0; i < 100; i++) await user.keyboard("{ArrowLeft}");
+
+      expect(band()).toHaveTextContent("Stand 1.7.");
+    });
+  });
+
+  describe("and the window", () => {
+    /** The graph, of whichever span and range it shows. */
+    const anyGraph = () =>
+      screen.findByRole("img", { name: /^Messungen und Trend/ });
+    const spanButton = (name: string) => screen.findByRole("button", { name });
+    const earlier = () => screen.findByRole("button", { name: "Früher" });
+    const later = () => screen.findByRole("button", { name: "Später" });
+
+    /**
+     * A tap on the point of `day` in the graph of the page on 20.10. with the
+     * test data, as it shows the 42 days ending with `lastDay`.
+     */
+    async function tapIn(user: UserEvent, lastDay: string, day: string) {
+      const { measurements } = windowSeries(
+        countingMeasurements(weightHistoryUntil("2026-10-20")),
+        windowUpTo("sixWeeks", lastDay as CalendarDay),
+      );
+      const i = measurements.findIndex(
+        ({ measurement }) => measurement.day === day,
+      );
+      expect(i).not.toBe(-1);
+      const point = (await anyGraph()).querySelectorAll("circle")[i];
+      await user.pointer({
+        keys: "[MouseLeft]",
+        target: await anyGraph(),
+        coords: { clientX: Number(point.getAttribute("cx")) },
+      });
+    }
+
+    const pressOnGraph = async (user: UserEvent, keys: string) => {
+      (await anyGraph()).focus();
+      await user.keyboard(keys);
+    };
+
+    it("lets a tap choose the last point of an earlier window", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+
+      await tapIn(user, "2026-09-08", "2026-09-08");
+
+      expect(band()).toHaveTextContent("Stand 8.9.");
+    });
+
+    it.each([
+      ["3 Monate", "Aug – Okt 2026"],
+      ["1 Jahr", "2026"],
+    ])("lets a tap choose a day on „%s“", async (span, range) => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await spanButton(span));
+      await isShown(range);
+      const graph = await anyGraph();
+      const [first] = graph.querySelectorAll("circle");
+
+      await user.pointer({
+        keys: "[MouseLeft]",
+        target: graph,
+        coords: { clientX: Number(first.getAttribute("cx")) },
+      });
+
+      expect(band()).toHaveTextContent(
+        span === "1 Jahr" ? "Stand 1.7." : "Stand 1.8.",
+      );
+    });
+
+    it("keeps the day chosen as the span switches and the window moves, out of it too", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapIn(user, "2026-10-20", "2026-10-18");
+
+      await user.click(await earlier());
+      await isShown("29.7.26 – 8.9.26");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+
+      await user.click(await spanButton("3 Monate"));
+      await isShown("Jul – Sep 2026");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+
+      await user.click(await later());
+      await isShown("Aug – Okt 2026");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+    });
+
+    it("shows with ← from the first day of the window the day before, in the window ‹ shows", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapIn(user, "2026-10-20", "2026-09-09");
 
       await user.keyboard("{ArrowLeft}");
 
+      expect(band()).toHaveTextContent("Stand 8.9.");
+      await isShown("29.7.26 – 8.9.26");
+    });
+
+    it("shows with ← a day before the window in the window ‹ shows as often as needed", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+      await tapIn(user, "2026-09-08", "2026-07-29");
+      await user.click(await later());
+      await isShown("Bis heute");
+
+      await pressOnGraph(user, "{ArrowLeft}");
+
+      expect(band()).toHaveTextContent("Stand 28.7.");
+      await isShown("17.6.26 – 28.7.26");
+    });
+
+    it("shows with → a day after the window in the window › shows as often as needed", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+      await tapIn(user, "2026-09-08", "2026-09-08");
+      await user.click(await earlier());
+      await isShown("17.6.26 – 28.7.26");
+
+      await pressOnGraph(user, "{ArrowRight}");
+
       expect(band()).toHaveTextContent("Stand 9.9.");
+      await isShown("Bis heute");
+    });
+
+    it("chooses with ← in an earlier window, with no day chosen, the day before the last with a measurement, in its window", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+
+      await pressOnGraph(user, "{ArrowLeft}");
+
+      expect(band()).toHaveTextContent("Stand 19.10.");
+      await isShown("Bis heute");
+    });
+
+    it("shows today with → onto the last day with a measurement, in its window", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapIn(user, "2026-10-20", "2026-10-19");
+      await user.click(await earlier());
+
+      await pressOnGraph(user, "{ArrowRight}");
+
+      expect(band()).toBeNull();
+      await isShown("Bis heute");
+    });
+
+    it("comes back with „Zurück zu heute“ to the window of the span up to today", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapIn(user, "2026-10-20", "2026-10-18");
+      await user.click(await spanButton("3 Monate"));
+      await user.click(await earlier());
+      await isShown("Mai – Jul 2026");
+
+      await user.click(await backToToday());
+
+      expect(band()).toBeNull();
+      await isShown("Aug – Okt 2026");
+    });
+
+    it.each([
+      ["with a day chosen", true],
+      ["with no day chosen", false],
+    ])(
+      "comes back to the window up to today once a weight is entered, %s",
+      async (_, chosen) => {
+        google.measurements = weightHistoryUntil("2026-10-20");
+        const user = openHistoryOn("2026-10-20");
+        if (chosen) await tapIn(user, "2026-10-20", "2026-10-18");
+        await user.click(await earlier());
+        await isShown("29.7.26 – 8.9.26");
+
+        await enterWeight(user, "97,2");
+
+        await isShown("Bis heute");
+        expect(band()).toBeNull();
+      },
+    );
+
+    it("stays where it is as the browser takes over a press and the day out of the window comes back", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapIn(user, "2026-10-20", "2026-10-18");
+      await user.click(await earlier());
+      const graph = await anyGraph();
+      const point = graph.querySelectorAll("circle")[0];
+
+      await user.pointer({
+        keys: "[MouseLeft>]",
+        target: graph,
+        coords: { clientX: Number(point.getAttribute("cx")) },
+      });
+      fireEvent.pointerCancel(graph);
+
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      await isShown("29.7.26 – 8.9.26");
+    });
+
+    it("stays where a weight entered fails", async () => {
+      vi.mocked(enterMeasurement).mockResolvedValueOnce(
+        failure({ kind: "unreachable" }),
+      );
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+
+      await enterWeight(user, "97,2");
+
+      await isShown("Speichern fehlgeschlagen: Google antwortet nicht.");
+      await isShown("29.7.26 – 8.9.26");
+    });
+
+    it.each([
+      ["Escape", (user: UserEvent) => pressOnGraph(user, "{Escape}")],
+      [
+        "a second tap on the day shown",
+        (user: UserEvent) => tapIn(user, "2026-09-08", "2026-08-15"),
+      ],
+      ["the page coming back into view", () => comeIntoView()],
+    ])("stays where it is as %s ends the day shown", async (_, end) => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await earlier());
+      await tapIn(user, "2026-09-08", "2026-08-15");
+
+      await end(user);
+
+      expect(band()).toBeNull();
+      await isShown("29.7.26 – 8.9.26");
+    });
+
+    it("stays where it is as a fetch fails and ends the day shown", async () => {
+      const fetching = holdFetch();
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await signInButton());
+      await user.click(await earlier());
+      await tapIn(user, "2026-09-08", "2026-08-15");
+
+      await act(async () => fetching.resolve(failure({ kind: "unreachable" })));
+
+      await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+      expect(band()).toBeNull();
+      await isShown("29.7.26 – 8.9.26");
     });
   });
 });

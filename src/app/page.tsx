@@ -16,6 +16,7 @@ import {
   hasLaterWindow,
   laterWindow,
   type Span,
+  windowHolding,
   windowOnSwitch,
   windowUpTo,
 } from "@/trend/graph-window/graph-window";
@@ -53,8 +54,15 @@ export default function Page() {
   const [chosenDay, setChosenDay] = useChosenDay(
     measurements?.fetchFailure ?? null,
   );
-  const { span, graphWindow, chooseSpan, showEarlier, showLater } =
-    useGraphWindow(today);
+  const {
+    span,
+    graphWindow,
+    chooseSpan,
+    showEarlier,
+    showLater,
+    showWindowHolding,
+    showWindowUpToToday,
+  } = useGraphWindow(today);
   const graph = useRef<SVGSVGElement>(null);
   if (measurements === null) {
     return (
@@ -103,16 +111,25 @@ export default function Page() {
       ? assessmentToday
       : assess(countingMeasurements(known), shownDay);
   const colours = surfaceColours(assessment.status);
+  // ← and → choose days outside the window too, which the graph then shows.
+  const stepToDay = (day: CalendarDay) => {
+    setChosenDay(day);
+    showWindowHolding(day);
+  };
   // The graph takes the focus, ringed only where the keyboard brought it,
   // as after a tap the page is to look as if no day had been chosen.
   const backToToday = (byKeyboard: boolean) => {
     setChosenDay(null);
+    showWindowUpToToday();
     graph.current?.focus({ focusVisible: byKeyboard });
   };
   // A weight entered is today's, so the page shows today once it is saved.
   const enter: EnterWeight = async (kg) => {
     const saved = await measurements.enter(kg);
-    if (saved.ok) setChosenDay(null);
+    if (saved.ok) {
+      setChosenDay(null);
+      showWindowUpToToday();
+    }
     return saved;
   };
   return (
@@ -140,8 +157,10 @@ export default function Page() {
               ? showEarlier
               : null,
           onLater: hasLaterWindow(graphWindow, today) ? showLater : null,
+          measuredDays: counting.map(({ day }) => day),
           shownDay,
           onChooseDay: setChosenDay,
+          onStepToDay: stepToDay,
           colours,
           ref: graph,
         }}
@@ -168,8 +187,8 @@ function useToday(): CalendarDay {
 
 /**
  * The span chosen and the window of it the graph shows: the window up to
- * today, which moves on with today, until ‹ › show an earlier one. Opened
- * anew, the page shows „6 Wochen“ up to today.
+ * today, which moves on with today, until ‹ ›, or a day chosen outside it,
+ * show an earlier one. Opened anew, the page shows „6 Wochen“ up to today.
  */
 function useGraphWindow(today: CalendarDay) {
   const [span, setSpan] = useState<Span>("sixWeeks");
@@ -185,6 +204,9 @@ function useGraphWindow(today: CalendarDay) {
     },
     showEarlier: () => setPastWindow(earlierWindow(span, graphWindow)),
     showLater: () => setPastWindow(laterWindow(span, graphWindow, today)),
+    showWindowHolding: (day: CalendarDay) =>
+      setPastWindow(windowHolding(span, graphWindow, day, today)),
+    showWindowUpToToday: () => setPastWindow(null),
   };
 }
 
@@ -320,8 +342,10 @@ function CachedMeasurements({
     range: string;
     onEarlier: (() => void) | null;
     onLater: (() => void) | null;
+    measuredDays: CalendarDay[];
     shownDay: CalendarDay | null;
     onChooseDay: (day: CalendarDay | null) => void;
+    onStepToDay: (day: CalendarDay) => void;
     colours: SurfaceColours;
     ref: RefObject<SVGSVGElement | null>;
   };
@@ -362,8 +386,10 @@ function CachedMeasurements({
               span={graph.span}
               graphWindow={graph.graphWindow}
               today={today}
+              measuredDays={graph.measuredDays}
               shownDay={graph.shownDay}
               onChooseDay={graph.onChooseDay}
+              onStepToDay={graph.onStepToDay}
               surface={graph.colours.surface}
               ref={graph.ref}
             />

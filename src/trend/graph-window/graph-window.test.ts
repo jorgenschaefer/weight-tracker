@@ -5,6 +5,7 @@ import {
   hasEarlierWindow,
   hasLaterWindow,
   laterWindow,
+  windowHolding,
   windowOnSwitch,
   windowUpTo,
 } from "./graph-window";
@@ -171,6 +172,115 @@ describe("windowOnSwitch", () => {
           span,
           { firstDay: day(firstDay), lastDay: day(lastDay) },
           day("2026-10-20"),
+        ),
+      ).toBeNull();
+    },
+  );
+});
+
+describe("windowHolding", () => {
+  const today = day("2026-10-20");
+
+  it.each([
+    ["sixWeeks", "2026-07-29", "2026-09-08", "2026-08-15"],
+    ["sixWeeks", "2026-07-29", "2026-09-08", "2026-07-29"],
+    ["sixWeeks", "2026-07-29", "2026-09-08", "2026-09-08"],
+  ] as const)(
+    "is %s %s to %s itself where it holds %s",
+    (span, firstDay, lastDay, held) => {
+      const graphWindow = { firstDay: day(firstDay), lastDay: day(lastDay) };
+      expect(windowHolding(span, graphWindow, day(held), today)).toEqual(
+        graphWindow,
+      );
+    },
+  );
+
+  it.each([
+    [
+      "sixWeeks",
+      "2026-09-09",
+      "2026-10-20",
+      "2026-09-08",
+      "2026-07-29",
+      "2026-09-08",
+    ],
+    [
+      "sixWeeks",
+      "2026-09-09",
+      "2026-10-20",
+      "2026-07-28",
+      "2026-06-17",
+      "2026-07-28",
+    ],
+    [
+      "threeMonths",
+      "2026-08-01",
+      "2026-10-31",
+      "2025-12-31",
+      "2025-11-01",
+      "2026-01-31",
+    ],
+    [
+      "oneYear",
+      "2026-01-01",
+      "2026-12-31",
+      "2015-03-01",
+      "2015-01-01",
+      "2015-12-31",
+    ],
+    [
+      "sixWeeks",
+      "2026-06-17",
+      "2026-07-28",
+      "2026-07-29",
+      "2026-07-29",
+      "2026-09-08",
+    ],
+    [
+      "sixWeeks",
+      "2026-06-17",
+      "2026-07-28",
+      "2026-09-08",
+      "2026-07-29",
+      "2026-09-08",
+    ],
+    [
+      "threeMonths",
+      "2025-11-01",
+      "2026-01-31",
+      "2026-04-10",
+      "2026-02-01",
+      "2026-04-30",
+    ],
+  ] as const)(
+    "is from %s %s to %s for %s the window ‹ or › show as often as needed: %s to %s",
+    (span, firstDay, lastDay, held, heldFirst, heldLast) => {
+      expect(
+        windowHolding(
+          span,
+          { firstDay: day(firstDay), lastDay: day(lastDay) },
+          day(held),
+          today,
+        ),
+      ).toEqual({ firstDay: heldFirst, lastDay: heldLast });
+    },
+  );
+
+  it.each([
+    ["sixWeeks", "2026-06-17", "2026-07-28", "2026-09-09"],
+    ["sixWeeks", "2026-06-17", "2026-07-28", "2026-10-20"],
+    ["sixWeeks", "2026-09-09", "2026-10-20", "2026-10-01"],
+    ["threeMonths", "2026-02-01", "2026-04-30", "2026-08-01"],
+    ["oneYear", "2015-01-01", "2015-12-31", "2026-01-01"],
+  ] as const)(
+    "is the window up to today, `null`, where from %s %s to %s the window holding %s reaches today",
+    (span, firstDay, lastDay, held) => {
+      expect(
+        windowHolding(
+          span,
+          { firstDay: day(firstDay), lastDay: day(lastDay) },
+          day(held),
+          today,
         ),
       ).toBeNull();
     },
