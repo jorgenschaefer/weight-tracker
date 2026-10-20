@@ -40,9 +40,44 @@ Die Einstellung, die in der Auswertung am besten abschnitt:
   (rot im Median nach 26 statt 11 Tagen). Offen: die Farbe erst nach zwei
   Messungen in Folge wechseln.
 
-Was der Filter darüber hinaus sagen könnte, noch nicht entschieden:
+## Gewünschte Anzeige
 
-- das Tempo mit seiner Unsicherheit (z. B. −0,47 ± 0,29 kg/Woche);
-- die Wahrscheinlichkeit, im Plan zu sein (Tempo unter −0,5 kg/Woche);
-- eine Prognose, nur als Spanne (4 Wochen: etwa ±1,2 kg);
-- am Morgen eines Ausreißers den Hinweis, dass er nur schwach zählt.
+Am Beispiel des 20.10.2026:
+
+0. Messung: 96,9 kg
+1. Geschätztes Gewicht mit Unsicherheit: 97,4 ± 0,3 kg
+2. Tempo mit Unsicherheit und kcal-Defizit bzw. -Überschuss:
+   −0,47 ± 0,29 kg/Woche, Defizit 510 ± 320 kcal/Tag
+3. Ampel: Grün
+
+Die Spanne der kcal ist groß: Aus drei Wochen Wiegen lässt sich das Defizit
+nur auf etwa ±300 kcal genau sagen. Heute zeigt „Langfristig“ die kcal aus
+dem 28-Tage-Tempo ohne Spanne (`kcalPerDay` in `src/trend/pace.ts`).
+
+## Ein Satz zum Morgen, nach festen Regeln
+
+Besonders gut: ein Satz, was der Morgen bedeutet, wie diese für Oktober 2026
+(ohne LLM, aus dem, was der Filter jeden Morgen hat):
+
+| Tag | Ampel | Satz |
+|---|---|---|
+| 1.10. | Rot | Du nimmst seit Wochen zu, etwa 0,4 kg pro Woche. |
+| 3.10. | Rot | Leichter Morgen, aber ein Tag ändert den Trend noch nicht. |
+| 4.10. | Gelb | Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen. |
+| 6.10. | Gelb | Es geht wahrscheinlich abwärts, noch nicht sicher. |
+| 8.10. | Grün | Du nimmst wieder ab, etwa 0,45 kg pro Woche. |
+| 9.10. | Grün | Du nimmst ab, im Plan. |
+| 12.10. | Grün | Ausreißer, der Trend bleibt. |
+| 17.10. | Grün | Zwei schwerere Morgen: Du nimmst noch ab, aber langsamer. |
+| 18.10. | Gelb | Achtung, die Abnahme wird langsamer. |
+| 19.10. | Grün | Wieder auf Kurs. |
+
+Jeder Satz hängt an wenigen Größen: die Ampel heute und seit wann, die Ampel
+gestern, wie weit die Messung von der Erwartung abweicht (in
+Standardabweichungen), wie sich das Tempo über die letzten Tage ändert, die
+Wahrscheinlichkeit nennenswerter Abnahme und die, im Plan zu sein (Tempo
+unter −0,5 kg/Woche). Die Grenzen („deutlich“, „über zwei Tage“, „nach
+wenigen Tagen“) sind noch festzulegen und an der Historie zu prüfen.
+
+Noch nicht entschieden: eine Prognose, nur als Spanne (4 Wochen: etwa
+±1,2 kg).
