@@ -4,6 +4,7 @@ import {
   formatCalendarDay,
   formatDay,
   formatKg,
+  formatMonth,
   formatPace,
   formatPaceDeviation,
   formatTime,
@@ -85,6 +86,19 @@ describe("formatCalendarDay", () => {
   ])("writes %s as %s, without the year", (day, text) => {
     // Safe: valid `YYYY-MM-DD`s.
     expect(formatCalendarDay(day as CalendarDay)).toBe(text);
+  });
+});
+
+describe("formatMonth", () => {
+  it.each([
+    ["2026-01-15", "Jan"],
+    ["2026-03-01", "Mär"],
+    ["2026-06-30", "Jun"],
+    ["2026-09-15", "Sep"],
+    ["2026-12-31", "Dez"],
+  ])("writes the month of %s short: %s", (day, text) => {
+    // Safe: valid `YYYY-MM-DD`s.
+    expect(formatMonth(day as CalendarDay)).toBe(text);
   });
 });
 

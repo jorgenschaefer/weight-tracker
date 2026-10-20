@@ -9,7 +9,15 @@ import {
   latestMeasurement,
   type Measurement,
 } from "@/measurement/measurement";
-import type { SixWeekSeries } from "@/trend/six-week-series";
+import {
+  type GraphWindow,
+  type Span,
+  windowUpTo,
+} from "@/trend/graph-window/graph-window";
+import {
+  type WindowSeries,
+  windowSeries,
+} from "@/trend/graph-window/window-series";
 import {
   type Assessment,
   assess,
@@ -22,6 +30,7 @@ import { formatDay, formatKg, formatTime } from "./format";
 import { GoogleStatus } from "./GoogleStatus";
 import classes from "./page.module.css";
 import { ShownDayAnnouncement, ShownDayBand } from "./ShownDayBand";
+import { SpanToggle } from "./SpanToggle";
 import { type Measurements, useMeasurements } from "./useMeasurements";
 import {
   Figures,
@@ -38,6 +47,9 @@ export default function Page() {
   const [chosenDay, setChosenDay] = useChosenDay(
     measurements?.fetchFailure ?? null,
   );
+  // Opened anew, the page shows „6 Wochen“; the window is that of the span
+  // up to today, which moves on with today.
+  const [span, setSpan] = useState<Span>("sixWeeks");
   const graph = useRef<SVGSVGElement>(null);
   if (measurements === null) {
     return (
@@ -79,6 +91,7 @@ export default function Page() {
   if (shownDay !== chosenDay) setChosenDay(null);
   const latestToday = latestMeasurement(all);
   const assessmentToday = assess(counting, today);
+  const graphWindow = windowUpTo(span, today);
   const known = shownDay === null ? all : measurementsKnownOn(all, shownDay);
   const assessment =
     shownDay === null
@@ -111,10 +124,13 @@ export default function Page() {
         latest={latestMeasurement(known)}
         assessment={assessment}
         graph={{
-          series: assessmentToday.sixWeekSeries,
+          series: windowSeries(counting, graphWindow),
+          span,
+          onChooseSpan: setSpan,
+          graphWindow,
           shownDay,
           onChooseDay: setChosenDay,
-          surface: colours.surface,
+          colours,
           ref: graph,
         }}
         today={today}
@@ -249,8 +265,8 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 /**
  * The page from the cached measurements and those entered that Google Health
  * has not returned yet: their newest, `latest`, the verdict and the four
- * figures of the day shown, and under them the graph of the six weeks up to
- * `today`, in which an earlier day is chosen.
+ * figures of the day shown, and under them the toggle of the span and the
+ * graph of its window, in which an earlier day is chosen.
  */
 function CachedMeasurements({
   latest,
@@ -262,10 +278,13 @@ function CachedMeasurements({
   latest: Measurement | null;
   assessment: Assessment;
   graph: {
-    series: SixWeekSeries;
+    series: WindowSeries;
+    span: Span;
+    onChooseSpan: (span: Span) => void;
+    graphWindow: GraphWindow;
     shownDay: CalendarDay | null;
     onChooseDay: (day: CalendarDay | null) => void;
-    surface: string;
+    colours: SurfaceColours;
     ref: RefObject<SVGSVGElement | null>;
   };
   today: CalendarDay;
@@ -286,13 +305,23 @@ function CachedMeasurements({
         </div>
         <Figures assessment={assessment} />
       </div>
+      {/* Without any measurement, there is nothing to show over time. */}
+      {latest !== null && (
+        <SpanToggle
+          span={graph.span}
+          colours={graph.colours}
+          onChoose={graph.onChooseSpan}
+        />
+      )}
       <div className={classes.graph}>
         <WeightGraph
           series={graph.series}
+          span={graph.span}
+          graphWindow={graph.graphWindow}
           today={today}
           shownDay={graph.shownDay}
           onChooseDay={graph.onChooseDay}
-          surface={graph.surface}
+          surface={graph.colours.surface}
           ref={graph.ref}
         />
       </div>

@@ -1,0 +1,23 @@
+/* A pill in the text colour around the three spans, set off from the
+   graph under it. */
+.toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 28px 0 0;
+  padding: 0;
+  min-inline-size: 0;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.option {
+  padding: 4px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.option:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -4px;
+}

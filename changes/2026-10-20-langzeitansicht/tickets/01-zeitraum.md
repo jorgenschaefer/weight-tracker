@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2
 advances:  AC-5, AC-10
 after:     
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -53,3 +53,26 @@ Diese Namen nehmen die späteren Tickets auf: `Span` für den Zeitraum, `GraphWi
 Aus `Out of scope`: Beschriftete höchste und tiefste Punkte: Sie sind im Graphen zu sehen, und das Wählen eines Tages gibt Datum und Wert.
 
 ## Left standing
+
+**Review findings not fixed:** none. Two review rounds; the second came back with nits only, all fixed (below).
+
+**Fixed after the last review** (no reviewer saw these; `npm run check` green afterwards, 1050 tests):
+- README's graph line now says „this month and the two before, or this calendar year“ rather than reading as rolling periods (nit 1, round 2).
+- `pointCount`'s doc comment in `src/app/page.test.tsx` says it returns a count (nit 2, round 2).
+- The graph's accessible name in `src/app/page.test.tsx` is one module-level `GRAPH`, not two copies, so 02 changes it in one place (nit 3, round 2).
+- Doc comment of `windowSeries` re-wrapped to 80 columns (nit 4, round 2).
+
+**Criteria parts no automated test proves:** the look of the toggle (pill in the text colour, chosen span filled), the dashed line for today and the month names against the specimen, and the 12 px between toggle and graph (`.graph` in `page.module.css`) — jsdom lays nothing out. The first reviewer drove the page (run skill, headless Chrome) on 20.10. at 360 px and 1400 px and on 30.8. at 360 px, in all three spans, with the keyboard and without measurements: as asked, nothing scrolls sideways, no console errors.
+
+**Decisions costly to reverse:**
+- `Span = "sixWeeks" | "threeMonths" | "oneYear"` and `GraphWindow { firstDay; lastDay }` (both days included) in `src/trend/graph-window/graph-window.ts`, with `windowUpTo(span, today)`; `windowSeries(counting, graphWindow)` in `src/trend/graph-window/window-series.ts`. 02 and 03 build on these.
+- `assess` no longer carries the series (`Assessment.sixWeekSeries` is gone); the page computes `windowSeries` itself for the window shown.
+- `WeightGraph` takes `span`, `graphWindow` and `today`; its labels are chosen by `span`, its x scale runs from `graphWindow.firstDay` to `lastDay`.
+
+**Departures from nudges:**
+- „Das Fenster lebt in `src/app/page.tsx` neben `chosenDay`“: the *span* lives there (`useState`), and the window is derived as `windowUpTo(span, today)` on every render. Nothing in this ticket moves the window off today, and deriving it is what makes AC-2's day change hold with no extra code. 02, which adds ‹ ›, has to hold a shifted window there, and AC-2's rule then has to survive in it.
+- „Die Regel für das Fenster … liegt an einer Stelle unter `src/trend/`“: it lies in the subdirectory `src/trend/graph-window/`, since the window and its series are one feature of two source files.
+- The parameter and prop are named `graphWindow`, not `window`: the structural check (`src/test/domain-boundaries.test.ts`) reads `window` as the browser global.
+- Specimen differences kept deliberately („markiert wie heute“): the points keep the 6-week radii in every span (the specimen shrinks them per span), and there are no faint lines at month starts. With the whole history (04), a year of points at 3.5 px radius may want the specimen's smaller marks — for the developer to decide. The line for today stands 3 px right of today's point, as in the specimen.
+
+**Names not from the glossary, to confirm:** `SpanToggle` (the Umschalter, `src/app/SpanToggle.tsx`), `windowUpTo`, the span values `sixWeeks` / `threeMonths` / `oneYear`, `formatMonth` (`src/app/format.ts`), `timeLabels` / `monthLabels` / `dayLabels` and `TODAY_LINE_OFFSET` in `WeightGraph.tsx`. The glossary entries „Zeitraum“ (`span`) and `GraphWindow` were written by this ticket, as the nudge asked; the span values in them are this ticket's choice.

@@ -7,16 +7,18 @@ import {
   calendarDayBefore,
   daysBetween,
 } from "@/measurement/calendar-day";
-import type { SixWeekSeries } from "@/trend/six-week-series";
+import type { GraphWindow, Span } from "@/trend/graph-window/graph-window";
+import type { WindowSeries } from "@/trend/graph-window/window-series";
 import type { Trend } from "@/trend/trend";
-import { formatCalendarDay } from "./format";
+import { formatCalendarDay, formatMonth } from "./format";
 import classes from "./WeightGraph.module.css";
 
 /**
- * The graph of the six weeks up to `today`, as wide as the space it is given:
- * the counting measurements as points, the trend as a line inside a band of
- * ± its standard deviation, both broken at gaps.
- * Drawn in the text colour it inherits; nothing where the six weeks hold no
+ * The graph of `graphWindow` in `span`, as wide as the space it is given: the
+ * counting measurements of `series` as points, the trend as a line inside a
+ * band of ± its standard deviation, both broken at gaps. Where the window
+ * reaches past `today`, a dashed line marks it.
+ * Drawn in the text colour it inherits; nothing where the window holds no
  * measurement, as without one there is no weight to scale to.
  *
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
@@ -28,13 +30,17 @@ import classes from "./WeightGraph.module.css";
  */
 export function WeightGraph({
   series,
+  span,
+  graphWindow,
   today,
   shownDay,
   onChooseDay,
   surface,
   ref,
 }: {
-  series: SixWeekSeries;
+  series: WindowSeries;
+  span: Span;
+  graphWindow: GraphWindow;
   today: CalendarDay;
   shownDay: CalendarDay | null;
   onChooseDay: (day: CalendarDay | null) => void;
@@ -47,6 +53,8 @@ export function WeightGraph({
       {width > 0 && series.measurements.length > 0 && (
         <Drawing
           series={series}
+          span={span}
+          graphWindow={graphWindow}
           today={today}
           width={width}
           shownDay={shownDay}
@@ -61,6 +69,8 @@ export function WeightGraph({
 
 function Drawing({
   series,
+  span,
+  graphWindow,
   today,
   width,
   shownDay,
@@ -68,7 +78,9 @@ function Drawing({
   surface,
   ref,
 }: {
-  series: SixWeekSeries;
+  series: WindowSeries;
+  span: Span;
+  graphWindow: GraphWindow;
   today: CalendarDay;
   width: number;
   shownDay: CalendarDay | null;
@@ -77,7 +89,7 @@ function Drawing({
   ref?: Ref<SVGSVGElement>;
 }) {
   const layout = width < WIDE_FROM_WIDTH ? COMPACT : WIDE;
-  const scale = chartScale(series, today, width, layout);
+  const scale = chartScale(series, span, graphWindow, width, layout);
   const choice = useDayChoice(series, scale, shownDay, onChooseDay);
   const shown = series.measurements.find(
     ({ measurement }) => measurement.day === shownDay,
@@ -118,7 +130,7 @@ function Drawing({
           </text>
         </g>
       ))}
-      {scale.labelledDays.map((day) => (
+      {scale.timeLabels.map(({ day, text }) => (
         <text
           key={day}
           x={scale.x(day)}
@@ -128,9 +140,21 @@ function Drawing({
           fontSize={layout.fontSize}
           textAnchor="middle"
         >
-          {formatCalendarDay(day)}
+          {text}
         </text>
       ))}
+      {/* `YYYY-MM-DD` orders as text the way the days do. */}
+      {today < graphWindow.lastDay && (
+        <line
+          x1={scale.x(today) + TODAY_LINE_OFFSET}
+          x2={scale.x(today) + TODAY_LINE_OFFSET}
+          y1={layout.top}
+          y2={layout.height - layout.bottom}
+          stroke="currentColor"
+          strokeOpacity={0.35}
+          strokeDasharray="3 3"
+        />
+      )}
       {series.trendLine.map((piece) => (
         <polygon
           key={piece[0].day}
@@ -176,6 +200,12 @@ function Drawing({
 /** The width of the trend line, in px. */
 const LINE_WIDTH = 3;
 
+/**
+ * The line for today stands this far right of today's point, in px, so it
+ * does not cut through it.
+ */
+const TODAY_LINE_OFFSET = 3;
+
 /** The two arrangements of the specimens: a phone's and a wide screen's. */
 interface Layout {
   height: number;
@@ -189,7 +219,10 @@ interface Layout {
   labelGap: number;
   /** Above this many kilos from the lowest to the highest, every other one. */
   everyOtherKiloAbove: number;
+  /** In „6 Wochen“. */
   daysPerLabel: number;
+  /** In „1 Jahr“; in „3 Monate“ each month has its label. */
+  monthsPerLabelInAYear: number;
   /** The radius of each mark: the latest is largest, but for the day shown. */
   radius: Record<Exclude<Mark, "latestOutlier"> | "shown", number>;
 }
@@ -204,6 +237,7 @@ const COMPACT: Layout = {
   labelGap: 6,
   everyOtherKiloAbove: 5,
   daysPerLabel: 10,
+  monthsPerLabelInAYear: 2,
   radius: { counting: 3.5, outlier: 4.5, latest: 5.5, shown: 7 },
 };
 
@@ -220,6 +254,7 @@ const WIDE: Layout = {
   labelGap: 8,
   everyOtherKiloAbove: Number.POSITIVE_INFINITY,
   daysPerLabel: 7,
+  monthsPerLabelInAYear: 1,
   radius: { counting: 4.5, outlier: 5.5, latest: 6.5, shown: 8 },
 };
 
@@ -343,7 +378,7 @@ function ShownDayMark({
  * point of the last day with a measurement stands for today's page.
  */
 function useDayChoice(
-  series: SixWeekSeries,
+  series: WindowSeries,
   scale: ChartScale,
   shownDay: CalendarDay | null,
   onChooseDay: (day: CalendarDay | null) => void,
@@ -439,18 +474,19 @@ interface ChartScale {
   y(kg: number): number;
   /** The whole kilos with a grid line and a label, from the lowest. */
   labelledKilos: number[];
-  /** The days with a label, from the earliest. */
-  labelledDays: CalendarDay[];
+  /** The labels under the graph, of days or months, from the earliest. */
+  timeLabels: { day: CalendarDay; text: string }[];
 }
 
 /**
- * Where a day and a weight lie in a drawing `width` px wide: `today` and the
- * 41 days before it from left to right, and whole kilos from just below the
+ * Where a day and a weight lie in a drawing `width` px wide: the days of
+ * `graphWindow` from left to right, and whole kilos from just below the
  * lowest to just above the highest weight drawn, the band's edges included.
  */
 function chartScale(
-  series: SixWeekSeries,
-  today: CalendarDay,
+  series: WindowSeries,
+  span: Span,
+  graphWindow: GraphWindow,
   width: number,
   layout: Layout,
 ): ChartScale {
@@ -465,17 +501,14 @@ function chartScale(
   const kiloStep = highest - lowest > layout.everyOtherKiloAbove ? 2 : 1;
   const labelledKilos: number[] = [];
   for (let kg = lowest; kg <= highest; kg += kiloStep) labelledKilos.push(kg);
-  // Not on today itself, whose label would stick out past the right edge.
-  const labelledDays: CalendarDay[] = [];
-  for (let ago = 3; ago <= SPAN_DAYS - 3; ago += layout.daysPerLabel)
-    labelledDays.unshift(calendarDayBefore(today, ago));
+  const windowDays = daysBetween(graphWindow.firstDay, graphWindow.lastDay);
   return {
     labelledKilos,
-    labelledDays,
+    timeLabels: timeLabels(span, graphWindow, layout),
     x: (day) =>
       round(
         layout.left +
-          ((SPAN_DAYS - daysBetween(day, today)) / SPAN_DAYS) *
+          (daysBetween(graphWindow.firstDay, day) / windowDays) *
             (width - layout.left - layout.right),
       ),
     y: (kg) =>
@@ -487,7 +520,64 @@ function chartScale(
   };
 }
 
-const SPAN_DAYS = 41;
+/**
+ * The labels under the graph: in „6 Wochen“ a day every `daysPerLabel` days,
+ * in „3 Monate“ and „1 Jahr“ the name of each month, or of every
+ * `monthsPerLabelInAYear`th in a year, in its middle.
+ */
+function timeLabels(
+  span: Span,
+  graphWindow: GraphWindow,
+  layout: Layout,
+): ChartScale["timeLabels"] {
+  switch (span) {
+    case "sixWeeks":
+      return dayLabels(graphWindow, layout.daysPerLabel);
+    case "threeMonths":
+      return monthLabels(graphWindow, 1);
+    case "oneYear":
+      return monthLabels(graphWindow, layout.monthsPerLabelInAYear);
+  }
+}
+
+function dayLabels(
+  graphWindow: GraphWindow,
+  daysPerLabel: number,
+): ChartScale["timeLabels"] {
+  const windowDays = daysBetween(graphWindow.firstDay, graphWindow.lastDay);
+  // Not on the last day itself, whose label would stick out past the right
+  // edge.
+  const labels: ChartScale["timeLabels"] = [];
+  for (let ago = 3; ago <= windowDays - 3; ago += daysPerLabel) {
+    const day = calendarDayBefore(graphWindow.lastDay, ago);
+    labels.unshift({ day, text: formatCalendarDay(day) });
+  }
+  return labels;
+}
+
+/**
+ * The name of every `monthsPerLabel`th month of `graphWindow`, which starts
+ * on the first of a month, from its first, on the 15th.
+ */
+function monthLabels(
+  graphWindow: GraphWindow,
+  monthsPerLabel: number,
+): ChartScale["timeLabels"] {
+  const labels: ChartScale["timeLabels"] = [];
+  let year = Number(graphWindow.firstDay.slice(0, 4));
+  let month = Number(graphWindow.firstDay.slice(5, 7));
+  for (;;) {
+    // Safe: a valid `YYYY-MM-DD`.
+    const day = `${year}-${String(month).padStart(2, "0")}-15` as CalendarDay;
+    if (day > graphWindow.lastDay) return labels;
+    labels.push({ day, text: formatMonth(day) });
+    month += monthsPerLabel;
+    if (month > 12) {
+      month -= 12;
+      year += 1;
+    }
+  }
+}
 
 /**
  * The corners of one piece of the trend line. A piece of a single day gets

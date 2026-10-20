@@ -1,35 +1,36 @@
-import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
+import type { CalendarDay } from "@/measurement/calendar-day";
 import { findGaps, type Gap } from "@/measurement/gap";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import { isOutlier, type Trend, trends } from "./trend";
+import { isOutlier, type Trend, trends } from "../trend";
+import type { GraphWindow } from "./graph-window";
 
 /**
- * What the graph draws of the last 6 weeks: the counting measurements, each
- * marked whether it is an outlier, and the trend of each day as a line with
- * its uncertainty, in pieces broken at every gap. Both ordered by day.
+ * What the graph draws of a window: the counting measurements, each marked
+ * whether it is an outlier, and the trend of each day as a line with its
+ * uncertainty, in pieces broken at every gap. Both ordered by day.
  */
-export interface SixWeekSeries {
+export interface WindowSeries {
   measurements: { measurement: CountingMeasurement; outlier: boolean }[];
   trendLine: Trend[][];
 }
 
 /**
- * The series of `today` and the 41 days before it, from `counting` (ordered
- * by day), whose earlier measurements still shape the trend.
+ * The series of `graphWindow` from `counting` (ordered by day), whose
+ * measurements before it still shape the trend.
  */
-export function sixWeekSeries(
+export function windowSeries(
   counting: CountingMeasurement[],
-  today: CalendarDay,
-): SixWeekSeries {
+  graphWindow: GraphWindow,
+): WindowSeries {
   const everyTrend = trends(counting);
   // `trends` holds one trend per counting measurement, in the same order.
   const measurements = counting.flatMap((measurement, i) =>
-    inSixWeeks(measurement.day, today)
+    inWindow(measurement.day, graphWindow)
       ? [{ measurement, outlier: isOutlier(everyTrend[i]) }]
       : [],
   );
   const trendLine = breakAtGaps(
-    everyTrend.filter((trend) => inSixWeeks(trend.day, today)),
+    everyTrend.filter((trend) => inWindow(trend.day, graphWindow)),
     findGaps(counting),
   );
   return { measurements, trendLine };
@@ -56,9 +57,7 @@ function gapBetween(earlier: Trend, later: Trend, gaps: Gap[]): boolean {
   );
 }
 
-function inSixWeeks(day: CalendarDay, today: CalendarDay): boolean {
-  const daysAgo = daysBetween(day, today);
-  return daysAgo >= 0 && daysAgo < SIX_WEEKS_DAYS;
+function inWindow(day: CalendarDay, graphWindow: GraphWindow): boolean {
+  // `YYYY-MM-DD` orders as text the way the days do.
+  return graphWindow.firstDay <= day && day <= graphWindow.lastDay;
 }
-
-const SIX_WEEKS_DAYS = 42;

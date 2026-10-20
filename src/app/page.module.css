@@ -60,9 +60,11 @@
 
 /* The space the graph will take, held before it has measured its width:
    WeightGraph.tsx draws 190 px tall below 600 px wide and 380 px from
-   there. 40em is a 640 px screen, whose padding leaves the graph 600 px. */
+   there. 40em is a 640 px screen, whose padding leaves the graph 600 px.
+   Close under the toggle of the span (SpanToggle.module.css), which keeps
+   it off the four figures. */
 .graph {
-  margin-top: 28px;
+  margin-top: 12px;
   min-height: 190px;
 }
 

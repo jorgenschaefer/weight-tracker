@@ -6,7 +6,6 @@ import {
   type Measurement,
 } from "@/measurement/measurement";
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
-import { sixWeekSeries } from "@/trend/six-week-series";
 import { trends } from "@/trend/trend";
 import { assess, isEarlierDay, measurementsKnownOn } from "./assessment";
 
@@ -79,14 +78,6 @@ describe("assess: the figures", () => {
 
     expect(assessment.measuredKg).toBe(98.6);
     expect(assessment.trend).toEqual(trends(counting).at(-1));
-  });
-
-  it("carries the 6-week series up to today", () => {
-    const counting = historyUntil("2026-10-17");
-
-    expect(assess(counting, "2026-10-18" as CalendarDay).sixWeekSeries).toEqual(
-      sixWeekSeries(counting, "2026-10-18" as CalendarDay),
-    );
   });
 
   it("uses only the first measurement of a day; a later one changes neither verdict nor „Gemessen“", () => {
@@ -184,10 +175,9 @@ describe("assess: the figures beside the verdict", () => {
       measuredKg: 97.5,
       trend: trends(counting).at(-1),
     });
-    expect(assessment.sixWeekSeries.measurements).toHaveLength(4);
   });
 
-  it("after a gap, with the trend, the trend line and the outliers of the last day", () => {
+  it("after a gap, with the trend of the last day", () => {
     // 21.9. alone between two gaps; 4.10., 2 kg over the days before it, an
     // outlier.
     const afterGaps = countingFrom([
@@ -212,11 +202,6 @@ describe("assess: the figures beside the verdict", () => {
       measuredKg: 99.0,
       trend: trends(afterGaps).at(-1),
     });
-    expect(assessment.sixWeekSeries).toEqual(
-      sixWeekSeries(afterGaps, "2026-10-04" as CalendarDay),
-    );
-    expect(assessment.sixWeekSeries.trendLine).not.toEqual([]);
-    expect(assessment.sixWeekSeries.measurements.at(-1)?.outlier).toBe(true);
   });
 });
 
@@ -226,7 +211,6 @@ describe("assess: no verdict yet", () => {
       status: { kind: "noVerdictYet" },
       measuredKg: null,
       trend: null,
-      sixWeekSeries: { measurements: [], trendLine: [] },
     });
   });
 });

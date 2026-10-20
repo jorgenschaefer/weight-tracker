@@ -21,7 +21,15 @@ import {
   standInForGoogle,
 } from "@/test/open-page";
 import { weightHistory } from "@/test/weight-history-fixture";
-import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
+import {
+  type GraphWindow,
+  type Span,
+  windowUpTo,
+} from "@/trend/graph-window/graph-window";
+import {
+  type WindowSeries,
+  windowSeries,
+} from "@/trend/graph-window/window-series";
 import type { Trend } from "@/trend/trend";
 import { WeightGraph } from "./WeightGraph";
 
@@ -36,8 +44,11 @@ vi.mock("@/measurement/google-health", () => ({
 // Safe: valid `YYYY-MM-DD`s.
 const october17 = "2026-10-17" as CalendarDay;
 
+/** The graphWindow of „6 Wochen“ up to 17.10. */
+const upToOctober17 = windowUpTo("sixWeeks", october17);
+
 const realSeries = () =>
-  sixWeekSeries(countingMeasurements(weightHistory()), october17);
+  windowSeries(countingMeasurements(weightHistory()), upToOctober17);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -46,18 +57,44 @@ afterEach(() => {
 /** The colour of the surface the graph is drawn on. */
 const SURFACE = "#D3EAD0";
 
-/** The graph, drawn into a container `width` px wide, marking `shownDay`. */
+/** What the graph shows: the window of `span` up to `today`. */
+interface View {
+  span: Span;
+  graphWindow: GraphWindow;
+  today: CalendarDay;
+}
+
+/** „6 Wochen“ up to 17.10. */
+const sixWeeksTo17: View = {
+  span: "sixWeeks",
+  graphWindow: upToOctober17,
+  today: october17,
+};
+
+/** The window of `span` up to `today`. */
+const viewOf = (span: Span, today: CalendarDay): View => ({
+  span,
+  graphWindow: windowUpTo(span, today),
+  today,
+});
+
+/**
+ * The graph of `series` in `view`, drawn into a container `width` px wide,
+ * marking `shownDay`.
+ */
 async function drawGraph(
-  series: SixWeekSeries,
+  series: WindowSeries,
   width = 320,
-  today = october17,
   shownDay: CalendarDay | null = null,
+  view: View = sixWeeksTo17,
 ): Promise<SVGSVGElement> {
   stubContainerWidth(width);
   render(
     <WeightGraph
       series={series}
-      today={today}
+      span={view.span}
+      graphWindow={view.graphWindow}
+      today={view.today}
       shownDay={shownDay}
       onChooseDay={() => {}}
       surface={SURFACE}
@@ -68,6 +105,25 @@ async function drawGraph(
   });
   // Safe: the element with this role is the graph's <svg>.
   return graph as unknown as SVGSVGElement;
+}
+
+/**
+ * The graph of `measurements`, the user's weight unless given, in the window
+ * of `span` up to `today`.
+ */
+function drawSpan(
+  span: Span,
+  width = 320,
+  today = october17,
+  measurements = weightHistory(),
+) {
+  const view = viewOf(span, today);
+  return drawGraph(
+    windowSeries(countingMeasurements(measurements), view.graphWindow),
+    width,
+    null,
+    view,
+  );
 }
 
 const points = (graph: SVGSVGElement) => [...graph.querySelectorAll("circle")];
@@ -138,7 +194,7 @@ const trendOn = (day: string, kg: number, sdKg = 0.3): Trend => ({
 });
 
 /** Three days up to 17.10., the second one an outlier, without a trend. */
-const withOutlierInTheMiddle: SixWeekSeries = {
+const withOutlierInTheMiddle: WindowSeries = {
   measurements: [
     { measurement: measured("2026-10-15", 98.0), outlier: false },
     { measurement: measured("2026-10-16", 99.5), outlier: true },
@@ -377,6 +433,8 @@ describe("WeightGraph", () => {
     const { container } = render(
       <WeightGraph
         series={{ measurements: [], trendLine: [] }}
+        span="sixWeeks"
+        graphWindow={upToOctober17}
         today={october17}
         shownDay={null}
         onChooseDay={() => {}}
@@ -473,6 +531,112 @@ describe("WeightGraph", () => {
   });
 });
 
+describe("WeightGraph: „3 Monate“ and „1 Jahr“", () => {
+  /** The labels under the graph, of days or months. */
+  const timeLabels = (graph: SVGSVGElement) =>
+    labels(graph).filter((label) => !/^\d+$/.test(label ?? ""));
+
+  const pointOn = (graph: SVGSVGElement, span: Span, day: string) => {
+    const series = windowSeries(
+      countingMeasurements(weightHistory()),
+      windowUpTo(span, october17),
+    );
+    const i = series.measurements.findIndex(
+      ({ measurement }) => measurement.day === day,
+    );
+    return centre(points(graph)[i]);
+  };
+
+  /** The dashed line that marks today. */
+  const todayLines = (graph: SVGSVGElement) =>
+    gridLines(graph).filter((line) => line.hasAttribute("stroke-dasharray"));
+
+  it("spans the days of the three months from the left edge to the right, the days after today empty", async () => {
+    const graph = await drawSpan("threeMonths");
+    const [grid] = gridLines(graph);
+    const left = Number(grid.getAttribute("x1"));
+    const right = Number(grid.getAttribute("x2"));
+
+    expect(pointOn(graph, "threeMonths", "2026-08-01").x).toBe(left);
+    // 1.8. to 17.10. are 77 of the 91 days from 1.8. to 31.10.
+    expect(points(graph).at(-1)?.getAttribute("cx")).toBe(
+      String(Math.round((left + (77 / 91) * (right - left)) * 10) / 10),
+    );
+  });
+
+  it("labels each of the three months in its middle", async () => {
+    const graph = await drawSpan("threeMonths");
+    const august = [...graph.querySelectorAll("text")].find(
+      (text) => text.textContent === "Aug",
+    );
+
+    expect(timeLabels(graph)).toEqual(["Aug", "Sep", "Okt"]);
+    expect(august).toHaveAttribute("text-anchor", "middle");
+    expect(Number(august?.getAttribute("x"))).toBe(
+      pointOn(graph, "threeMonths", "2026-08-15").x,
+    );
+  });
+
+  it("labels the three months across a new year", async () => {
+    const graph = await drawSpan(
+      "threeMonths",
+      320,
+      "2027-01-20" as CalendarDay,
+      [measured("2026-12-30", 95.0), measured("2027-01-20", 94.8)],
+    );
+
+    expect(timeLabels(graph)).toEqual(["Nov", "Dez", "Jan"]);
+  });
+
+  it("labels every second month of the year on a phone", async () => {
+    expect(timeLabels(await drawSpan("oneYear", 320))).toEqual([
+      "Jan",
+      "Mär",
+      "Mai",
+      "Jul",
+      "Sep",
+      "Nov",
+    ]);
+  });
+
+  it("labels each month of the year on a wide screen", async () => {
+    expect(timeLabels(await drawSpan("oneYear", 960))).toEqual([
+      "Jan",
+      "Feb",
+      "Mär",
+      "Apr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Dez",
+    ]);
+  });
+
+  it.each<Span>(["threeMonths", "oneYear"])(
+    "marks today with a dashed line from top to bottom, just right of its point, in %s",
+    async (span) => {
+      const graph = await drawSpan(span);
+      const today = pointOn(graph, span, "2026-10-17");
+      const [line] = todayLines(graph);
+
+      expect(todayLines(graph)).toHaveLength(1);
+      expect(line.getAttribute("x1")).toBe(line.getAttribute("x2"));
+      expect(Number(line.getAttribute("x1"))).toBeGreaterThan(today.x);
+      expect(Number(line.getAttribute("x1"))).toBeLessThan(today.x + 5);
+      expect(Number(line.getAttribute("y1"))).toBeLessThan(today.y);
+      expect(Number(line.getAttribute("y2"))).toBeGreaterThan(today.y);
+    },
+  );
+
+  it("draws no line for today where the window ends with it", async () => {
+    expect(todayLines(await drawSpan("sixWeeks"))).toEqual([]);
+  });
+});
+
 describe("WeightGraph: the day shown", () => {
   // Safe: valid `YYYY-MM-DD`s.
   const october15 = "2026-10-15" as CalendarDay;
@@ -492,12 +656,7 @@ describe("WeightGraph: the day shown", () => {
   });
 
   it("marks it with a rule from top to bottom through its point", async () => {
-    const graph = await drawGraph(
-      withOutlierInTheMiddle,
-      320,
-      october17,
-      october15,
-    );
+    const graph = await drawGraph(withOutlierInTheMiddle, 320, october15);
     const [point] = points(graph).map(centre);
     const [rule] = rules(graph);
 
@@ -511,12 +670,7 @@ describe("WeightGraph: the day shown", () => {
   });
 
   it("marks it with a full point larger than the last day's, rimmed in the colour of the surface", async () => {
-    const graph = await drawGraph(
-      withOutlierInTheMiddle,
-      320,
-      october17,
-      october15,
-    );
+    const graph = await drawGraph(withOutlierInTheMiddle, 320, october15);
     const [first, , last, shown] = points(graph);
 
     expect(points(graph)).toHaveLength(4);
@@ -527,12 +681,7 @@ describe("WeightGraph: the day shown", () => {
   });
 
   it("keeps the point hollow where the day shown is an outlier", async () => {
-    const graph = await drawGraph(
-      withOutlierInTheMiddle,
-      320,
-      october17,
-      october16,
-    );
+    const graph = await drawGraph(withOutlierInTheMiddle, 320, october16);
     const [, outlier, last, shown] = points(graph);
 
     expect(centre(shown)).toEqual(centre(outlier));
@@ -548,6 +697,8 @@ describe("WeightGraph: the day shown", () => {
     render(
       <WeightGraph
         series={withOutlierInTheMiddle}
+        span="sixWeeks"
+        graphWindow={upToOctober17}
         today={october17}
         shownDay={october16}
         onChooseDay={onChooseDay}

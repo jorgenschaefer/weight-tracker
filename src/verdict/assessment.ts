@@ -7,7 +7,6 @@ import type {
   CountingMeasurement,
   Measurement,
 } from "@/measurement/measurement";
-import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { type Trend, trends } from "@/trend/trend";
 import { type MorningSentence, morningSentence } from "./morning-sentence";
 import {
@@ -17,8 +16,8 @@ import {
 } from "./traffic-light";
 
 /**
- * Everything the page shows about the weight: exactly one status, and beside
- * it the figures of the last day with a measurement and the 6-week series.
+ * Everything the page shows about the weight above the graph: exactly one
+ * status, and beside it the figures of the last day with a measurement.
  * Without any measurement there are no figures, and no „Gemessen“ either.
  */
 export type Assessment =
@@ -29,7 +28,6 @@ export type Assessment =
       status: { kind: "noVerdictYet" };
       measuredKg: null;
       trend: null;
-      sixWeekSeries: SixWeekSeries;
     };
 
 /** What the page says above the figures: a verdict, or why there is none. */
@@ -51,7 +49,6 @@ interface Figures {
   measuredKg: number;
   /** The trend of that day: „Gewicht, geschätzt“, „Tempo“ and the calories. */
   trend: Trend;
-  sixWeekSeries: SixWeekSeries;
 }
 
 /**
@@ -65,14 +62,12 @@ export function assess(
   counting: CountingMeasurement[],
   today: CalendarDay,
 ): Assessment {
-  const series = sixWeekSeries(counting, today);
   const last = counting.at(-1);
   if (last === undefined) {
     return {
       status: { kind: "noVerdictYet" },
       measuredKg: null,
       trend: null,
-      sixWeekSeries: series,
     };
   }
 
@@ -85,7 +80,6 @@ export function assess(
         : verdict(everyTrend),
     measuredKg: last.kg,
     trend: everyTrend[everyTrend.length - 1],
-    sixWeekSeries: series,
   };
 }
 

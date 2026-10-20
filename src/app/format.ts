@@ -39,6 +39,12 @@ export function formatCalendarDay(day: CalendarDay): string {
   return formatDay(new Date(`${day}T12:00:00Z`));
 }
 
+/** The month of a calendar day, short: `Jan`, `Mär`, `Sep`. */
+export function formatMonth(day: CalendarDay): string {
+  // Noon UTC falls on the same day in Berlin, in summer and in winter.
+  return MONTH.format(new Date(`${day}T12:00:00Z`));
+}
+
 /** The Berlin time of day of `instant`: `7:12`. */
 export function formatTime(instant: Date): string {
   return TIME.format(instant);
@@ -73,6 +79,11 @@ const DAY = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
   day: "numeric",
   month: "numeric",
+});
+
+const MONTH = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+  month: "short",
 });
 
 const TIME = new Intl.DateTimeFormat("de-DE", {

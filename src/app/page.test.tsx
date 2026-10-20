@@ -6,6 +6,7 @@ import {
   fireEvent,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,7 +62,8 @@ import {
   storeMorning,
 } from "@/test/open-page";
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
-import { sixWeekSeries } from "@/trend/six-week-series";
+import { windowUpTo } from "@/trend/graph-window/graph-window";
+import { windowSeries } from "@/trend/graph-window/window-series";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -73,6 +75,9 @@ vi.mock("@/measurement/google-health", () => ({
 
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
+
+/** What a screen reader is told the graph is. */
+const GRAPH = "Messungen und Trend der letzten sechs Wochen";
 
 const verdict = () => screen.getByRole("heading", { level: 1 });
 /** The Satz zum Morgen of {@link storeLoss}. */
@@ -461,7 +466,7 @@ describe("the layout", () => {
     renderPage();
 
     const graph = await screen.findByRole("img", {
-      name: "Messungen und Trend der letzten sechs Wochen",
+      name: GRAPH,
     });
     const inOrder = [
       verdict(),
@@ -611,8 +616,167 @@ describe("the layout", () => {
   });
 });
 
+describe("the span", () => {
+  const graph = () => screen.findByRole("img", { name: GRAPH });
+  const spanToggle = () => screen.queryByRole("group", { name: "Zeitraum" });
+  const spanButton = (name: string) => screen.findByRole("button", { name });
+  /** The labels under the graph, of days or months. */
+  const timeLabels = async () =>
+    [...(await graph()).querySelectorAll("text")]
+      .map((label) => label.textContent)
+      .filter((label) => !/^\d+$/.test(label ?? ""));
+  /** How many points the graph draws. */
+  const pointCount = async () =>
+    (await graph()).querySelectorAll("circle").length;
+  const todayLine = async () =>
+    (await graph()).querySelector("line[stroke-dasharray]");
+  /** How many days from `first` to `last`, both included, the test data has. */
+  const daysWithData = (first: string, last: string) =>
+    countingMeasurements(weightHistoryUntil(last)).filter(
+      (measurement) => measurement.day >= first,
+    ).length;
+
+  it("opens on „6 Wochen“, beside „3 Monate“ and „1 Jahr“", async () => {
+    openHistoryOn("2026-10-20");
+
+    await graph();
+    const buttons = within(spanToggle() as HTMLElement).getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "6 Wochen",
+      "3 Monate",
+      "1 Jahr",
+    ]);
+    expect(
+      buttons.map((button) => button.getAttribute("aria-pressed")),
+    ).toEqual(["true", "false", "false"]);
+  });
+
+  it("stands above the graph, under the four figures", async () => {
+    openHistoryOn("2026-10-20");
+
+    const drawing = await graph();
+    const toggle = spanToggle() as HTMLElement;
+    expect(
+      screen
+        .getByText("Gewicht, geschätzt", { selector: "dt" })
+        .compareDocumentPosition(toggle),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(toggle.compareDocumentPosition(drawing)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("fills the span chosen in the text colour of the surface, its name in the surface's colour", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await spanButton("3 Monate"));
+
+    const main = screen.getByRole("main");
+    const chosen = await spanButton("3 Monate");
+    expect(chosen.style.backgroundColor).toBe(main.style.color);
+    expect(chosen.style.color).toBe(main.style.backgroundColor);
+    expect((await spanButton("6 Wochen")).style.backgroundColor).toBe("");
+  });
+
+  it("shows on „6 Wochen“ the 42 days up to today, with no line for today", async () => {
+    openHistoryOn("2026-10-20");
+
+    expect(await pointCount()).toBe(daysWithData("2026-09-09", "2026-10-20"));
+    expect(await timeLabels()).toEqual(["17.9.", "27.9.", "7.10.", "17.10."]);
+    expect(await todayLine()).toBeNull();
+  });
+
+  it("shows on „3 Monate“ this month and the two before, named, the rest of this month empty behind a line for today", async () => {
+    const user = openHistoryOn("2026-10-20");
+
+    await user.click(await spanButton("3 Monate"));
+
+    expect(await spanButton("3 Monate")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await spanButton("6 Wochen")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(await pointCount()).toBe(daysWithData("2026-08-01", "2026-10-20"));
+    expect(await timeLabels()).toEqual(["Aug", "Sep", "Okt"]);
+    expect(await todayLine()).not.toBeNull();
+  });
+
+  it("shows on „1 Jahr“ the calendar year, every second month named on a phone, behind a line for today", async () => {
+    const user = openHistoryOn("2026-10-20");
+
+    await user.click(await spanButton("1 Jahr"));
+
+    expect(await pointCount()).toBe(daysWithData("2026-01-01", "2026-10-20"));
+    expect(await timeLabels()).toEqual([
+      "Jan",
+      "Mär",
+      "Mai",
+      "Jul",
+      "Sep",
+      "Nov",
+    ]);
+    expect(await todayLine()).not.toBeNull();
+  });
+
+  it("shows on „6 Wochen“ again the graph it opened with", async () => {
+    const user = openHistoryOn("2026-10-20");
+    const opened = (await graph()).outerHTML;
+
+    await user.click(await spanButton("1 Jahr"));
+    await user.click(await spanButton("6 Wochen"));
+
+    expect((await graph()).outerHTML).toBe(opened);
+  });
+
+  it("is „6 Wochen“ again once the page is opened anew", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await spanButton("1 Jahr"));
+
+    reload();
+
+    expect(await spanButton("6 Wochen")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await todayLine()).toBeNull();
+  });
+
+  it("moves with today onto a new month as the page comes back into view", async () => {
+    const user = openHistoryOn("2026-10-31", "2026-10-20");
+    await user.click(await spanButton("3 Monate"));
+    expect(await timeLabels()).toEqual(["Aug", "Sep", "Okt"]);
+
+    vi.setSystemTime(evening("2026-11-01"));
+    await comeIntoView();
+
+    expect(await spanButton("3 Monate")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await timeLabels()).toEqual(["Sep", "Okt", "Nov"]);
+  });
+
+  it("is not there without any measurement", async () => {
+    storeCache(daysAgo(1), []);
+    renderPage();
+
+    await isShown(
+      "Noch keine Messung in Google Health in den letzten 90 Tagen",
+    );
+    expect(spanToggle()).toBeNull();
+  });
+
+  it("is not there on the first visit", async () => {
+    renderPage();
+
+    await isShown(FIRST_VISIT);
+    expect(spanToggle()).toBeNull();
+  });
+});
+
 describe("an earlier day", () => {
-  const GRAPH = "Messungen und Trend der letzten sechs Wochen";
   const graph = () => screen.findByRole("img", { name: GRAPH });
   /** „Stand <day>“ in the band, not in what a screen reader is told. */
   const band = () =>
@@ -625,9 +789,9 @@ describe("an earlier day", () => {
    * evening of `today` with the test data up to `lastDay`.
    */
   async function xOf(day: string, today = "2026-10-20", lastDay = today) {
-    const { measurements } = sixWeekSeries(
+    const { measurements } = windowSeries(
       countingMeasurements(weightHistoryUntil(lastDay)),
-      today as CalendarDay,
+      windowUpTo("sixWeeks", today as CalendarDay),
     );
     const i = measurements.findIndex(
       ({ measurement }) => measurement.day === day,
