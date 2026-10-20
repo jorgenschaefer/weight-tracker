@@ -21,3 +21,24 @@ Ein Spike bei einem echten Eintrag auf der veröffentlichten Seite (nur sie darf
 2. Antwortet `GET https://health.googleapis.com/v4/<name der Operation>` mit demselben Token, und wird daraus `done: true`?
 
 Bis dahin gilt ein Eintrag als abgeschlossen, sobald Google ihn annimmt, und „Letzte Messung“ sagt „, noch nicht aus Google Health abgerufen“, bis ein Abruf ihn enthält (`changes/2026-10-20-anmeldung-und-abruf/`).
+
+## Ergebnis des Spikes
+
+Ein Eintrag auf der veröffentlichten Seite am 20.10.2026 um 19:39 Uhr. `dataPoints.create` antwortete mit 200 und dieser Operation (gekürzt):
+
+```json
+{
+  "done": true,
+  "response": {
+    "@type": "type.googleapis.com/google.devicesandservices.health.v4.DataPoint",
+    "name": "users/…/dataTypes/weight/dataPoints/…",
+    "dataSource": { "recordingMethod": "UNKNOWN", "platform": "GOOGLE_WEB_API", "application": { … } },
+    "weight": { "sampleTime": { "physicalTime": "…", "utcOffset": "7200s", "civilTime": { … } }, "weightGrams": 66000 }
+  }
+}
+```
+
+1. Die Operation ist schon `done: true`, und `response` enthält den gespeicherten Datenpunkt. Es ist nichts abzuwarten.
+2. Die Operation hat weder `name` noch `metadata`; es gibt also nichts, was sich mit `GET` abfragen ließe.
+
+Das ist eine einzelne Antwort, kein Beweis, dass `create` immer synchron ist; aber nichts deutet auf eine Operation hin, die noch läuft. Die Regel aus den Wire formats (2xx und kein `error`) reicht damit aus, und der Eintrag entfällt.
