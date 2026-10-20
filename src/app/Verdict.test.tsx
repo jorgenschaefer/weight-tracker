@@ -258,6 +258,20 @@ describe("what the page no longer says (AC-10)", () => {
     },
   );
 
+  it.each([
+    ["2026-10-17", "2026-10-17"],
+    ["2026-10-21", "2026-10-17"],
+  ])(
+    "on %s, the last on %s, no „Langfristig · 4 Wochen“",
+    async (today, lastDay) => {
+      openHistoryOn(today, lastDay);
+
+      await headline();
+      expect(document.body).not.toHaveTextContent(/Langfristig/);
+      expect(document.body).not.toHaveTextContent(/pro Woche/);
+    },
+  );
+
   it.each(["2026-08-22", "2026-08-28", "2026-09-12"])(
     "on %s, a former Warnstufe, the surface is red",
     async (today) => {
@@ -309,24 +323,86 @@ function figure(label: string): string | null {
   return term?.nextElementSibling?.textContent ?? null;
 }
 
+describe("the four figures (AC-5)", () => {
+  it.each([
+    [
+      "2026-10-19",
+      "97,7 ± 0,3 kg",
+      "97,0 kg",
+      "−0,39 ± 0,29 kg/Wo",
+      "Defizit",
+      "430 ± 320 kcal/Tag",
+    ],
+    [
+      "2026-10-20",
+      "97,4 ± 0,3 kg",
+      "96,9 kg",
+      "−0,47 ± 0,29 kg/Wo",
+      "Defizit",
+      "510 ± 320 kcal/Tag",
+    ],
+  ])(
+    "on %s (AC-7) are „Gewicht, geschätzt“ %s, „Gemessen“ %s, „Tempo“ %s and „%s“ %s",
+    async (today, estimated, measured, pace, balance, kcal) => {
+      openHistoryOn(today);
+
+      await headline();
+      expect(figure("Gewicht, geschätzt")).toBe(estimated);
+      expect(figure("Gemessen")).toBe(measured);
+      expect(figure("Tempo")).toBe(pace);
+      expect(figure(balance)).toBe(kcal);
+    },
+  );
+
+  it("say „Überschuss“ at a pace of 0, after the first counting measurement", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 1, 0, 95.2));
+
+    await headline();
+    expect(figure("Gewicht, geschätzt")).toBe("95,2 ± 1,0 kg");
+    expect(figure("Gemessen")).toBe("95,2 kg");
+    expect(figure("Tempo")).toBe("±0,00 ± 0,50 kg/Wo");
+    expect(figure("Überschuss")).toBe("0 ± 550 kcal/Tag");
+    expect(figure("Defizit")).toBeNull();
+  });
+
+  it("say a gain with its sign and „Überschuss“", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 35, 0.5));
+
+    await headline();
+    expect(figure("Tempo")).toBe("+0,47 ± 0,29 kg/Wo");
+    expect(figure("Überschuss")).toBe("520 ± 320 kcal/Tag");
+    expect(figure("Defizit")).toBeNull();
+  });
+
+  it("stand with „Letzte Messung vor N Tagen“, those of the last day with a measurement", async () => {
+    openHistoryOn("2026-10-24", "2026-10-20");
+
+    expect(await headline()).toHaveTextContent(/^Letzte Messung vor 4 Tagen$/);
+    expect(figure("Gewicht, geschätzt")).toBe("97,4 ± 0,3 kg");
+    expect(figure("Gemessen")).toBe("96,9 kg");
+    expect(figure("Tempo")).toBe("−0,47 ± 0,29 kg/Wo");
+    expect(figure("Defizit")).toBe("510 ± 320 kcal/Tag");
+  });
+
+  it("stay those of the last day with a measurement up to 3 days after it", async () => {
+    openHistoryOn("2026-10-22", "2026-10-19");
+
+    await headline();
+    expect(figure("Gewicht, geschätzt")).toBe("97,7 ± 0,3 kg");
+    expect(figure("Gemessen")).toBe("97,0 kg");
+    expect(figure("Tempo")).toBe("−0,39 ± 0,29 kg/Wo");
+    expect(figure("Defizit")).toBe("430 ± 320 kcal/Tag");
+  });
+
+  it("are not there without any counting measurement", async () => {
+    openOn("2026-10-17", []);
+
+    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+    expect(document.querySelector("dl")).toBeNull();
+  });
+});
+
 describe("the figures", () => {
-  it("are the trend and „Gemessen“, in German", async () => {
-    openHistoryOn("2026-10-17");
-
-    await headline();
-    expect(figure("Trend")).toBe("97,8 kg");
-    expect(figure("Gemessen")).toBe("98,6 kg");
-  });
-
-  it("hold no pace, which „Langfristig“ says alone", async () => {
-    openHistoryOn("2026-10-17");
-
-    await headline();
-    expect(figure("Tempo 4 Wochen")).toBeNull();
-    expect(screen.getAllByText(/kg pro Woche/)).toHaveLength(1);
-    expect(screen.getAllByText(/−0,42/)).toHaveLength(1);
-  });
-
   it("count only the first measurement of a day, though „Letzte Messung“ is the newest", async () => {
     const loss = steady("2026-10-17", 35, -0.7);
     const laterTheSameDay = loss.slice(-5).map((m) => ({
@@ -336,25 +412,24 @@ describe("the figures", () => {
     openOn("2026-10-17", [...loss, ...laterTheSameDay]);
 
     expect(await headline()).toHaveTextContent(/^Du nimmst seit Wochen ab\.$/);
-    expect(figure("Trend")).toBe("95,0 kg");
     expect(figure("Gemessen")).toBe("95,0 kg");
-    expect(
-      screen.getByText(/^Nimmt ab, −0,70 kg pro Woche/),
-    ).toBeInTheDocument();
+    // 3 kg heavier, the later measurements would pull the trend up.
+    expect(figure("Gewicht, geschätzt")).toBe("95,0 ± 0,3 kg");
+    expect(figure("Tempo")).toBe("−0,66 ± 0,29 kg/Wo");
+    expect(figure("Defizit")).toBe("720 ± 320 kcal/Tag");
     expect(
       screen.getByText(/^Letzte Messung 17\.10\. um 12:00 Uhr: 98,0 kg$/),
     ).toBeInTheDocument();
   });
 
-  it("are only „Gemessen“ while the measurements do not suffice for a trend, and the graph only the points", async () => {
+  it("are all four from the first measurements on, while the graph shows only the points", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     await headline();
     expect(screen.getByText(/^Letzte Messung 17\.10\./)).toBeInTheDocument();
     expect(figure("Gemessen")).toBe("95,2 kg");
-    expect(figure("Trend")).toBeNull();
-    expect(figure("Tempo 4 Wochen")).toBeNull();
-    expect(screen.queryByText(/4 Wochen:/)).not.toBeInTheDocument();
+    expect(figure("Gewicht, geschätzt")).toMatch(/^95,2 ± /);
+    expect(figure("Tempo")).toMatch(/^±0,00 ± /);
     const graph = await screen.findByRole("img", {
       name: "Messungen und Trend der letzten sechs Wochen",
     });
@@ -362,8 +437,8 @@ describe("the figures", () => {
     expect(graph.querySelectorAll("polyline")).toHaveLength(0);
   });
 
-  it("are the trend and „Gemessen“ after a gap with no trend before it, and the graph draws the trend line", async () => {
-    // No trend on 21.9. before the gap; 4.10. after it has one.
+  it("are those of the last day after a gap with no Theil-Sen trend before it, and the graph draws its trend line", async () => {
+    // No Theil-Sen trend on 21.9. before the gap; 4.10. after it has one.
     openOn("2026-10-04", [
       ...steady("2026-09-07", 7, 0, 99),
       at("2026-09-21T07:00:00+02:00", 98),
@@ -371,8 +446,8 @@ describe("the figures", () => {
     ]);
 
     await headline();
-    expect(figure("Trend")).toBe("97,0 kg");
     expect(figure("Gemessen")).toBe("97,0 kg");
+    expect(figure("Gewicht, geschätzt")).not.toBeNull();
     const graph = await screen.findByRole("img", {
       name: "Messungen und Trend der letzten sechs Wochen",
     });

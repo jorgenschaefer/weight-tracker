@@ -1,7 +1,8 @@
+import { kcalPerDay } from "@/trend/pace";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
 import type { MorningSentence } from "@/verdict/morning-sentence";
 import { isLossLikelier, type TrafficLight } from "@/verdict/traffic-light";
-import { formatKg } from "./format";
+import { formatKg, formatPace, formatPaceDeviation } from "./format";
 import classes from "./Verdict.module.css";
 
 /**
@@ -31,13 +32,36 @@ export function Verdict({ status }: { status: AssessmentStatus }) {
   }
 }
 
-/** Trend and „Gemessen“ of `assessment`, each where it has one. */
+/**
+ * The four figures of `assessment`, where it has a measurement: „Gewicht,
+ * geschätzt“, „Gemessen“, „Tempo“, and „Defizit“ or „Überschuss“, each
+ * estimate beside its standard deviation.
+ */
 export function Figures({ assessment }: { assessment: Assessment }) {
-  const { trendKg, measuredKg } = assessment;
+  const { trend, measuredKg } = assessment;
+  if (trend === null) return null;
+  const paceSd = Math.sqrt(trend.paceVariance);
   return (
     <dl className={classes.figures}>
-      {trendKg !== null && <Figure label="Trend" kg={trendKg} />}
-      {measuredKg !== null && <Figure label="Gemessen" kg={measuredKg} />}
+      <Figure
+        label="Gewicht, geschätzt"
+        value={formatKg(trend.kg)}
+        sd={formatKg(Math.sqrt(trend.kgVariance))}
+        unit="kg"
+      />
+      <Figure label="Gemessen" value={formatKg(measuredKg)} unit="kg" />
+      <Figure
+        label="Tempo"
+        value={formatPace(trend.pace)}
+        sd={formatPaceDeviation(paceSd)}
+        unit="kg/Wo"
+      />
+      <Figure
+        label={trend.pace < 0 ? "Defizit" : "Überschuss"}
+        value={`${kcalPerDay(trend.pace)}`}
+        sd={`${kcalPerDay(paceSd)}`}
+        unit="kcal/Tag"
+      />
     </dl>
   );
 }
@@ -114,12 +138,29 @@ function sentenceText(sentence: MorningSentence): string {
   }
 }
 
-function Figure({ label, kg }: { label: string; kg: number }) {
+/** `value` under `label`, then „± `sd`“ where it is an estimate, then `unit`. */
+function Figure({
+  label,
+  value,
+  sd,
+  unit,
+}: {
+  label: string;
+  value: string;
+  sd?: string;
+  unit: string;
+}) {
   return (
     <div>
       <dt className={classes.label}>{label}</dt>
       <dd className={classes.figure}>
-        {formatKg(kg)} <span className={classes.unit}>kg</span>
+        {value}{" "}
+        {sd !== undefined && (
+          <>
+            <span className={classes.sd}>± {sd}</span>{" "}
+          </>
+        )}
+        <span className={classes.unit}>{unit}</span>
       </dd>
     </div>
   );

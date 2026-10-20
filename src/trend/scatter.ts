@@ -33,32 +33,22 @@ const MIN_DISTANCES = 10;
 const START_SCATTER_KG = 0.7;
 
 /**
- * The checks judged against the scatter: the morning's distance from its
- * trend, in kg, and the 28-day pace, in kg per week.
+ * The threshold of the morning's distance from its trend, in kg, on a day of
+ * `scatterKg`: {@link THRESHOLD_FACTOR} times what noise alone makes of it.
  */
-export type ScatterCheck = "morning" | "pace";
-
-/**
- * The threshold of `check` on a day of `scatterKg`: {@link THRESHOLD_FACTOR}
- * times what noise alone makes of the check.
- */
-export function threshold(check: ScatterCheck, scatterKg: number): number {
-  return THRESHOLD_FACTOR * NOISE_FACTORS[check] * scatterKg;
+export function threshold(scatterKg: number): number {
+  return THRESHOLD_FACTOR * NOISE_FACTOR * scatterKg;
 }
 
 /** How far a value beyond what noise alone makes of it goes before it counts. */
 const THRESHOLD_FACTOR = 1.25;
 
 /**
- * How much each check varies on noise alone, per kg of scatter: the mean
- * variation of its value in a simulation of a steady weight with a random
- * daily scatter of 1 kg, trend and pace computed as on the page.
+ * How much the morning's distance varies on noise alone, per kg of scatter:
+ * its mean in a simulation of a steady weight with a random daily scatter of
+ * 1 kg, the trend computed as on the graph; 0.92, rounded up.
  */
-const NOISE_FACTORS: Record<ScatterCheck, number> = {
-  // 0.92 in the simulation, rounded up.
-  morning: 1.0,
-  pace: 0.2,
-};
+const NOISE_FACTOR = 1.0;
 
 /**
  * Where `value` lies against `limit`: above it, below its negative, or

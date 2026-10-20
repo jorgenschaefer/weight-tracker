@@ -5,6 +5,7 @@ import {
   formatDay,
   formatKg,
   formatPace,
+  formatPaceDeviation,
   formatTime,
 } from "./format";
 
@@ -30,6 +31,19 @@ describe("formatPace", () => {
     "writes a pace of %d kg per week as %s, with its sign and two decimals",
     (kgPerWeek, text) => {
       expect(formatPace(kgPerWeek)).toBe(text);
+    },
+  );
+});
+
+describe("formatPaceDeviation", () => {
+  it.each([
+    [0.291, "0,29"],
+    [0.5, "0,50"],
+    [1.234, "1,23"],
+  ])(
+    "writes a standard deviation of %d kg per week as %s, unsigned, with two decimals",
+    (kgPerWeek, text) => {
+      expect(formatPaceDeviation(kgPerWeek)).toBe(text);
     },
   );
 });

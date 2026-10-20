@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-5, AC-7, AC-8, AC-10, AC-11
 advances:
 after:     03-ampel-und-satz-auf-der-seite
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -74,3 +74,33 @@ The glossary: Tempo is redefined as the filter's pace, with its uncertainty and 
 - Rewriting `changes/backlog/hauptseite-abwaegen.md` for the new page is for acceptance. It stays as it is here.
 
 ## Left standing
+**Review findings not fixed**
+- **Nit:** in `src/app/Verdict.tsx`, `Figures` chooses „Defizit“ or „Überschuss“ by `trend.pace < 0` and takes `Math.sqrt` of the variances. The reviewer would put the sign rule next to `kcalPerDay` in `src/trend/pace.ts`.
+  - I left it. The label is page wording, and the removed `LongTerm.tsx` chose it the same way, in the component. Moving it would add a domain type with a name the glossary does not have.
+  - The rule is pinned in `src/app/Verdict.test.tsx` („Überschuss“ at a pace of 0, a gain, a loss).
+
+**Checks**
+- `npm run check` ran whole after the last change and exits 0 (830 tests).
+
+**Criteria no automated test proves**
+- **AC-11** needs layout, which jsdom does not do. The reviewer drove `next dev` in headless Chrome with the `run` skill. Headless Chrome drew a 15 px scrollbar, so the tight cases were also measured without it.
+  - **360 × 640:** in the worst case (17.10., the longest Satz, „Daten abrufen“, and a real two-line error), the figures end at 464 px. Every other state ends higher.
+  - **Widest values:** „1210 ± 320 kcal/Tag“ and the Tempo stay on one line inside their cells.
+  - **1440 × 900:** the line and the Satz are on the left, the four figures in the right column, and the graph below both.
+- **AC-7's figures for 19.10. and 20.10.** are pinned by page tests against `weight-history-fixture.ts`. In the browser the reviewer used a made-up 18.10. (97,4 instead of the fixture's 98,4), so the numbers seen there for those two days do not prove anything.
+
+**Decisions costly to reverse**
+- **`Assessment`** (`src/verdict/assessment.ts`) carries `trend: Trend` (the filter's trend of the last day with a measurement) in place of `trendKg` and `pace`. It is `null` only with `noVerdictYet`.
+- **`kcalPerDay`** (`src/trend/pace.ts`) now rounds to the nearest ten, where it used to round down. It takes the unrounded pace (AC-7's 510 needs that), and it also turns the pace's standard deviation into S. `pace.ts` holds nothing else now.
+
+**Departures from a nudge**
+- **The removal list.** I removed `LongTerm.tsx` with its CSS and test, and `pace()`, `paceBand` and the threshold of the 28-day pace.
+  - `scatter.ts` and `outlier.ts` stay because the graph still uses them, and 05 owns the graph.
+  - `threshold` in `scatter.ts` now takes only the scatter, since the morning is its one remaining check.
+  - `week-pace.ts`, `gap-comparison.ts`, `verdict.ts` and `MorningDeviation.tsx` were already gone.
+- **Font sizes.** On the phone the values follow the design at 24px, with „± Y“ at 16px; they were 28px before. The design shows only the phone, so for the wide screen I chose 30px for the values and 18px for „± Y“.
+- **The glossary.** Tempo is redefined and Tempo-Stufe is gone. Streuung and Ausreißer keep their old meanings because the graph still uses them until 05.
+
+**Names not taken from the glossary** (please confirm)
+- `formatPaceDeviation` in `src/app/format.ts`: the standard deviation of a pace, unsigned, with two decimals.
+- The CSS class `sd` in `Verdict.module.css`: the „± Y“ beside a value.

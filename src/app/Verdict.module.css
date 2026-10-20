@@ -27,20 +27,28 @@
   overflow-wrap: break-word;
 }
 
-/* A screen as short as 360 × 640: the verdict, „Langfristig“ and the
-   figures fit above its bottom edge only with narrower gaps than the
-   specimen's. page.module.css narrows its own at the same height. */
+/* The four figures under the verdict, and beside it on the wide screen:
+   two columns of two. */
+.figures {
+  margin: 20px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 8px;
+}
+
+/* A screen as short as 360 × 640: the verdict and the four figures fit
+   above its bottom edge only with narrower gaps than the specimen's.
+   page.module.css narrows its own at the same height. */
 @media (max-height: 45em) {
   .line {
     margin-top: 12px;
   }
-}
 
-.figures {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  .figures {
+    margin-top: 12px;
+  }
 }
 
 .label {
@@ -49,21 +57,29 @@
   opacity: 0.85;
 }
 
-/* The unit beside the value, on its line. */
+/* The standard deviation and the unit beside the value, on its line. */
 .figure {
   margin: 2px 0 0;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   font-stretch: 88%;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sd {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .unit {
   font-size: 13px;
+  font-weight: 500;
 }
 
-/* The wide screen of page.module.css: the verdict beside „Langfristig“
-   and the figures, in a column too narrow for the phone's proportion. */
+/* The wide screen of page.module.css: the verdict beside the four figures,
+   in a column too narrow for the phone's proportion. */
 @media (min-width: 65em) {
   .line {
     margin-top: 0;
@@ -81,7 +97,8 @@
   }
 
   .figures {
-    gap: 24px;
+    margin-top: 0;
+    gap: 20px 24px;
   }
 
   .label,
@@ -90,6 +107,10 @@
   }
 
   .figure {
-    font-size: 36px;
+    font-size: 30px;
+  }
+
+  .sd {
+    font-size: 18px;
   }
 }

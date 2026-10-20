@@ -15,6 +15,11 @@ export function formatPace(kgPerWeek: number): string {
   return signed(kgPerWeek, PACE);
 }
 
+/** The standard deviation of a pace in kg per week, with two decimals: `0,29`. */
+export function formatPaceDeviation(kgPerWeek: number): string {
+  return PACE.format(kgPerWeek);
+}
+
 /** The Berlin day of `instant`, without the year: `5.8.`. */
 export function formatDay(instant: Date): string {
   return DAY.format(instant);

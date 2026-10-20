@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  type CalendarDay,
-  calendarDayBefore,
-} from "@/measurement/calendar-day";
+import type { CalendarDay } from "@/measurement/calendar-day";
 import {
   type CountingMeasurement,
   countingMeasurements,
@@ -10,6 +7,7 @@ import {
 } from "@/measurement/measurement";
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
+import { trends } from "@/trend/trend";
 import { assess } from "./assessment";
 
 /** Counting measurements of [day, kg] pairs, each at 05:00 UTC. */
@@ -74,31 +72,13 @@ describe("assess: the verdict on the fixture", () => {
 });
 
 describe("assess: the figures", () => {
-  it("carries the trend, „Gemessen“ and the 4-week pace of the last day with a measurement", () => {
-    const assessment = assess(
-      historyUntil("2026-10-17"),
-      "2026-10-18" as CalendarDay,
-    );
+  it("carries „Gemessen“ and the trend of the last day with a measurement", () => {
+    const counting = historyUntil("2026-10-17");
+
+    const assessment = assess(counting, "2026-10-18" as CalendarDay);
 
     expect(assessment.measuredKg).toBe(98.6);
-    expect(assessment.trendKg).toBeCloseTo(97.75);
-    expect(assessment.pace).toEqual({ kgPerWeek: -0.42, band: "loss" });
-  });
-
-  it("sorts the 4-week pace by the threshold of the scatter of the last day", () => {
-    // On a straight line the scatter is 0: so is the threshold, and a loss of
-    // 0.15 kg per week is a loss.
-    const slowLoss = countingFrom(
-      Array.from({ length: 40 }, (_, i): [string, number] => [
-        calendarDayBefore("2026-10-17" as CalendarDay, 39 - i),
-        100 - (0.15 / 7) * i,
-      ]),
-    );
-
-    expect(assess(slowLoss, "2026-10-17" as CalendarDay).pace).toEqual({
-      kgPerWeek: -0.15,
-      band: "loss",
-    });
+    expect(assessment.trend).toEqual(trends(counting).at(-1));
   });
 
   it("carries the 6-week series up to today", () => {
@@ -173,17 +153,17 @@ describe("assess: the last measurement too old", () => {
     ).toMatchObject({ kind: "verdict" });
   });
 
-  it("wins over too few measurements for a trend, which still leave no trend", () => {
-    const assessment = assess(
-      historyUntil("2026-07-03"),
-      "2026-07-07" as CalendarDay,
-    );
+  it("keeps „Gemessen“ and the trend of the last day with a measurement", () => {
+    const counting = historyUntil("2026-10-20");
+
+    const assessment = assess(counting, "2026-10-24" as CalendarDay);
 
     expect(assessment.status).toEqual({
       kind: "lastMeasurementTooOld",
       days: 4,
     });
-    expect(assessment.trendKg).toBeNull();
+    expect(assessment.measuredKg).toBe(96.9);
+    expect(assessment.trend).toEqual(trends(counting).at(-1));
   });
 
   it("wins over the verdict of the last day with a measurement", () => {
@@ -194,22 +174,23 @@ describe("assess: the last measurement too old", () => {
 });
 
 describe("assess: the figures beside the verdict", () => {
-  it("while the counting measurements do not suffice for a Theil-Sen trend, without trend or pace", () => {
-    const assessment = assessOn("2026-07-04");
+  it("from the first counting measurements on, with the trend of the last day", () => {
+    const counting = historyUntil("2026-07-04");
+
+    const assessment = assess(counting, "2026-07-04" as CalendarDay);
 
     expect(assessment).toMatchObject({
       status: { kind: "verdict" },
       measuredKg: 97.5,
-      trendKg: null,
-      pace: null,
+      trend: trends(counting).at(-1),
     });
     expect(assessment.sixWeekSeries.measurements).toHaveLength(4);
   });
 
-  it("after a gap with no trend before it, with the trend, the pace, the trend line and the outliers of the last day", () => {
-    // A trend from 5.9. on; 21.9. alone, without one; after it, 4.10. the
-    // first day with a trend again, the 4th measurement after the gap, and 2 kg
-    // over it an outlier.
+  it("after a gap with no Theil-Sen trend before it, with the trend, the trend line and the outliers of the last day", () => {
+    // A Theil-Sen trend from 5.9. on; 21.9. alone, without one; after it,
+    // 4.10. the first day with one again, the 4th measurement after the gap,
+    // and 2 kg over it an outlier.
     const noTrendBeforeTheGap = countingFrom([
       ["2026-09-01", 99.0],
       ["2026-09-02", 99.0],
@@ -230,8 +211,7 @@ describe("assess: the figures beside the verdict", () => {
     expect(assessment).toMatchObject({
       status: { kind: "verdict" },
       measuredKg: 99.0,
-      trendKg: 97.0,
-      pace: { kgPerWeek: -0.5, band: "loss" },
+      trend: trends(noTrendBeforeTheGap).at(-1),
     });
     expect(assessment.sixWeekSeries).toEqual(
       sixWeekSeries(noTrendBeforeTheGap, "2026-10-04" as CalendarDay),
@@ -246,8 +226,7 @@ describe("assess: no verdict yet", () => {
     expect(assess([], "2026-10-17" as CalendarDay)).toEqual({
       status: { kind: "noVerdictYet" },
       measuredKg: null,
-      trendKg: null,
-      pace: null,
+      trend: null,
       sixWeekSeries: { measurements: [], trendLine: [] },
     });
   });

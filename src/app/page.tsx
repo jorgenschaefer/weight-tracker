@@ -12,7 +12,6 @@ import { type Assessment, assess } from "@/verdict/assessment";
 import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
-import { LongTerm } from "./LongTerm";
 import classes from "./page.module.css";
 import {
   type Measurements,
@@ -121,8 +120,8 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 
 /**
  * The page from the measurements `shown`, the cached ones and those entered
- * that Google Health has not returned yet: the verdict on `today`, the
- * 28-day pace and the figures, and the graph under them.
+ * that Google Health has not returned yet: the verdict on `today` and the
+ * four figures, and the graph under them.
  */
 function CachedMeasurements({
   shown,
@@ -152,12 +151,7 @@ function CachedMeasurements({
           <Verdict status={assessment.status} />
           <FetchButton measurements={measurements} colours={colours} />
         </section>
-        {assessment.measuredKg !== null && (
-          <div className={classes.overview}>
-            <LongTerm pace={assessment.pace} />
-            <Figures assessment={assessment} />
-          </div>
-        )}
+        <Figures assessment={assessment} />
       </div>
       <div className={classes.graph}>
         <WeightGraph series={assessment.sixWeekSeries} today={today} />

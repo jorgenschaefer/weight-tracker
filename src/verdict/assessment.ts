@@ -1,10 +1,7 @@
 import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import { type Pace, pace } from "@/trend/pace";
-import { scatter } from "@/trend/scatter";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
-import { trends as theilSenTrends } from "@/trend/theil-sen";
-import { trends } from "@/trend/trend";
+import { type Trend, trends } from "@/trend/trend";
 import { type MorningSentence, morningSentence } from "./morning-sentence";
 import {
   lossCertainty,
@@ -24,8 +21,7 @@ export type Assessment =
   | {
       status: { kind: "noVerdictYet" };
       measuredKg: null;
-      trendKg: null;
-      pace: null;
+      trend: null;
       sixWeekSeries: SixWeekSeries;
     };
 
@@ -46,10 +42,8 @@ export interface Verdict {
 interface Figures {
   /** „Gemessen“: the counting measurement of the last day with a measurement. */
   measuredKg: number;
-  /** The Theil-Sen trend of that day; none where it has none. */
-  trendKg: number | null;
-  /** The 4-week pace of that day; none where it has none. */
-  pace: Pace | null;
+  /** The trend of that day: „Gewicht, geschätzt“, „Tempo“ and the calories. */
+  trend: Trend;
   sixWeekSeries: SixWeekSeries;
 }
 
@@ -70,35 +64,28 @@ export function assess(
     return {
       status: { kind: "noVerdictYet" },
       measuredKg: null,
-      trendKg: null,
-      pace: null,
+      trend: null,
       sixWeekSeries: series,
     };
   }
 
   const days = daysBetween(last.day, today);
-  const everyTheilSenTrend = theilSenTrends(counting);
-  const theilSenTrendOfLast = everyTheilSenTrend.find(
-    (trend) => trend.day === last.day,
-  );
-  const scatterOfLast = scatter(counting, everyTheilSenTrend, last.day);
+  const everyTrend = trends(counting);
   return {
     status:
       days > MAX_DAYS_SINCE_LAST_MEASUREMENT
         ? { kind: "lastMeasurementTooOld", days }
-        : verdict(counting),
+        : verdict(everyTrend),
     measuredKg: last.kg,
-    trendKg: theilSenTrendOfLast?.kg ?? null,
-    pace: pace(everyTheilSenTrend, last.day, scatterOfLast),
+    trend: everyTrend[everyTrend.length - 1],
     sixWeekSeries: series,
   };
 }
 
 const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
 
-/** The verdict of the last of `counting`, of which there is at least one. */
-function verdict(counting: CountingMeasurement[]): Verdict {
-  const everyTrend = trends(counting);
+/** The verdict of the last of `everyTrend`, of which there is at least one. */
+function verdict(everyTrend: Trend[]): Verdict {
   const last = everyTrend[everyTrend.length - 1];
   return {
     kind: "verdict",

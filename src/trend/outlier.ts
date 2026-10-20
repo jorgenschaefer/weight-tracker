@@ -13,9 +13,7 @@ export function isOutlier(
   scatterKg: number,
 ): boolean {
   return (
-    sortAgainstThreshold(
-      measurement.kg - trend.kg,
-      threshold("morning", scatterKg),
-    ) !== "between"
+    sortAgainstThreshold(measurement.kg - trend.kg, threshold(scatterKg)) !==
+    "between"
   );
 }
