@@ -18,7 +18,8 @@ any other host before they touch anything, and name the address to use.
    `node -p 'JSON.parse(require("fs").readFileSync(".next/dev/lock")).port'`
    prints it, and `curl -s -o /dev/null http://walk.localhost:<port>/`
    succeeds while it runs (the lock file can outlive a server that crashed).
-   Only if none runs, start one with `npm run dev` in the background
+   Where the command fails because there is no lock file, or the `curl`
+   fails, none runs. Only if none runs, start one with `npm run dev` in the background
    (port 3000 unless that is taken) and read its port the same way.
 2. Open http://walk.localhost:<port> in Chrome (claude-in-chrome). Without a
    cache it shows the first visit: the status line „Google Health, nicht
