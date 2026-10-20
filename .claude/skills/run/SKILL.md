@@ -17,8 +17,9 @@ worker another project registered for localhost:3000
 
 1. Once per browser profile: `node .claude/skills/run/fixture-snippet.mjs`
    prints a snippet; run it on the page (javascript tool). It stores the
-   fixture `src/test/fixtures/gewicht-2026-07-bis-10.csv` under
-   `walk:fixture`.
+   test data under `walk:fixture`: the extract
+   `src/test/fixtures/gewicht-2026-07-bis-10.csv` and 18.10. to 20.10. from
+   `gewicht-2026-10-18-bis-20.csv`.
 2. Run `walk-on.js` on the page once. Then `await walkOn("2026-08-30")`
    returns the surface's colour and the page's text on that day;
    `{ keep: true }` leaves the frame open to screenshot, and `only` puts

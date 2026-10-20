@@ -7,7 +7,6 @@ hold the page's filter and traffic light to.
 Run it again after changing a setting in `kalman.py`.
 """
 
-import datetime as dt
 import json
 import os
 import sys
@@ -17,14 +16,14 @@ sys.path.insert(0, HERE)
 
 from kalman import kalman, load, traffic_light  # noqa: E402
 
-FIXTURE = os.path.join(HERE, "..", "..", "src", "test", "fixtures", "gewicht-2026-07-bis-10.csv")
-# The days `src/test/weight-history-fixture.ts` adds to the extract; the two
-# change together.
-EXTRA = [(dt.date(2026, 10, 18), 98.4), (dt.date(2026, 10, 19), 97.0), (dt.date(2026, 10, 20), 96.9)]
+FIXTURES = os.path.join(HERE, "..", "..", "src", "test", "fixtures")
+# The extract, and the days `src/test/weight-history-fixture.ts` adds to it.
+EXTRACT = os.path.join(FIXTURES, "gewicht-2026-07-bis-10.csv")
+OCTOBER_18_TO_20 = os.path.join(FIXTURES, "gewicht-2026-10-18-bis-20.csv")
 
 
 def main():
-    rows = load(FIXTURE) + EXTRA
+    rows = load(EXTRACT) + load(OCTOBER_18_TO_20)
     days, kgs = [d for d, _ in rows], [k for _, k in rows]
     out, _ = kalman(days, kgs)
     light = traffic_light(out)

@@ -9,25 +9,14 @@ import type { Measurement } from "@/measurement/measurement";
  * is taken at 7:00 in Berlin.
  */
 export function weightHistory(): Measurement[] {
-  return readFileSync(FIXTURE, "utf8")
-    .trim()
-    .split("\n")
-    .slice(1)
-    .map((row) => {
-      const [day, kg] = row.split(",");
-      return { time: new Date(`${day}T07:00:00+02:00`), kg: Number(kg) };
-    });
+  return readFixture("gewicht-2026-07-bis-10.csv");
 }
 
 /**
- * 18.10. to 20.10.2026, which the fixture lacks; `analysis/kalman/reference.py`
- * adds the same days, and the two change together.
+ * 18.10. to 20.10.2026, which the extract lacks. `analysis/kalman/reference.py`
+ * and the `run` skill's `fixture-snippet.mjs` read the same file.
  */
-const OCTOBER_18_TO_20: Measurement[] = [
-  { time: new Date("2026-10-18T07:00:00+02:00"), kg: 98.4 },
-  { time: new Date("2026-10-19T07:00:00+02:00"), kg: 97.0 },
-  { time: new Date("2026-10-20T07:00:00+02:00"), kg: 96.9 },
-];
+const october18To20 = () => readFixture("gewicht-2026-10-18-bis-20.csv");
 
 /**
  * The user's weight with 18.10. to 20.10., up to `lastDay` and any
@@ -37,14 +26,19 @@ export function weightHistoryUntil(
   lastDay: string,
   extra: Measurement[] = [],
 ): Measurement[] {
-  return [...weightHistory(), ...OCTOBER_18_TO_20, ...extra].filter(
+  return [...weightHistory(), ...october18To20(), ...extra].filter(
     (measurement) => berlinDay(measurement.time) <= lastDay,
   );
 }
 
-// A path, not a URL from `import.meta.url`: under jsdom that is no file URL.
-const FIXTURE = join(
-  import.meta.dirname,
-  "fixtures",
-  "gewicht-2026-07-bis-10.csv",
-);
+function readFixture(name: string): Measurement[] {
+  // A path, not a URL from `import.meta.url`: under jsdom that is no file URL.
+  return readFileSync(join(import.meta.dirname, "fixtures", name), "utf8")
+    .trim()
+    .split("\n")
+    .slice(1)
+    .map((row) => {
+      const [day, kg] = row.split(",");
+      return { time: new Date(`${day}T07:00:00+02:00`), kg: Number(kg) };
+    });
+}

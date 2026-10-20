@@ -16,11 +16,11 @@ const countingFrom = (days: [string, number][]) =>
     days.map(([day, kg]) => ({ time: new Date(`${day}T05:00:00Z`), kg })),
   );
 
-/** The counting measurements of the fixture, 18.10. and 19.10. up to `day`, as the page has them on that day. */
+/** The counting measurements of the fixture and 18.10. to 20.10. up to `day`, as the page has them on that day. */
 const historyUntil = (day: string, extra: Measurement[] = []) =>
   countingMeasurements(weightHistoryUntil(day, extra));
 
-/** The assessment of the fixture, 18.10. and 19.10. on `day`, the day itself the last with a measurement. */
+/** The assessment of the fixture and 18.10. to 20.10. on `day`, the day itself the last with a measurement. */
 const assessOn = (day: string) => assess(historyUntil(day), day as CalendarDay);
 
 describe("assess: the verdict on the fixture", () => {
