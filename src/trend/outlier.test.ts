@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
 import type { CountingMeasurement } from "@/measurement/measurement";
-import { isOutlier, morningDeviation } from "./outlier";
+import { isOutlier } from "./outlier";
 import type { Trend } from "./theil-sen";
 
 // Safe: a valid `YYYY-MM-DD`.
@@ -35,17 +35,4 @@ describe("isOutlier", () => {
       expect(isOutlier(measured(kg), trendOf(trend), scatterKg)).toBe(outlier);
     },
   );
-});
-
-describe("morningDeviation", () => {
-  it("is the day and how far the measurement lies from its trend, where it is an outlier", () => {
-    const deviation = morningDeviation(measured(96.4), trendOf(97.7), 0.8);
-
-    expect(deviation?.day).toBe(day);
-    expect(deviation?.differenceKg).toBeCloseTo(-1.3);
-  });
-
-  it("is none where the measurement is no outlier", () => {
-    expect(morningDeviation(measured(98.7), trendOf(97.7), 0.8)).toBeNull();
-  });
 });

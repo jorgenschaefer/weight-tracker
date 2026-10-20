@@ -9,9 +9,9 @@ const onDays = (...days: string[]) =>
   );
 
 describe("findGaps", () => {
-  it("finds a gap with its length, 22.9. to 1.10. being 9 days", () => {
+  it("finds a gap, 22.9. to 1.10.", () => {
     expect(findGaps(onDays("2026-09-21", "2026-09-22", "2026-10-01"))).toEqual([
-      { lastDayBefore: "2026-09-22", firstDayAfter: "2026-10-01", days: 9 },
+      { lastDayBefore: "2026-09-22", firstDayAfter: "2026-10-01" },
     ]);
   });
 
@@ -19,9 +19,9 @@ describe("findGaps", () => {
     expect(findGaps(onDays("2026-10-01", "2026-10-04"))).toEqual([]);
   });
 
-  it("finds a gap of 4 days between the 1st and the 5th", () => {
+  it("finds a gap between days 4 apart, the 1st and the 5th", () => {
     expect(findGaps(onDays("2026-10-01", "2026-10-05"))).toEqual([
-      { lastDayBefore: "2026-10-01", firstDayAfter: "2026-10-05", days: 4 },
+      { lastDayBefore: "2026-10-01", firstDayAfter: "2026-10-05" },
     ]);
   });
 
@@ -29,14 +29,14 @@ describe("findGaps", () => {
     expect(
       findGaps(onDays("2026-07-01", "2026-07-10", "2026-07-11", "2026-08-01")),
     ).toEqual([
-      { lastDayBefore: "2026-07-01", firstDayAfter: "2026-07-10", days: 9 },
-      { lastDayBefore: "2026-07-11", firstDayAfter: "2026-08-01", days: 21 },
+      { lastDayBefore: "2026-07-01", firstDayAfter: "2026-07-10" },
+      { lastDayBefore: "2026-07-11", firstDayAfter: "2026-08-01" },
     ]);
   });
 
   it("counts calendar days across the night clocks go back", () => {
     expect(findGaps(onDays("2026-10-24", "2026-10-28"))).toEqual([
-      { lastDayBefore: "2026-10-24", firstDayAfter: "2026-10-28", days: 4 },
+      { lastDayBefore: "2026-10-24", firstDayAfter: "2026-10-28" },
     ]);
   });
 

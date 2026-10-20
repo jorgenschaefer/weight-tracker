@@ -30,8 +30,8 @@ describe("assess: the Frühwarnung on the fixture (AC-6)", () => {
     ["2026-07-18", { kind: "noVerdictYet" }],
     ["2026-07-19", { kind: "gaining", days: 1, atLeast: true, level: 1 }],
     ["2026-09-15", { kind: "gaining", days: 17, atLeast: false, level: 3 }],
-    ["2026-10-01", { kind: "gapComparison" }],
-    ["2026-10-14", { kind: "gapComparison" }],
+    ["2026-10-01", { kind: "noVerdictYet" }],
+    ["2026-10-14", { kind: "noVerdictYet" }],
     ["2026-10-15", { kind: "losing", days: 1, atLeast: true }],
     ["2026-10-17", { kind: "losing", days: 3, atLeast: true }],
     ["2026-10-18", { kind: "gaining", days: 1, atLeast: false, level: 1 }],
@@ -207,7 +207,7 @@ describe("assess: the last measurement too old", () => {
     ).toEqual({ kind: "lastMeasurementTooOld", days: 4 });
   });
 
-  it("wins over the comparison after a gap", () => {
+  it("wins over „Noch kein Urteil“ after a gap", () => {
     expect(
       assess(historyUntil("2026-10-03"), "2026-10-07" as CalendarDay).status,
     ).toEqual({ kind: "lastMeasurementTooOld", days: 4 });
@@ -215,42 +215,19 @@ describe("assess: the last measurement too old", () => {
 });
 
 describe("assess: after the gap 22.9. to 1.10.", () => {
-  it("compares on 3.10., the 3rd measurement after it: a clear increase", () => {
-    const { status } = assessOn("2026-10-03");
+  it.each(["2026-10-03", "2026-10-04"])(
+    "is „Noch kein Urteil“ on %s, with no comparison after the gap",
+    (day) => {
+      expect(assessOn(day).status).toEqual({ kind: "noVerdictYet" });
+    },
+  );
 
-    expect(status).toMatchObject({
-      kind: "gapComparison",
-      gapDays: 9,
-      variation: "clearIncrease",
-    });
-    expect(status.kind === "gapComparison" && status.differenceKg).toBeCloseTo(
-      1.0,
-      1,
-    );
-  });
-
-  it("compares on 4.10., the 4th: within the normal variation", () => {
-    const { status } = assessOn("2026-10-04");
-
-    expect(status).toMatchObject({
-      kind: "gapComparison",
-      variation: "withinNormalVariation",
-    });
-    expect(status.kind === "gapComparison" && status.differenceKg).toBeCloseTo(
-      0.3,
-      1,
-    );
-  });
-
-  it("compares until the day has a 14-day pace after the gap: on 14.10. still, on 15.10. no more", () => {
-    expect(assessOn("2026-10-14").status).toMatchObject({
-      kind: "gapComparison",
-      gapDays: 9,
-    });
+  it("is „Noch kein Urteil“ until the day has a 14-day pace after the gap: on 14.10. still, on 15.10. no more", () => {
+    expect(assessOn("2026-10-14").status).toEqual({ kind: "noVerdictYet" });
     expect(assessOn("2026-10-15").status).toMatchObject({ kind: "losing" });
   });
 
-  it("compares after the later of two gaps", () => {
+  it("is „Noch kein Urteil“ after the later of two gaps", () => {
     const twoGaps = countingFrom([
       ...Array.from({ length: 20 }, (_, i): [string, number] => [
         `2026-09-${String(i + 1).padStart(2, "0")}`,
@@ -260,13 +237,12 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
       ["2026-09-30", 95.0],
     ]);
 
-    expect(assess(twoGaps, "2026-09-30" as CalendarDay).status).toMatchObject({
-      kind: "gapComparison",
-      gapDays: 6,
+    expect(assess(twoGaps, "2026-09-30" as CalendarDay).status).toEqual({
+      kind: "noVerdictYet",
     });
   });
 
-  it("wins over a 14-day pace across the gap", () => {
+  it("is „Noch kein Urteil“ despite a 14-day pace across the gap", () => {
     // Rising 2.1 kg a week before the gap and after it.
     const risingAcrossGap = countingFrom([
       ...Array.from({ length: 20 }, (_, i): [string, number] => [
@@ -278,9 +254,9 @@ describe("assess: after the gap 22.9. to 1.10.", () => {
       ["2026-09-29", 104.0],
     ]);
 
-    expect(
-      assess(risingAcrossGap, "2026-09-29" as CalendarDay).status,
-    ).toMatchObject({ kind: "gapComparison", gapDays: 5 });
+    expect(assess(risingAcrossGap, "2026-09-29" as CalendarDay).status).toEqual(
+      { kind: "noVerdictYet" },
+    );
   });
 });
 
@@ -347,27 +323,6 @@ describe("assess: no verdict yet", () => {
       trendKg: null,
       pace: null,
       sixWeekSeries: { measurements: [], trendLine: [] },
-      morningDeviation: null,
     });
-  });
-});
-
-describe("assess: the deviation of the morning", () => {
-  it("stands with the verdict of the trend, from the scatter of the last day", () => {
-    const { morningDeviation } = assessOn("2026-10-19");
-
-    expect(morningDeviation?.day).toBe("2026-10-19");
-    expect(morningDeviation?.differenceKg).toBeCloseTo(-1.3);
-  });
-
-  it("is none with the verdict where the measurement is within the threshold", () => {
-    expect(assessOn("2026-10-16").morningDeviation).toBeNull();
-  });
-
-  it("is none where the last measurement is too old", () => {
-    expect(
-      assess(historyUntil("2026-10-12"), "2026-10-16" as CalendarDay)
-        .morningDeviation,
-    ).toBeNull();
   });
 });

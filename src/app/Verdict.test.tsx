@@ -73,15 +73,13 @@ describe("the sentence of the Frühwarnung", () => {
     expect(screen.getByText(sentence)).toBeInTheDocument();
   });
 
-  it("stands under the headline, the card under it", async () => {
+  it("stands under the headline", async () => {
     openHistoryOn("2026-10-19");
 
     const sentence = await screen.findByText("Der Trend steigt seit 2 Tagen.");
-    const follows = (a: Element, b: Element) =>
-      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(follows(await headline(), sentence)).toBeTruthy();
     expect(
-      follows(sentence, screen.getByText("Heute · 1,3 kg unter dem Trend")),
+      (await headline()).compareDocumentPosition(sentence) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 });
@@ -93,57 +91,19 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-6)", () => {
       "Nimmt zu",
       "Der Trend steigt seit mindestens einem Tag.",
       null,
-      null,
     ],
-    ["2026-07-29", "Nimmt ab", "Der Trend fällt seit einem Tag.", null, null],
-    ["2026-08-07", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
-    [
-      "2026-08-22",
-      "Stagniert",
-      "Der Trend stagniert seit einem Tag.",
-      null,
-      null,
-    ],
-    [
-      "2026-08-30",
-      "Nimmt zu",
-      "Der Trend steigt seit einem Tag.",
-      "Heute · 1,9 kg über dem Trend",
-      null,
-    ],
-    [
-      "2026-09-15",
-      "Nimmt zu",
-      "Der Trend steigt seit 17 Tagen.",
-      "Heute · 1,0 kg unter dem Trend",
-      null,
-    ],
-    [
-      "2026-09-16",
-      "Stagniert",
-      "Der Trend stagniert seit einem Tag.",
-      null,
-      null,
-    ],
-    [
-      "2026-09-20",
-      "Nimmt ab",
-      "Der Trend fällt seit einem Tag.",
-      "Heute · 1,0 kg über dem Trend",
-      null,
-    ],
-    [
-      "2026-09-22",
-      "Stagniert",
-      "Der Trend stagniert seit einem Tag.",
-      null,
-      null,
-    ],
+    ["2026-07-29", "Nimmt ab", "Der Trend fällt seit einem Tag.", null],
+    ["2026-08-07", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
+    ["2026-08-22", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
+    ["2026-08-30", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
+    ["2026-09-15", "Nimmt zu", "Der Trend steigt seit 17 Tagen.", null],
+    ["2026-09-16", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
+    ["2026-09-20", "Nimmt ab", "Der Trend fällt seit einem Tag.", null],
+    ["2026-09-22", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
     [
       "2026-10-15",
       "Nimmt ab",
       "Der Trend fällt seit mindestens einem Tag.",
-      null,
       null,
     ],
     [
@@ -151,27 +111,21 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-6)", () => {
       "Nimmt ab",
       "Der Trend fällt seit mindestens 3 Tagen.",
       null,
-      null,
     ],
-    ["2026-10-18", "Nimmt zu", "Der Trend steigt seit einem Tag.", null, null],
+    ["2026-10-18", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
     [
       "2026-10-19",
       "Nimmt zu",
       "Der Trend steigt seit 2 Tagen.",
-      "Heute · 1,3 kg unter dem Trend",
       "Nimmt ab, −0,33 kg pro Woche (≈ 360 kcal Defizit pro Tag)",
     ],
   ])(
-    "on %s is „%s“, „%s“, the card %s and „Langfristig“ %s",
-    async (today, verdict, sentence, card, longTerm) => {
+    "on %s is „%s“, „%s“ and „Langfristig“ %s",
+    async (today, verdict, sentence, longTerm) => {
       openHistoryOn(today);
 
       expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
       expect(screen.getByText(sentence)).toBeInTheDocument();
-      const cards = screen.queryAllByText(/ kg (über|unter) dem Trend$/);
-      expect(cards.map((shown) => shown.textContent)).toEqual(
-        card === null ? [] : [card],
-      );
       if (longTerm !== null) {
         expect(
           screen.getByText(
@@ -204,15 +158,6 @@ describe("the page with the user's weight, 18.10. and 19.10. (AC-6)", () => {
 
     expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
   });
-
-  it.each(["2026-10-01", "2026-10-14"])(
-    "on %s is the comparison after the gap",
-    async (today) => {
-      openHistoryOn(today);
-
-      expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
-    },
-  );
 });
 
 describe("what the page no longer says", () => {
@@ -227,6 +172,47 @@ describe("what the page no longer says", () => {
       expect(document.body).not.toHaveTextContent(/4 Wochen:/);
     },
   );
+
+  it.each(["2026-08-30", "2026-09-15", "2026-09-20", "2026-10-19"])(
+    "on %s, a morning beyond the threshold, no card of the morning (AC-10)",
+    async (today) => {
+      openHistoryOn(today);
+
+      await headline();
+      expect(document.body).not.toHaveTextContent(/dem Trend/);
+      expect(document.body).not.toHaveTextContent(/Ausreißer/);
+    },
+  );
+
+  it.each(["2026-10-01", "2026-10-03", "2026-10-04", "2026-10-14"])(
+    "on %s, after the gap, „Noch kein Urteil“ in place of the comparison, neutral (AC-10)",
+    async (today) => {
+      openHistoryOn(today);
+
+      expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+      expect(
+        screen.getByText(
+          "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.",
+        ),
+      ).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent(/ohne Messung/);
+      expect(document.body).not.toHaveTextContent(/normalen Schwankung/);
+      expect(screen.getByRole("main")).toHaveStyle({
+        backgroundColor: "#DDE1E5",
+        color: "#20262C",
+      });
+    },
+  );
+
+  it("after a gap and a clear decrease, „Noch kein Urteil“ (AC-10)", async () => {
+    openOn("2026-10-17", [
+      ...steady("2026-10-01", 30, 0, 95),
+      ...steady("2026-10-17", 2, 0, 92),
+    ]);
+
+    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+    expect(document.body).not.toHaveTextContent(/ohne Messung/);
+  });
 });
 
 describe("a last measurement too old", () => {
@@ -251,50 +237,6 @@ describe("a last measurement too old", () => {
     openOn("2026-10-17", steady("2026-10-12", 3, 0));
 
     expect(await headline()).toHaveTextContent("Letzte Messung vor 5 Tagen");
-  });
-});
-
-describe("after a gap", () => {
-  const TWO_WEEKS_AFTER =
-    "Ein Urteil gibt es wieder zwei Wochen nach der Lücke.";
-
-  it("compares with the trend before it, clearly more than the normal variation", async () => {
-    openHistoryOn("2026-10-03");
-
-    expect(await headline()).toHaveTextContent(
-      "Nach 9 Tagen ohne Messung: +1,0 kg gegenüber vorher",
-    );
-    expect(
-      screen.getByText(
-        `Deutlich mehr als die normale Schwankung. ${TWO_WEEKS_AFTER}`,
-      ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
-  });
-
-  it("compares with the trend before it, within the normal variation", async () => {
-    openHistoryOn("2026-10-04");
-
-    expect(await headline()).toHaveTextContent(
-      "Nach 9 Tagen ohne Messung: +0,3 kg gegenüber vorher",
-    );
-    expect(
-      screen.getByText(`Im Rahmen der normalen Schwankung. ${TWO_WEEKS_AFTER}`),
-    ).toBeInTheDocument();
-  });
-
-  it("writes a decrease with a minus sign", async () => {
-    openOn("2026-10-17", [
-      ...steady("2026-10-01", 30, 0, 95),
-      ...steady("2026-10-17", 2, 0, 92),
-    ]);
-
-    expect(await headline()).toHaveTextContent(
-      "Nach 15 Tagen ohne Messung: −3,0 kg gegenüber vorher",
-    );
-    expect(
-      screen.getByText(/^Deutlich mehr als die normale Schwankung\./),
-    ).toBeInTheDocument();
   });
 });
 
@@ -416,13 +358,6 @@ describe("the colours of the surface", () => {
     ["2026-09-05", "„Nimmt zu“ for 7 days", "#EDA562", "#3A1801"],
     ["2026-09-11", "„Nimmt zu“ for 13 days", "#EDA562", "#3A1801"],
     ["2026-09-12", "„Nimmt zu“ for 14 days", "#8A380A", "#FFF3E8"],
-    ["2026-10-03", "a clear increase after a gap", "#EDA562", "#3A1801"],
-    [
-      "2026-10-04",
-      "a change within the normal variation after a gap",
-      "#DDE1E5",
-      "#20262C",
-    ],
     ["2026-09-26", "a last measurement too old", "#DDE1E5", "#20262C"],
   ])("on %s, %s, are %s with %s", async (today, _, surface, ink) => {
     openHistoryOn(today);
@@ -433,18 +368,6 @@ describe("the colours of the surface", () => {
       color: ink,
     });
   });
-  it("are neutral after a clear decrease after a gap", async () => {
-    openOn("2026-10-17", [
-      ...steady("2026-10-01", 30, 0, 95),
-      ...steady("2026-10-17", 2, 0, 92),
-    ]);
-
-    await headline();
-    expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: "#DDE1E5",
-    });
-  });
-
   it("are neutral under „Noch kein Urteil“", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0));
 

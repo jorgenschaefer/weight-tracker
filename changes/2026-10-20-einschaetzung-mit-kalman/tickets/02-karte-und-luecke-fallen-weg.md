@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:
 advances:  AC-10
 after:     01-filter-ampel-satz
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -43,3 +43,31 @@ The glossary: Vergleich nach einer Lücke and Abweichung am Morgen go, and the `
 - `src/trend/theil-sen.ts` (06) and the filter in `src/trend/trend.ts` (01): this ticket leaves both alone.
 
 ## Left standing
+**Review findings not fixed**
+- **Should-fix (round 2):** after a gap, „Noch kein Urteil“ says „Ein Urteil gibt es nach knapp drei Wochen mit Messungen.“ (`src/app/Verdict.tsx`). The verdict actually comes back two weeks after the gap; in the test data the gap ends on 1.10. and „Nimmt ab“ is back on 15.10.
+  - I left it because Done when asks for exactly this: "what it already shows without a gap". The Context says the same.
+  - Ticket 03 replaces this status with the Ampel. Until then, a build deployed between 02 and 03 promises the verdict about a week too late after a gap.
+- **Nit (round 1):** the same point, rated lower.
+
+**Checks**
+- `npm run check` ran whole and exits 0 (912 tests).
+- After that run, the only change was removing one sentence from the Lücke row in `UBIQUITOUS_LANGUAGE.md`. No check reads that file.
+
+**Criterion without its own automated test**
+- AC-10 is advanced, not closed. Its part here (no card, no comparison after a gap, „Noch kein Urteil“ in neutral colours on those days) is pinned in `src/app/Verdict.test.tsx` under "what the page no longer says".
+- The first reviewer also drove the running page:
+  - On 19.10., 30.8., 3.10. and 4.10., at 360×640 and 1440×900, neither text appeared.
+  - On 3.10. and 4.10. the page showed „Noch kein Urteil“ on #DDE1E5.
+
+**Departures from a nudge**
+- **The removal list.** The nudge lists more for removal: `week-pace.ts`, `scatter.ts`, `outlier.ts`, the rules in `verdict.ts` and `LongTerm.tsx`. I removed only what this ticket's Build and Done when name, plus what that left unused:
+  - `gap-comparison.ts`
+  - `MorningDeviation.tsx` with its CSS and test
+  - `morningDeviation` in `outlier.ts`
+  - `formatKgChange` in `format.ts`
+  - `Gap.days` in `src/measurement/gap.ts`
+- **Why the rest stayed:** this ticket's Not here gives the Frühwarnung to 03, the Context keeps `isOutlier` (and so `outlier.ts` and `scatter.ts`) for the graph until 05, and „Langfristig“ is 04's.
+- **`median`:** it stays exported from `src/trend/theil-sen.ts`, though its only importer from another file was `gap-comparison.ts`. Not here leaves `theil-sen.ts` alone, and 05 deletes it.
+- **Gap tightening kept:** the 45em gap tightening in `Verdict.module.css` and `page.module.css` stays. Its comments no longer cite the card or the comparison as the reason.
+  - Without the card the page may fit without it, but nobody has measured that, and removing it would change the layout on every day.
+  - The 34px for the „statement“ headlines also stays, with a comment that now names „Noch kein Urteil“ and „Letzte Messung vor N Tagen“.

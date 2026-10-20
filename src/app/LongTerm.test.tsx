@@ -112,10 +112,10 @@ describe("„Langfristig · 4 Wochen“", () => {
 });
 
 describe("„Langfristig“ in place of a verdict", () => {
-  it("stands with the comparison after a gap", async () => {
+  it("stands with „Noch kein Urteil“ after a gap", async () => {
     openHistoryOn("2026-10-03");
 
-    expect(await headline()).toHaveTextContent(/^Nach 9 Tagen ohne Messung/);
+    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
     expect(await paceLine()).toBe(
       "Nimmt ab, −0,20 kg pro Woche (≈ 220 kcal Defizit pro Tag)",
     );

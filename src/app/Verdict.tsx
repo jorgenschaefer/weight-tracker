@@ -1,24 +1,15 @@
-import type { CalendarDay } from "@/measurement/calendar-day";
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
 import type { TrendVerdict } from "@/verdict/verdict";
-import { formatKg, formatKgChange } from "./format";
-import { MorningDeviationCard } from "./MorningDeviation";
+import { formatKg } from "./format";
 import classes from "./Verdict.module.css";
 
 /**
- * The verdict, or why there is none, from `assessment` on `today`: under
- * „Frühwarnung · letzte Tage“ where it is the Frühwarnung, the headline, the
- * sentence under it where it has one, and the card of the morning's
- * deviation where there is one.
+ * The verdict, or why there is none, from `assessment`: under
+ * „Frühwarnung · letzte Tage“ where it is the Frühwarnung, the headline and
+ * the sentence under it where it has one.
  */
-export function Verdict({
-  assessment,
-  today,
-}: {
-  assessment: Assessment;
-  today: CalendarDay;
-}) {
-  const { status, morningDeviation } = assessment;
+export function Verdict({ assessment }: { assessment: Assessment }) {
+  const { status } = assessment;
   const sentence = explanation(status);
   return (
     <>
@@ -29,13 +20,6 @@ export function Verdict({
         {headline(status)}
       </h1>
       {sentence !== null && <p className={classes.explanation}>{sentence}</p>}
-      {morningDeviation !== null && (
-        <MorningDeviationCard
-          deviation={morningDeviation}
-          today={today}
-          colours={surfaceColours(status)}
-        />
-      )}
     </>
   );
 }
@@ -61,8 +45,8 @@ export const NEUTRAL: SurfaceColours = { surface: "#DDE1E5", ink: "#20262C" };
 
 /**
  * The colours of the surface under `status`: blue while losing, escalating
- * with the Warnstufe of „Stagniert“ and „Nimmt zu“, orange for a clear
- * increase after a gap, neutral for everything else.
+ * with the Warnstufe of „Stagniert“ and „Nimmt zu“, neutral for everything
+ * else.
  */
 export function surfaceColours(status: AssessmentStatus): SurfaceColours {
   switch (status.kind) {
@@ -71,8 +55,6 @@ export function surfaceColours(status: AssessmentStatus): SurfaceColours {
     case "holding":
     case "gaining":
       return LEVEL_COLOURS[status.level];
-    case "gapComparison":
-      return status.variation === "clearIncrease" ? LEVEL_COLOURS[2] : NEUTRAL;
     case "lastMeasurementTooOld":
     case "noVerdictYet":
       return NEUTRAL;
@@ -91,7 +73,6 @@ function isTrendVerdict(status: AssessmentStatus): status is TrendVerdict {
     case "holding":
     case "gaining":
       return true;
-    case "gapComparison":
     case "lastMeasurementTooOld":
     case "noVerdictYet":
       return false;
@@ -106,8 +87,6 @@ function headline(status: AssessmentStatus): string {
       return "Stagniert";
     case "gaining":
       return "Nimmt zu";
-    case "gapComparison":
-      return `Nach ${status.gapDays} Tagen ohne Messung: ${formatKgChange(status.differenceKg)} kg gegenüber vorher`;
     case "lastMeasurementTooOld":
       return `Letzte Messung vor ${status.days} Tagen`;
     case "noVerdictYet":
@@ -122,7 +101,6 @@ function emphasis(status: AssessmentStatus): string {
     case "holding":
     case "gaining":
       return "short";
-    case "gapComparison":
     case "lastMeasurementTooOld":
     case "noVerdictYet":
       return "statement";
@@ -136,8 +114,6 @@ function explanation(status: AssessmentStatus): string | null {
     case "holding":
     case "gaining":
       return trendVerdictSentence(status);
-    case "gapComparison":
-      return `${status.variation === "withinNormalVariation" ? "Im Rahmen der normalen Schwankung." : "Deutlich mehr als die normale Schwankung."} Ein Urteil gibt es wieder zwei Wochen nach der Lücke.`;
     case "noVerdictYet":
       return "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.";
     case "lastMeasurementTooOld":

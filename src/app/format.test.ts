@@ -4,7 +4,6 @@ import {
   formatCalendarDay,
   formatDay,
   formatKg,
-  formatKgChange,
   formatPace,
   formatTime,
 } from "./format";
@@ -19,22 +18,6 @@ describe("formatKg", () => {
   ])("writes %d kg as %s, with a decimal comma and one decimal", (kg, text) => {
     expect(formatKg(kg)).toBe(text);
   });
-});
-
-describe("formatKgChange", () => {
-  it.each([
-    [1.04, "+1,0"],
-    [0.3, "+0,3"],
-    [-2.46, "−2,5"],
-    [0.04, "±0,0"],
-    [-0.04, "±0,0"],
-    [0, "±0,0"],
-  ])(
-    "writes a change of %d kg as %s, with its sign and one decimal",
-    (kg, text) => {
-      expect(formatKgChange(kg)).toBe(text);
-    },
-  );
 });
 
 describe("formatPace", () => {

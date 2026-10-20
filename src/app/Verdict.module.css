@@ -21,21 +21,18 @@
   margin-top: 4px;
 }
 
-/* A screen as short as 360 × 640: with „Daten abrufen“, an error line of
-   two lines, a sentence of two and a card of three, the specimen's 28px
-   above the kicker push the figures below the screen.
-   MorningDeviation.module.css and page.module.css narrow their gaps at the
-   same height. */
+/* A screen as short as 360 × 640: the verdict, „Langfristig“ and the
+   figures fit above its bottom edge only with narrower gaps than the
+   specimen's. page.module.css narrows its own at the same height. */
 @media (max-height: 45em) {
   .kicker {
     margin-top: 12px;
   }
 }
 
-/* On a 360 × 640 screen at 38px, „Nach 9 Tagen ohne Messung: +1,5 kg
-   gegenüber vorher“ takes five lines, and with an error line and
-   „Daten abrufen“ pushes the figures below the screen; at 34px it takes
-   three. */
+/* The headlines that say why there is no verdict, „Noch kein Urteil“ and
+   „Letzte Messung vor N Tagen“, set smaller and bolder than the verdict's
+   single words, so they keep to two lines on a 360 × 640 screen. */
 .headline[data-emphasis="statement"] {
   font-size: 34px;
   font-weight: 700;

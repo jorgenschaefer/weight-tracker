@@ -10,11 +10,6 @@ export function formatKg(kg: number): string {
   return KG.format(kg);
 }
 
-/** A change of weight in kg, signed, with one decimal: `+1,0`, `−2,5`, `±0,0`. */
-export function formatKgChange(kg: number): string {
-  return signed(kg, KG);
-}
-
 /** A pace in kg per week, signed, with two decimals: `−0,42`, `±0,00`. */
 export function formatPace(kgPerWeek: number): string {
   return signed(kgPerWeek, PACE);
