@@ -119,10 +119,10 @@ describe("the sheet", () => {
     expect(field()).toHaveAttribute("placeholder", "97,4");
   });
 
-  it("suggests 98,6 in the empty field without any measurement", async () => {
+  it("suggests 68,9 in the empty field without any measurement", async () => {
     await openSheet();
 
-    expect(field()).toHaveAttribute("placeholder", "98,6");
+    expect(field()).toHaveAttribute("placeholder", "68,9");
   });
 
   it("is only as tall as its content, so the page shows above it", async () => {

@@ -426,11 +426,11 @@ describe("the suggestion in the field „Gewicht heute“", () => {
     expect(field).toHaveAttribute("placeholder", "97,2");
   });
 
-  it("is 98,6 on the first visit, without any measurement", async () => {
+  it("is 68,9 on the first visit, without any measurement", async () => {
     const field = await openEntrySheet(renderPage());
 
     expect(field).toHaveValue("");
-    expect(field).toHaveAttribute("placeholder", "98,6");
+    expect(field).toHaveAttribute("placeholder", "68,9");
   });
 });
 

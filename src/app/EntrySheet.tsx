@@ -71,7 +71,7 @@ export function EntrySheet({
         >
           <EntryForm
             colours={sheetColours(colours)}
-            suggestion={latestKg === null ? "98,6" : formatKg(latestKg)}
+            suggestion={latestKg === null ? "68,9" : formatKg(latestKg)}
             saving={saving}
             onSave={(kg) => save(kg, onEnter)}
           />
