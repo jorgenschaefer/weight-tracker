@@ -9,4 +9,8 @@ Ein Gewicht soll sich eintragen lassen, ohne dass die Seite bei Google angemelde
 
 Heute meldet „Eintragen“ bei Google an, wo die Seite keine gültige Anmeldung mit Schreibrecht hält (`maySave` in `enter`, `src/app/useMeasurements.ts`), und schreibt nur nach Google Health. Die Anmeldung gilt etwa eine Stunde, deshalb öffnet das Eintragen am Morgen fast immer das Anmelde-Popup. Eingetragene Werte liegen bis zum Abruf unter `gewicht:eingetragen:v1` in diesem Browser und verschwinden, wenn ein Abruf sie eine Stunde nach dem Eintragen nicht enthält (`src/measurement/entered-measurement.ts`).
 
+Google lässt nur die eingetragenen Testnutzer der Google-App die Seite benutzen; ohne Anmeldung bei Google könnten auch andere sie benutzen. Es werden kaum andere Nutzer erwartet.
+
+Ein ohne Anmeldung eingetragenes Gewicht darf nicht verloren gehen, weil man vergisst zu synchronisieren. Heute verwirft `enteredAfterFetch` (`src/measurement/entered-measurement.ts`) einen eingetragenen Wert, den ein Abruf eine Stunde oder später nach dem Eintragen nicht enthält, weil es annimmt, dass er schon bei Google liegt.
+
 Falls das kommt, ist „Synchronisieren“ das Wort für den Abgleich mit Google; bis dahin heißt es „Abrufen“ (`changes/2026-10-20-anmeldung-und-abruf/`).
