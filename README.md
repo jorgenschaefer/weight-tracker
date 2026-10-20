@@ -1,7 +1,7 @@
 # weight-tracker
 
-A small web page that reads one person's weight from Google Health and says,
-in one word and one colour, whether they are still losing weight. The page is
+A small web page that reads one person's weight from Google Health and
+says, in one sentence and one colour, whether they are still losing weight. The page is
 in German ("Gewicht"); the code is in English.
 
 It is a personal project, built for one person and one phone. It is public so
@@ -9,22 +9,22 @@ others can read it, borrow from it or run their own copy.
 
 ## What the page shows
 
-- **The verdict** (*Urteil*): "Nimmt ab" (losing), "Seit N Tagen kein
-  Abnehmen" (no decrease for N days) or "Nimmt zu" (gaining). The whole
-  screen takes the verdict's colour, which grows more alarming the longer the
-  weight has not gone down.
+- **The verdict** (*Urteil*): an Ampel - green where the weight is very
+  probably going down by more than 0.1 kg a week, red where it very probably
+  is not, yellow in between - which colours the whole screen; a sentence
+  about this morning ("Du nimmst seit 6 Tagen ab."), and above it how
+  certain the likelier side is ("90 % sicher, dass du abnimmst").
 - **The pace over four weeks** in kg per week, sorted into "nimmt ab",
   "stagniert" or "nimmt zu".
 - **A graph of the last six weeks**: the measurements, the trend and the
   outliers.
 - **A field to enter today's weight**, which writes it to Google Health.
 
-The trend is robust against single days far off: for each day it takes the
-counting measurements of the fortnight up to it and fits them with a
-Theil-Sen estimator (the median of all pairwise slopes). Only the first
-measurement of a calendar day counts. After a gap of more than three days
-without a measurement, the page compares the days after the gap with the
-trend before it instead of judging straight away.
+The verdict comes from a Kalman filter of weight and pace, stepping from one
+day with a measurement to the next, so a gap needs no special handling; a
+measurement far off what it expected counts less. Only the first measurement
+of a calendar day counts. The pace over four weeks and the graph's trend
+still come from a Theil-Sen estimator over the fortnight up to each day.
 
 `UBIQUITOUS_LANGUAGE.md` defines every term and threshold, with the word the
 page uses and the name the code uses.

@@ -246,6 +246,6 @@ export const MORNING_SHOWN = "Letzte Messung 17.10. um 9:57 Uhr: 98,6 kg";
 /** A cache from yesterday's fetch, holding {@link MORNING}. */
 export const storeMorning = () => storeCache(daysAgo(1), [MORNING]);
 
-/** A cache from yesterday's fetch, losing 0.5 kg a week for 5 weeks up to today: „Nimmt ab“. */
+/** A cache from yesterday's fetch, losing 0.5 kg a week for 5 weeks up to today: green, „Du nimmst seit Wochen ab.“ */
 export const storeLoss = () =>
   storeCache(daysAgo(1), steady("2026-10-17", 35, -0.5));

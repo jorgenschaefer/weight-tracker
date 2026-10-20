@@ -459,7 +459,7 @@ describe("entering a weight", () => {
     expect(google.measurements).toEqual([ENTERED]);
     await waitFor(() => expect(sheet()).not.toBeInTheDocument());
     isNotShown(FIRST_VISIT);
-    await isShown("Noch kein Urteil");
+    await isShown("Ob du abnimmst, ist noch offen.");
     answer.resolve({ ok: true, value: [ENTERED] });
     await isShown(ENTERED_SHOWN);
     expect(storedCache()?.measurements).toEqual([ENTERED]);

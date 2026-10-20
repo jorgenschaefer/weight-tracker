@@ -60,7 +60,8 @@ window.walkOn = async (day, opts = {}) => {
   const doc = frame.contentDocument;
   const result = {
     day,
-    emphasis: doc.querySelector("[data-emphasis]")?.dataset.emphasis,
+    surface: frame.contentWindow.getComputedStyle(doc.querySelector("main"))
+      .backgroundColor,
     text: doc.body.innerText.replace(/\n+/g, " | "),
   };
   if (keep) window.walkFrame = frame;

@@ -5,6 +5,7 @@ import reference from "@/test/fixtures/kalman-reference.json";
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
 import { type Trend, trends } from "@/trend/trend";
 import {
+  isLossLikelier,
   lossCertainty,
   type TrafficLight,
   trafficLight,
@@ -57,7 +58,7 @@ describe("trafficLight and lossCertainty on the test data (AC-7)", () => {
       const certainty = lossCertainty(trend);
 
       expect(trafficLight(trend)).toBe(light);
-      expect(certainty >= 0.5 ? "loss" : "no loss").toBe(side);
+      expect(isLossLikelier(certainty) ? "loss" : "no loss").toBe(side);
       // To two decimals: in whole percent, rounded.
       expect(side === "loss" ? certainty : 1 - certainty).toBeCloseTo(
         percent / 100,
@@ -91,6 +92,18 @@ describe("lossCertainty", () => {
     [-0.1 + 3000 * 0.01, 0.01, 0],
   ])("of a pace of %f ± %f kg per week is %f", (pace, sd, certainty) => {
     expect(lossCertainty(withPace(pace, sd))).toBeCloseTo(certainty, 12);
+  });
+});
+
+describe("isLossLikelier (AC-3)", () => {
+  it.each([
+    [0, false],
+    [0.4999999, false],
+    [0.5, true],
+    [0.5000001, true],
+    [1, true],
+  ])("of a Sicherheit of %f is %s", (certainty, likelier) => {
+    expect(isLossLikelier(certainty)).toBe(likelier);
   });
 });
 

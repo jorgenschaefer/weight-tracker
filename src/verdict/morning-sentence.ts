@@ -1,6 +1,6 @@
 import { daysBetween } from "@/measurement/calendar-day";
 import type { Trend } from "@/trend/trend";
-import { lossCertainty, trafficLight } from "./traffic-light";
+import { isLossLikelier, lossCertainty, trafficLight } from "./traffic-light";
 
 /**
  * The Satz zum Morgen of a day with a counting measurement, one per line of
@@ -74,7 +74,7 @@ export function morningSentence(trends: Trend[]): MorningSentence {
         : { kind: "losingForDays", days };
     }
     case "yellow":
-      return lossCertainty(today) >= EVEN_CHANCE
+      return isLossLikelier(lossCertainty(today))
         ? { kind: "probablyLosing" }
         : { kind: "open" };
     case "red": {
@@ -92,8 +92,6 @@ const OUTLIER_Z = 2;
 const HEAVIER_Z = 1;
 /** From this many days of green or red on, they have held for weeks. */
 const WEEKS_FROM_DAYS = 14;
-/** From this {@link lossCertainty} on, a loss is probable. */
-const EVEN_CHANCE = 0.5;
 
 /**
  * The calendar days from the first of the days in a row with measurement

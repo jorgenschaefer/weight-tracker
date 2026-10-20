@@ -149,7 +149,7 @@ function CachedMeasurements({
           {measurements.fetching && (
             <Text className={classes.busy}>Vorläufig, wird aktualisiert …</Text>
           )}
-          <Verdict assessment={assessment} />
+          <Verdict status={assessment.status} />
           <FetchButton measurements={measurements} colours={colours} />
         </section>
         {assessment.measuredKg !== null && (

@@ -2,7 +2,7 @@
 // the measurements in its cache on the day under test.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanup, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   at,
@@ -25,142 +25,249 @@ vi.mock("@/measurement/google-health", () => ({
 beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
 
+/** The Satz zum Morgen, or why there is none: the page's one headline. */
 const headline = () => screen.findByRole("heading", { level: 1 });
-const EARLY_WARNING = "Frühwarnung · letzte Tage";
+/** The line above the Satz zum Morgen, its spaces as Testing Library reads them. */
+const lineAbove = async () =>
+  (await headline()).previousElementSibling?.textContent?.replace(
+    /\s+/g,
+    " ",
+  ) ?? null;
 
-describe("the Frühwarnung", () => {
-  it.each([
-    [-0.5, "Nimmt ab"],
-    [0, "Stagniert"],
-    [0.5, "Nimmt zu"],
-  ])(
-    "at a steady %d kg per week says „%s“ under „Frühwarnung · letzte Tage“",
-    async (kgPerWeek, text) => {
-      openOn("2026-10-17", steady("2026-10-17", 35, kgPerWeek));
+const surface = () => screen.getByRole("main");
+const COLOURS = {
+  Grün: { backgroundColor: "#D3EAD0", color: "#163D1B" },
+  Gelb: { backgroundColor: "#F3E2A2", color: "#3B3004" },
+  Rot: { backgroundColor: "#F2C6B8", color: "#5A1A0B" },
+  neutral: { backgroundColor: "#DDE1E5", color: "#20262C" },
+};
 
-      const shown = await headline();
-      expect(shown).toHaveTextContent(new RegExp(`^${text}$`));
-      expect(
-        screen.getByText(EARLY_WARNING).compareDocumentPosition(shown) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    },
-  );
-
-  it("stays „Nimmt ab“ in a fast loss whatever a single measurement says", async () => {
-    const loss = steady("2026-10-17", 35, -1.4);
-    const outlier = { ...loss[34], kg: loss[34].kg + 3 };
-    openOn("2026-10-17", [...loss.slice(0, 34), outlier]);
-
-    expect(await headline()).toHaveTextContent("Nimmt ab");
-  });
-});
-
-describe("the sentence of the Frühwarnung", () => {
-  it.each([
-    ["2026-10-15", "Der Trend fällt seit mindestens einem Tag."],
-    ["2026-10-17", "Der Trend fällt seit mindestens 3 Tagen."],
-    ["2026-08-01", "Der Trend fällt seit 4 Tagen."],
-    ["2026-08-22", "Der Trend stagniert seit einem Tag."],
-    ["2026-08-29", "Der Trend stagniert seit 8 Tagen."],
-    ["2026-10-18", "Der Trend steigt seit einem Tag."],
-    ["2026-07-22", "Der Trend steigt seit mindestens 4 Tagen."],
-    ["2026-09-15", "Der Trend steigt seit 17 Tagen."],
-  ])("on %s is „%s“", async (today, sentence) => {
-    openHistoryOn(today);
-
-    await headline();
-    expect(screen.getByText(sentence)).toBeInTheDocument();
-  });
-
-  it("stands under the headline", async () => {
-    openHistoryOn("2026-10-19");
-
-    const sentence = await screen.findByText("Der Trend steigt seit 2 Tagen.");
-    expect(
-      (await headline()).compareDocumentPosition(sentence) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-});
-
-describe("the page with the user's weight, 18.10. and 19.10. (AC-6)", () => {
-  it.each([
+describe("the Ampel, the line and the Satz zum Morgen on the user's weight (AC-7)", () => {
+  it.each<[string, keyof typeof COLOURS, string, string]>([
     [
-      "2026-07-19",
-      "Nimmt zu",
-      "Der Trend steigt seit mindestens einem Tag.",
-      null,
+      "2026-07-13",
+      "Rot",
+      "92 % sicher, dass du nicht abnimmst",
+      "Achtung, du nimmst wieder zu.",
     ],
-    ["2026-07-29", "Nimmt ab", "Der Trend fällt seit einem Tag.", null],
-    ["2026-08-07", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
-    ["2026-08-22", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
-    ["2026-08-30", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
-    ["2026-09-15", "Nimmt zu", "Der Trend steigt seit 17 Tagen.", null],
-    ["2026-09-16", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
-    ["2026-09-20", "Nimmt ab", "Der Trend fällt seit einem Tag.", null],
-    ["2026-09-22", "Stagniert", "Der Trend stagniert seit einem Tag.", null],
     [
-      "2026-10-15",
-      "Nimmt ab",
-      "Der Trend fällt seit mindestens einem Tag.",
-      null,
+      "2026-07-14",
+      "Rot",
+      "90 % sicher, dass du nicht abnimmst",
+      "Du nimmst seit 2 Tagen zu.",
+    ],
+    [
+      "2026-10-01",
+      "Rot",
+      "95 % sicher, dass du nicht abnimmst",
+      "Du nimmst seit Wochen zu.",
+    ],
+    [
+      "2026-10-03",
+      "Rot",
+      "86 % sicher, dass du nicht abnimmst",
+      "Leichter Morgen, aber ein Tag ändert den Trend noch nicht.",
+    ],
+    [
+      "2026-10-04",
+      "Gelb",
+      "73 % sicher, dass du nicht abnimmst",
+      "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.",
+    ],
+    [
+      "2026-10-05",
+      "Gelb",
+      "54 % sicher, dass du nicht abnimmst",
+      "Ob du abnimmst, ist noch offen.",
+    ],
+    [
+      "2026-10-06",
+      "Gelb",
+      "64 % sicher, dass du abnimmst",
+      "Es geht wahrscheinlich abwärts, noch nicht sicher.",
+    ],
+    [
+      "2026-10-08",
+      "Grün",
+      "88 % sicher, dass du abnimmst",
+      "Du nimmst wieder ab.",
+    ],
+    [
+      "2026-10-09",
+      "Grün",
+      "91 % sicher, dass du abnimmst",
+      "Du nimmst seit 2 Tagen ab.",
+    ],
+    [
+      "2026-10-12",
+      "Grün",
+      "91 % sicher, dass du abnimmst",
+      "Ausreißer, der Trend bleibt.",
+    ],
+    [
+      "2026-10-13",
+      "Grün",
+      "89 % sicher, dass du abnimmst",
+      "Du nimmst seit 6 Tagen ab.",
     ],
     [
       "2026-10-17",
-      "Nimmt ab",
-      "Der Trend fällt seit mindestens 3 Tagen.",
-      null,
+      "Grün",
+      "81 % sicher, dass du abnimmst",
+      "Zwei schwerere Morgen: Du nimmst noch ab, aber langsamer.",
     ],
-    ["2026-10-18", "Nimmt zu", "Der Trend steigt seit einem Tag.", null],
+    [
+      "2026-10-18",
+      "Gelb",
+      "74 % sicher, dass du abnimmst",
+      "Achtung, die Abnahme wird langsamer.",
+    ],
     [
       "2026-10-19",
-      "Nimmt zu",
-      "Der Trend steigt seit 2 Tagen.",
-      "Nimmt ab, −0,33 kg pro Woche (≈ 360 kcal Defizit pro Tag)",
+      "Grün",
+      "84 % sicher, dass du abnimmst",
+      "Du nimmst wieder ab.",
     ],
-  ])(
-    "on %s is „%s“, „%s“ and „Langfristig“ %s",
-    async (today, verdict, sentence, longTerm) => {
-      openHistoryOn(today);
+    [
+      "2026-10-20",
+      "Grün",
+      "90 % sicher, dass du abnimmst",
+      "Du nimmst seit 2 Tagen ab.",
+    ],
+  ])("on %s is %s, „%s“ and „%s“", async (today, light, line, sentence) => {
+    openHistoryOn(today);
 
-      expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
-      expect(screen.getByText(sentence)).toBeInTheDocument();
-      if (longTerm !== null) {
-        expect(
-          screen.getByText(
-            (_, element) =>
-              element?.tagName === "P" && element.textContent === longTerm,
-          ),
-        ).toBeInTheDocument();
-      }
-    },
-  );
-
-  it.each([
-    ["2026-07-28", "Nimmt zu"],
-    ["2026-08-06", "Nimmt ab"],
-    ["2026-08-21", "Nimmt zu"],
-    ["2026-08-29", "Stagniert"],
-    ["2026-09-19", "Stagniert"],
-    ["2026-09-21", "Nimmt ab"],
-  ])(
-    "on %s, the day before a change, is still „%s“",
-    async (today, verdict) => {
-      openHistoryOn(today);
-
-      expect(await headline()).toHaveTextContent(new RegExp(`^${verdict}$`));
-    },
-  );
-
-  it("on 18.7. is „Noch kein Urteil“", async () => {
-    openHistoryOn("2026-07-18");
-
-    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+    expect(await headline()).toHaveTextContent(new RegExp(`^${sentence}$`));
+    expect(await lineAbove()).toBe(line);
+    expect(surface()).toHaveStyle(COLOURS[light]);
   });
 });
 
-describe("what the page no longer says", () => {
+describe("the line above the Satz (AC-3)", () => {
+  it("says at most 99 % for a loss as good as certain", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 35, -1.4));
+
+    expect(await lineAbove()).toBe("99 % sicher, dass du abnimmst");
+  });
+
+  it("says at most 99 % for no loss as good as certain", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 35, 1));
+
+    expect(await lineAbove()).toBe("99 % sicher, dass du nicht abnimmst");
+  });
+
+  it("keeps N with its „%“ by a no-break space", async () => {
+    openHistoryOn("2026-10-20");
+
+    expect((await headline()).previousElementSibling?.textContent).toBe(
+      "90\u00a0% sicher, dass du abnimmst",
+    );
+  });
+});
+
+describe("the Satz zum Morgen (AC-4)", () => {
+  it("says „seit Wochen“ of a loss from its 14th day on", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 35, -1.4));
+
+    expect(await headline()).toHaveTextContent(/^Du nimmst seit Wochen ab\.$/);
+  });
+});
+
+describe("a day without a measurement (AC-8)", () => {
+  it.each<[string, string, keyof typeof COLOURS, string, string]>([
+    [
+      "2026-10-22",
+      "2026-10-19",
+      "Grün",
+      "84 % sicher, dass du abnimmst",
+      "Du nimmst wieder ab.",
+    ],
+    [
+      "2026-10-16",
+      "2026-10-13",
+      "Grün",
+      "89 % sicher, dass du abnimmst",
+      "Du nimmst seit 6 Tagen ab.",
+    ],
+    [
+      "2026-10-07",
+      "2026-10-04",
+      "Gelb",
+      "73 % sicher, dass du nicht abnimmst",
+      "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.",
+    ],
+  ])(
+    "on %s, the last on %s, shows its day: %s, „%s“, „%s“",
+    async (today, lastDay, light, line, sentence) => {
+      openHistoryOn(today, lastDay);
+
+      expect(await headline()).toHaveTextContent(new RegExp(`^${sentence}$`));
+      expect(await lineAbove()).toBe(line);
+      expect(surface()).toHaveStyle(COLOURS[light]);
+    },
+  );
+
+  it("shows „Letzte Messung vor 4 Tagen“ further back, neutral, without line or sentence", async () => {
+    openHistoryOn("2026-10-24", "2026-10-20");
+
+    expect(await headline()).toHaveTextContent(/^Letzte Messung vor 4 Tagen$/);
+    expect(document.body).not.toHaveTextContent(/sicher, dass/);
+    expect(document.body).not.toHaveTextContent(/Du nimmst/);
+    expect(surface()).toHaveStyle(COLOURS.neutral);
+  });
+
+  it("shows „Letzte Messung vor 5 Tagen“ after only three days of measurements", async () => {
+    openOn("2026-10-17", steady("2026-10-12", 3, 0));
+
+    expect(await headline()).toHaveTextContent(/^Letzte Messung vor 5 Tagen$/);
+  });
+
+  it("shows „Noch kein Urteil“ without any counting measurement, neutral, without line or sentence", async () => {
+    openOn("2026-10-17", []);
+
+    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+    expect((await headline()).previousElementSibling).toBeNull();
+    expect(document.body).not.toHaveTextContent(/Ein Urteil gibt es/);
+    expect(surface()).toHaveStyle(COLOURS.neutral);
+  });
+
+  it("shows Ampel, line and sentence from the first counting measurement on", async () => {
+    openOn("2026-10-17", steady("2026-10-17", 1, 0));
+
+    expect(await headline()).toHaveTextContent(
+      /^Ob du abnimmst, ist noch offen\.$/,
+    );
+    expect(await lineAbove()).toBe("58 % sicher, dass du nicht abnimmst");
+    expect(surface()).toHaveStyle(COLOURS.Gelb);
+  });
+});
+
+describe("what the page no longer says (AC-10)", () => {
+  it.each(["2026-08-22", "2026-09-12", "2026-10-15", "2026-10-19"])(
+    "on %s, no Frühwarnung, its headlines or its sentence",
+    async (today) => {
+      openHistoryOn(today);
+
+      expect(await headline()).not.toHaveTextContent(
+        /^(Nimmt ab|Stagniert|Nimmt zu)$/,
+      );
+      expect(document.body).not.toHaveTextContent(/Frühwarnung/);
+      expect(document.body).not.toHaveTextContent(
+        /Der Trend (fällt|stagniert|steigt)/,
+      );
+    },
+  );
+
+  it.each(["2026-08-22", "2026-08-28", "2026-09-12"])(
+    "on %s, a former Warnstufe, the surface is red",
+    async (today) => {
+      openHistoryOn(today);
+
+      await headline();
+      expect(surface()).toHaveStyle(COLOURS.Rot);
+    },
+  );
+
   it.each(["2026-10-12", "2026-10-13", "2026-08-26", "2026-09-05"])(
     "on %s neither „kein Abnehmen“, „Zuletzt abgenommen bis“ nor „4 Wochen: …“",
     async (today) => {
@@ -174,7 +281,7 @@ describe("what the page no longer says", () => {
   );
 
   it.each(["2026-08-30", "2026-09-15", "2026-09-20", "2026-10-19"])(
-    "on %s, a morning beyond the threshold, no card of the morning (AC-10)",
+    "on %s, a morning beyond the threshold, no card of the morning",
     async (today) => {
       openHistoryOn(today);
 
@@ -185,89 +292,15 @@ describe("what the page no longer says", () => {
   );
 
   it.each(["2026-10-01", "2026-10-03", "2026-10-04", "2026-10-14"])(
-    "on %s, after the gap, „Noch kein Urteil“ in place of the comparison, neutral (AC-10)",
+    "on %s, after the gap, no comparison",
     async (today) => {
       openHistoryOn(today);
 
-      expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
-      expect(
-        screen.getByText(
-          "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.",
-        ),
-      ).toBeInTheDocument();
+      await headline();
       expect(document.body).not.toHaveTextContent(/ohne Messung/);
       expect(document.body).not.toHaveTextContent(/normalen Schwankung/);
-      expect(screen.getByRole("main")).toHaveStyle({
-        backgroundColor: "#DDE1E5",
-        color: "#20262C",
-      });
     },
   );
-
-  it("after a gap and a clear decrease, „Noch kein Urteil“ (AC-10)", async () => {
-    openOn("2026-10-17", [
-      ...steady("2026-10-01", 30, 0, 95),
-      ...steady("2026-10-17", 2, 0, 92),
-    ]);
-
-    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
-    expect(document.body).not.toHaveTextContent(/ohne Messung/);
-  });
-});
-
-describe("a last measurement too old", () => {
-  it.each([
-    ["2026-09-25", "Stagniert"],
-    ["2026-09-26", "Letzte Messung vor 4 Tagen"],
-  ])("on %s, after the last on 22.9., is %s", async (today, text) => {
-    openHistoryOn(today);
-
-    expect(await headline()).toHaveTextContent(text);
-  });
-
-  it("wins over „Nimmt zu“, without „Frühwarnung“", async () => {
-    openHistoryOn("2026-10-24");
-
-    expect(await headline()).toHaveTextContent("Letzte Messung vor 4 Tagen");
-    expect(screen.queryByText(/Nimmt zu/)).not.toBeInTheDocument();
-    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
-  });
-
-  it("wins over „Noch kein Urteil“", async () => {
-    openOn("2026-10-17", steady("2026-10-12", 3, 0));
-
-    expect(await headline()).toHaveTextContent("Letzte Messung vor 5 Tagen");
-  });
-});
-
-describe("„Noch kein Urteil“", () => {
-  const IN_THREE_WEEKS =
-    "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.";
-
-  it("stands where the measurements do not suffice for a trend", async () => {
-    openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
-
-    expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
-    expect(screen.queryByText(EARLY_WARNING)).not.toBeInTheDocument();
-  });
-
-  it("stands while the trend has no 14-day pace", async () => {
-    openHistoryOn("2026-07-18");
-
-    expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
-  });
-
-  it("stands after a gap with no trend before it", async () => {
-    openOn("2026-10-17", [
-      ...steady("2026-10-03", 3, 0),
-      ...steady("2026-10-17", 2, 0),
-    ]);
-
-    expect(await headline()).toHaveTextContent("Noch kein Urteil");
-    expect(screen.getByText(IN_THREE_WEEKS)).toBeInTheDocument();
-  });
 });
 
 /** The figure labelled `label`, value and unit, as it reads; `null` where there is none. */
@@ -302,7 +335,7 @@ describe("the figures", () => {
     }));
     openOn("2026-10-17", [...loss, ...laterTheSameDay]);
 
-    expect(await headline()).toHaveTextContent("Nimmt ab");
+    expect(await headline()).toHaveTextContent(/^Du nimmst seit Wochen ab\.$/);
     expect(figure("Trend")).toBe("95,0 kg");
     expect(figure("Gemessen")).toBe("95,0 kg");
     expect(
@@ -313,7 +346,7 @@ describe("the figures", () => {
     ).toBeInTheDocument();
   });
 
-  it("are only „Gemessen“ under „Noch kein Urteil“ without a trend, and the graph only the points", async () => {
+  it("are only „Gemessen“ while the measurements do not suffice for a trend, and the graph only the points", async () => {
     openOn("2026-10-17", steady("2026-10-17", 4, 0, 95.2));
 
     await headline();
@@ -329,7 +362,7 @@ describe("the figures", () => {
     expect(graph.querySelectorAll("polyline")).toHaveLength(0);
   });
 
-  it("are the trend and „Gemessen“ under „Noch kein Urteil“ with a trend, and the graph draws the trend line", async () => {
+  it("are the trend and „Gemessen“ after a gap with no trend before it, and the graph draws the trend line", async () => {
     // No trend on 21.9. before the gap; 4.10. after it has one.
     openOn("2026-10-04", [
       ...steady("2026-09-07", 7, 0, 99),
@@ -337,7 +370,7 @@ describe("the figures", () => {
       ...steady("2026-10-04", 4, 0, 97),
     ]);
 
-    expect(await headline()).toHaveTextContent("Noch kein Urteil");
+    await headline();
     expect(figure("Trend")).toBe("97,0 kg");
     expect(figure("Gemessen")).toBe("97,0 kg");
     const graph = await screen.findByRole("img", {
@@ -347,74 +380,27 @@ describe("the figures", () => {
   });
 });
 
-describe("the colours of the surface", () => {
-  it.each([
-    ["2026-10-15", "„Nimmt ab“", "#D5E4F1", "#10355A"],
-    ["2026-08-22", "„Stagniert“ on its first day", "#F5E1CB", "#5A2C06"],
-    ["2026-08-23", "„Stagniert“ for 2 days", "#F5E1CB", "#5A2C06"],
-    ["2026-08-28", "„Stagniert“ for 7 days", "#EDA562", "#3A1801"],
-    ["2026-10-18", "„Nimmt zu“ on its first day", "#F5E1CB", "#5A2C06"],
-    ["2026-09-04", "„Nimmt zu“ for 6 days", "#F5E1CB", "#5A2C06"],
-    ["2026-09-05", "„Nimmt zu“ for 7 days", "#EDA562", "#3A1801"],
-    ["2026-09-11", "„Nimmt zu“ for 13 days", "#EDA562", "#3A1801"],
-    ["2026-09-12", "„Nimmt zu“ for 14 days", "#8A380A", "#FFF3E8"],
-    ["2026-09-26", "a last measurement too old", "#DDE1E5", "#20262C"],
-  ])("on %s, %s, are %s with %s", async (today, _, surface, ink) => {
-    openHistoryOn(today);
-
-    await headline();
-    expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: surface,
-      color: ink,
-    });
-  });
-  it("are neutral under „Noch kein Urteil“", async () => {
-    openOn("2026-10-17", steady("2026-10-17", 4, 0));
-
-    await headline();
-    expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: "#DDE1E5",
-    });
-  });
-});
-
-describe("the headline", () => {
+describe("the Satz zum Morgen as it is set", () => {
   // jsdom lays nothing out, so the stylesheet is read instead: the phone's
-  // rules, outside the wide screen's media query.
+  // rules, outside the media queries.
   const phoneRules = readFileSync(
     join(import.meta.dirname, "Verdict.module.css"),
     "utf8",
   ).replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
 
-  function declarations(selector: string): Record<string, string> {
-    const escaped = selector.replace(/[.[\]"]/g, "\\$&");
-    const body = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(phoneRules);
-    return Object.fromEntries(
-      (body?.[1] ?? "")
-        .split(";")
-        .map((declaration) => declaration.split(":").map((part) => part.trim()))
-        .filter(([property]) => property),
+  it("is 28px bold on the phone, under the line in small capitals", async () => {
+    openHistoryOn("2026-10-20");
+
+    // Vitest names a CSS module's class `_<name>_<hash>`.
+    const ruleOf = (element: Element | null) => {
+      const name = /^_(\w+)_/.exec(element?.className ?? "")?.[1];
+      return new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(phoneRules)?.[1];
+    };
+    const sentence = await headline();
+    expect(ruleOf(sentence)).toMatch(/font-size:\s*28px/);
+    expect(ruleOf(sentence)).toMatch(/font-weight:\s*700/);
+    expect(ruleOf(sentence.previousElementSibling)).toMatch(
+      /text-transform:\s*uppercase/,
     );
-  }
-
-  /** How the stylesheet sets `heading`: its own rule over the headline's. */
-  const styleOf = (heading: HTMLElement) => ({
-    ...declarations(".headline"),
-    ...declarations(`.headline[data-emphasis="${heading.dataset.emphasis}"]`),
-  });
-
-  it.each([
-    ["2026-08-22", "„Stagniert“ on Warnstufe 1"],
-    ["2026-08-28", "„Stagniert“ on Warnstufe 2"],
-    ["2026-10-18", "„Nimmt zu“ on Warnstufe 1"],
-    ["2026-09-05", "„Nimmt zu“ on Warnstufe 2"],
-    ["2026-09-12", "„Nimmt zu“ on Warnstufe 3"],
-  ])("is set on %s, %s, as „Nimmt ab“", async (today) => {
-    openHistoryOn("2026-10-15");
-    const losing = styleOf(await headline());
-    cleanup();
-    openHistoryOn(today);
-
-    expect(styleOf(await headline())).toEqual(losing);
   });
 });

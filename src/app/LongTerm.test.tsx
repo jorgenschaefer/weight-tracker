@@ -72,6 +72,7 @@ describe("„Langfristig · 4 Wochen“", () => {
       "Nimmt zu, +0,15 kg pro Woche (≈ 160 kcal Überschuss pro Tag)",
     ],
     ["2026-08-02", "Stagniert, −0,02 kg pro Woche (≈ 20 kcal Defizit pro Tag)"],
+    ["2026-10-19", "Nimmt ab, −0,33 kg pro Woche (≈ 360 kcal Defizit pro Tag)"],
   ])(
     "on %s sorts the pace by the threshold of the scatter of the day: %s",
     async (today, line) => {
@@ -111,11 +112,11 @@ describe("„Langfristig · 4 Wochen“", () => {
   });
 });
 
-describe("„Langfristig“ in place of a verdict", () => {
-  it("stands with „Noch kein Urteil“ after a gap", async () => {
+describe("„Langfristig“ beside any headline", () => {
+  it("stands after a gap", async () => {
     openHistoryOn("2026-10-03");
 
-    expect(await headline()).toHaveTextContent(/^Noch kein Urteil$/);
+    await headline();
     expect(await paceLine()).toBe(
       "Nimmt ab, −0,20 kg pro Woche (≈ 220 kcal Defizit pro Tag)",
     );
@@ -130,7 +131,7 @@ describe("„Langfristig“ in place of a verdict", () => {
     );
   });
 
-  it("stands with „Noch kein Urteil“ where the last day has a pace", async () => {
+  it("stands after a gap with no trend before it, where the last day has a pace", async () => {
     // A trend from 5.9. on, none on 21.9. before the gap; 4.10. has one again.
     openOn("2026-10-04", [
       ...steady("2026-09-07", 7, 0, 99),
@@ -138,7 +139,7 @@ describe("„Langfristig“ in place of a verdict", () => {
       ...steady("2026-10-04", 4, 0, 97),
     ]);
 
-    expect(await headline()).toHaveTextContent("Noch kein Urteil");
+    await headline();
     expect(await paceLine()).toBe(
       "Nimmt ab, −0,50 kg pro Woche (≈ 550 kcal Defizit pro Tag)",
     );

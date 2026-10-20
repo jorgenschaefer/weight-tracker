@@ -1,27 +1,34 @@
 import type { Assessment, AssessmentStatus } from "@/verdict/assessment";
-import type { TrendVerdict } from "@/verdict/verdict";
+import type { MorningSentence } from "@/verdict/morning-sentence";
+import { isLossLikelier, type TrafficLight } from "@/verdict/traffic-light";
 import { formatKg } from "./format";
 import classes from "./Verdict.module.css";
 
 /**
- * The verdict, or why there is none, from `assessment`: under
- * „Frühwarnung · letzte Tage“ where it is the Frühwarnung, the headline and
- * the sentence under it where it has one.
+ * The verdict from `status`: the Satz zum Morgen as the headline, under the
+ * line that says how certain the likelier side is. Without a verdict, the
+ * headline says why there is none.
  */
-export function Verdict({ assessment }: { assessment: Assessment }) {
-  const { status } = assessment;
-  const sentence = explanation(status);
-  return (
-    <>
-      {isTrendVerdict(status) && (
-        <p className={classes.kicker}>Frühwarnung · letzte Tage</p>
-      )}
-      <h1 className={classes.headline} data-emphasis={emphasis(status)}>
-        {headline(status)}
-      </h1>
-      {sentence !== null && <p className={classes.explanation}>{sentence}</p>}
-    </>
-  );
+export function Verdict({ status }: { status: AssessmentStatus }) {
+  switch (status.kind) {
+    case "verdict":
+      return (
+        <>
+          <p className={classes.line}>{certaintyLine(status.lossCertainty)}</p>
+          <h1 className={classes.sentence}>
+            {sentenceText(status.morningSentence)}
+          </h1>
+        </>
+      );
+    case "lastMeasurementTooOld":
+      return (
+        <h1 className={classes.statement}>
+          {`Letzte Messung vor ${status.days} Tagen`}
+        </h1>
+      );
+    case "noVerdictYet":
+      return <h1 className={classes.statement}>Noch kein Urteil</h1>;
+  }
 }
 
 /** Trend and „Gemessen“ of `assessment`, each where it has one. */
@@ -43,96 +50,69 @@ export interface SurfaceColours {
 
 export const NEUTRAL: SurfaceColours = { surface: "#DDE1E5", ink: "#20262C" };
 
-/**
- * The colours of the surface under `status`: blue while losing, escalating
- * with the Warnstufe of „Stagniert“ and „Nimmt zu“, neutral for everything
- * else.
- */
+/** The colours of the surface under `status`: its Ampel's, otherwise neutral. */
 export function surfaceColours(status: AssessmentStatus): SurfaceColours {
   switch (status.kind) {
-    case "losing":
-      return { surface: "#D5E4F1", ink: "#10355A" };
-    case "holding":
-    case "gaining":
-      return LEVEL_COLOURS[status.level];
+    case "verdict":
+      return TRAFFIC_LIGHT_COLOURS[status.trafficLight];
     case "lastMeasurementTooOld":
     case "noVerdictYet":
       return NEUTRAL;
   }
 }
 
-const LEVEL_COLOURS: Record<1 | 2 | 3, SurfaceColours> = {
-  1: { surface: "#F5E1CB", ink: "#5A2C06" },
-  2: { surface: "#EDA562", ink: "#3A1801" },
-  3: { surface: "#8A380A", ink: "#FFF3E8" },
+const TRAFFIC_LIGHT_COLOURS: Record<TrafficLight, SurfaceColours> = {
+  green: { surface: "#D3EAD0", ink: "#163D1B" },
+  yellow: { surface: "#F3E2A2", ink: "#3B3004" },
+  red: { surface: "#F2C6B8", ink: "#5A1A0B" },
 };
 
-function isTrendVerdict(status: AssessmentStatus): status is TrendVerdict {
-  switch (status.kind) {
-    case "losing":
-    case "holding":
-    case "gaining":
-      return true;
-    case "lastMeasurementTooOld":
-    case "noVerdictYet":
-      return false;
+/**
+ * „N % sicher, dass du abnimmst“, or „… nicht abnimmst“ where that is the
+ * likelier side: N its probability from `lossCertainty`, in whole percent, at
+ * most {@link MAX_PERCENT}.
+ */
+function certaintyLine(lossCertainty: number): string {
+  const losing = isLossLikelier(lossCertainty);
+  const probability = losing ? lossCertainty : 1 - lossCertainty;
+  const percent = Math.min(MAX_PERCENT, Math.round(probability * 100));
+  // A no-break space keeps the number with its „%“.
+  return `${percent} % sicher, dass du ${losing ? "abnimmst" : "nicht abnimmst"}`;
+}
+
+/** Nothing about a pace is certain: the line never says 100 %. */
+const MAX_PERCENT = 99;
+
+function sentenceText(sentence: MorningSentence): string {
+  switch (sentence.kind) {
+    case "gainStopped":
+      return "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.";
+    case "lossSlowing":
+      return "Achtung, die Abnahme wird langsamer.";
+    case "losingAgain":
+      return "Du nimmst wieder ab.";
+    case "gainingAgain":
+      return "Achtung, du nimmst wieder zu.";
+    case "outlier":
+      return "Ausreißer, der Trend bleibt.";
+    case "lightMorning":
+      return "Leichter Morgen, aber ein Tag ändert den Trend noch nicht.";
+    case "twoHeavierMornings":
+      return "Zwei schwerere Morgen: Du nimmst noch ab, aber langsamer.";
+    case "losingForDays":
+      return `Du nimmst seit ${sentence.days} Tagen ab.`;
+    case "losingForWeeks":
+      return "Du nimmst seit Wochen ab.";
+    case "probablyLosing":
+      return "Es geht wahrscheinlich abwärts, noch nicht sicher.";
+    case "open":
+      return "Ob du abnimmst, ist noch offen.";
+    case "gainingForDays":
+      return `Du nimmst seit ${sentence.days} Tagen zu.`;
+    case "gainingForWeeks":
+      return "Du nimmst seit Wochen zu.";
   }
 }
-
-function headline(status: AssessmentStatus): string {
-  switch (status.kind) {
-    case "losing":
-      return "Nimmt ab";
-    case "holding":
-      return "Stagniert";
-    case "gaining":
-      return "Nimmt zu";
-    case "lastMeasurementTooOld":
-      return `Letzte Messung vor ${status.days} Tagen`;
-    case "noVerdictYet":
-      return "Noch kein Urteil";
-  }
-}
-
-/** How the headline is set, as `Verdict.module.css` names it. */
-function emphasis(status: AssessmentStatus): string {
-  switch (status.kind) {
-    case "losing":
-    case "holding":
-    case "gaining":
-      return "short";
-    case "lastMeasurementTooOld":
-    case "noVerdictYet":
-      return "statement";
-  }
-}
-
-/** The sentence under the headline, where it has one. */
-function explanation(status: AssessmentStatus): string | null {
-  switch (status.kind) {
-    case "losing":
-    case "holding":
-    case "gaining":
-      return trendVerdictSentence(status);
-    case "noVerdictYet":
-      return "Ein Urteil gibt es nach knapp drei Wochen mit Messungen.";
-    case "lastMeasurementTooOld":
-      return null;
-  }
-}
-
-/** „Der Trend fällt seit (mindestens) N Tagen.“, „… seit einem Tag.“ */
-function trendVerdictSentence(verdict: TrendVerdict): string {
-  const days = verdict.days === 1 ? "einem Tag" : `${verdict.days} Tagen`;
-  const since = verdict.atLeast ? `seit mindestens ${days}` : `seit ${days}`;
-  return `Der Trend ${TREND_VERBS[verdict.kind]} ${since}.`;
-}
-
-const TREND_VERBS: Record<TrendVerdict["kind"], string> = {
-  losing: "fällt",
-  holding: "stagniert",
-  gaining: "steigt",
-};
 
 function Figure({ label, kg }: { label: string; kg: number }) {
   return (

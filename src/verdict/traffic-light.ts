@@ -14,6 +14,14 @@ export function lossCertainty(trend: Trend): number {
   return 1 - normalCdf((trend.pace - LOSS_THRESHOLD_KG_PER_WEEK) / sd);
 }
 
+/**
+ * Whether a loss is at least as likely as none, at `certainty`, a
+ * {@link lossCertainty}.
+ */
+export function isLossLikelier(certainty: number): boolean {
+  return certainty >= EVEN_CHANCE;
+}
+
 /** The Ampel of the day of `trend`. */
 export function trafficLight(trend: Trend): TrafficLight {
   const certainty = lossCertainty(trend);
@@ -28,6 +36,8 @@ export function trafficLight(trend: Trend): TrafficLight {
 const LOSS_THRESHOLD_KG_PER_WEEK = -0.1;
 /** How likely a side has to be for green or red. */
 const CONFIDENCE = 0.8;
+/** From this {@link lossCertainty} on, a loss is the likelier side. */
+const EVEN_CHANCE = 0.5;
 
 /** The probability that a standard normal value lies under `x`. */
 function normalCdf(x: number): number {

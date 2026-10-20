@@ -3,21 +3,23 @@ import type { CountingMeasurement } from "@/measurement/measurement";
 import { type Pace, pace } from "@/trend/pace";
 import { scatter } from "@/trend/scatter";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
-import { trends } from "@/trend/theil-sen";
-import { type TrendVerdict, trendVerdict } from "./verdict";
+import { trends as theilSenTrends } from "@/trend/theil-sen";
+import { trends } from "@/trend/trend";
+import { type MorningSentence, morningSentence } from "./morning-sentence";
+import {
+  lossCertainty,
+  type TrafficLight,
+  trafficLight,
+} from "./traffic-light";
 
 /**
  * Everything the page shows about the weight: exactly one status, and beside
  * it the figures of the last day with a measurement and the 6-week series.
- * Each status carries the figures that day has; without any measurement there
- * are none, and no „Gemessen“ either.
+ * Without any measurement there are no figures, and no „Gemessen“ either.
  */
 export type Assessment =
-  | (Figures & { status: TrendVerdict; trendKg: number })
   | (Figures & {
-      status:
-        | { kind: "lastMeasurementTooOld"; days: number }
-        | { kind: "noVerdictYet" };
+      status: Verdict | { kind: "lastMeasurementTooOld"; days: number };
     })
   | {
       status: { kind: "noVerdictYet" };
@@ -30,10 +32,21 @@ export type Assessment =
 /** What the page says above the figures: a verdict, or why there is none. */
 export type AssessmentStatus = Assessment["status"];
 
+/**
+ * The Urteil of the last day with a measurement: its Ampel, its Sicherheit
+ * and its Satz zum Morgen.
+ */
+export interface Verdict {
+  kind: "verdict";
+  trafficLight: TrafficLight;
+  lossCertainty: number;
+  morningSentence: MorningSentence;
+}
+
 interface Figures {
   /** „Gemessen“: the counting measurement of the last day with a measurement. */
   measuredKg: number;
-  /** The trend of that day; none where it has none. */
+  /** The Theil-Sen trend of that day; none where it has none. */
   trendKg: number | null;
   /** The 4-week pace of that day; none where it has none. */
   pace: Pace | null;
@@ -41,40 +54,16 @@ interface Figures {
 }
 
 /**
- * The assessment on `today` from `counting` (ordered by day).
+ * The assessment on `today` from `counting` (ordered by day): the verdict of
+ * the last day with a measurement, or „Noch kein Urteil“ without any.
  *
- * The last measurement more than 3 days before `today` replaces any verdict,
- * and wins over „Noch kein Urteil“ too; the figures stay.
+ * The last measurement more than 3 days before `today` replaces the verdict;
+ * the figures stay.
  */
 export function assess(
   counting: CountingMeasurement[],
   today: CalendarDay,
 ): Assessment {
-  const assessment = assessLastDay(counting, today);
-  const last = counting.at(-1);
-  if (last === undefined) return assessment;
-  const days = daysBetween(last.day, today);
-  if (days <= MAX_DAYS_SINCE_LAST_MEASUREMENT) return assessment;
-  return {
-    status: { kind: "lastMeasurementTooOld", days },
-    measuredKg: last.kg,
-    trendKg: assessment.trendKg,
-    pace: assessment.pace,
-    sixWeekSeries: assessment.sixWeekSeries,
-  };
-}
-
-const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
-
-/**
- * The assessment as of the last day with a measurement: the Frühwarnung where
- * that day has a 14-day pace, otherwise „Noch kein Urteil“.
- */
-function assessLastDay(
-  counting: CountingMeasurement[],
-  today: CalendarDay,
-): Assessment {
-  const everyTrend = trends(counting);
   const series = sixWeekSeries(counting, today);
   const last = counting.at(-1);
   if (last === undefined) {
@@ -87,17 +76,34 @@ function assessLastDay(
     };
   }
 
-  const trendOfLast = everyTrend.find((trend) => trend.day === last.day);
-  const scatterOfLast = scatter(counting, everyTrend, last.day);
-  const figures = {
+  const days = daysBetween(last.day, today);
+  const everyTheilSenTrend = theilSenTrends(counting);
+  const theilSenTrendOfLast = everyTheilSenTrend.find(
+    (trend) => trend.day === last.day,
+  );
+  const scatterOfLast = scatter(counting, everyTheilSenTrend, last.day);
+  return {
+    status:
+      days > MAX_DAYS_SINCE_LAST_MEASUREMENT
+        ? { kind: "lastMeasurementTooOld", days }
+        : verdict(counting),
     measuredKg: last.kg,
-    trendKg: trendOfLast?.kg ?? null,
-    pace: pace(everyTrend, last.day, scatterOfLast),
+    trendKg: theilSenTrendOfLast?.kg ?? null,
+    pace: pace(everyTheilSenTrend, last.day, scatterOfLast),
     sixWeekSeries: series,
   };
-  const verdict = trendVerdict(everyTrend, counting);
-  if (verdict === null || trendOfLast === undefined) {
-    return { status: { kind: "noVerdictYet" }, ...figures };
-  }
-  return { ...figures, status: verdict, trendKg: trendOfLast.kg };
+}
+
+const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;
+
+/** The verdict of the last of `counting`, of which there is at least one. */
+function verdict(counting: CountingMeasurement[]): Verdict {
+  const everyTrend = trends(counting);
+  const last = everyTrend[everyTrend.length - 1];
+  return {
+    kind: "verdict",
+    trafficLight: trafficLight(last),
+    lossCertainty: lossCertainty(last),
+    morningSentence: morningSentence(everyTrend),
+  };
 }

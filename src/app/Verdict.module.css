@@ -1,5 +1,6 @@
-/* The verdict on the colour field, in the surface's text colour. */
-.kicker {
+/* The verdict on the colour field, in the surface's text colour: the line
+   saying how certain it is, and the Satz zum Morgen large under it. */
+.line {
   margin: 28px 0 0;
   font-size: 13px;
   font-weight: 600;
@@ -7,42 +8,32 @@
   text-transform: uppercase;
 }
 
-.headline {
-  margin: 28px 0 0;
-  font-size: 64px;
-  line-height: 0.98;
-  font-weight: 600;
-  font-stretch: 100%;
-  letter-spacing: -0.01em;
+.sentence {
+  margin: 6px 0 0;
+  font-size: 28px;
+  line-height: 1.12;
+  font-weight: 700;
+  text-wrap: balance;
   overflow-wrap: break-word;
 }
 
-.kicker + .headline {
-  margin-top: 4px;
+/* The headlines that say why there is no verdict, „Noch kein Urteil“ and
+   „Letzte Messung vor N Tagen“, kept to two lines on a 360 × 640 screen. */
+.statement {
+  margin: 28px 0 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.02;
+  overflow-wrap: break-word;
 }
 
 /* A screen as short as 360 × 640: the verdict, „Langfristig“ and the
    figures fit above its bottom edge only with narrower gaps than the
    specimen's. page.module.css narrows its own at the same height. */
 @media (max-height: 45em) {
-  .kicker {
+  .line {
     margin-top: 12px;
   }
-}
-
-/* The headlines that say why there is no verdict, „Noch kein Urteil“ and
-   „Letzte Messung vor N Tagen“, set smaller and bolder than the verdict's
-   single words, so they keep to two lines on a 360 × 640 screen. */
-.headline[data-emphasis="statement"] {
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.02;
-}
-
-.explanation {
-  margin: 12px 0 0;
-  font-size: 16px;
-  line-height: 1.4;
 }
 
 .figures {
@@ -71,23 +62,21 @@
   font-size: 13px;
 }
 
-/* The wide screen of page.module.css: the headline beside „Langfristig“
-   and the figures. */
+/* The wide screen of page.module.css: the verdict beside „Langfristig“
+   and the figures, in a column too narrow for the phone's proportion. */
 @media (min-width: 65em) {
-  .kicker {
+  .line {
     margin-top: 0;
+    font-size: 14px;
   }
 
-  .headline {
-    margin-top: 0;
-    font-size: 104px;
-    line-height: 0.95;
-    letter-spacing: -0.015em;
+  .sentence {
+    font-size: 44px;
+    line-height: 1.08;
   }
 
-  /* Smaller than the phone's proportion: these headlines are long, and the
-     column beside the figures is narrow. */
-  .headline[data-emphasis="statement"] {
+  .statement {
+    margin-top: 0;
     font-size: 48px;
   }
 

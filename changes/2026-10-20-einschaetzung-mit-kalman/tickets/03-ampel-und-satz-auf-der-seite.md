@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-3, AC-4, AC-6, AC-12
 advances:  AC-7, AC-8, AC-10, AC-11
 after:     01-filter-ampel-satz, 02-karte-und-luecke-fallen-weg
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -105,3 +105,34 @@ The glossary: Urteil is redefined as the nudge says, Warnstufe and the 7- and 14
 - Out of scope: Die Phase „Gewicht halten“ (`changes/backlog/erhaltungsphase.md`).
 
 ## Left standing
+**Review findings not fixed**
+- Nit (round 1): `.claude/skills/run/fixture-snippet.mjs` loads only the CSV, which ends on 17.10. So `walkOn` cannot show 18.–20.10. without `only`. This was already so before this ticket, so I left it. `src/app/Verdict.test.tsx` pins those three days of the AC-7 table.
+
+**Checks**
+- `npm run check` ran whole and exits 0 (850 tests).
+
+**Criteria no automated test proves**
+- AC-11 (advanced) needs layout, which jsdom does not do. The first reviewer measured it in headless Chrome against this checkout's `next dev`, with „Daten abrufen“ shown:
+  - At 360 × 640, the figures end at 445 px with the longest sentence (17.10., three lines). With a two-line error they end at 492 px. Everything down to the figures fits; only the graph scrolls.
+  - At 1440 × 900, the line and the Satz stand in the left column and „Langfristig“ and the figures in the right. „Letzte Messung vor N Tagen“ also stands on the left.
+  - A test reads the stylesheet for the phone's 28px bold Satz under the uppercase line.
+
+**Decisions costly to reverse**
+- **The status of `Assessment`.** It is now `Verdict | lastMeasurementTooOld | noVerdictYet`. `Verdict` in `src/verdict/assessment.ts` is `{ kind: "verdict", trafficLight, lossCertainty, morningSentence }`, and 04 will be written against it.
+  - `noVerdictYet` comes only without any counting measurement, and then there are no figures. So the type no longer allows „Noch kein Urteil“ beside figures.
+  - `trendKg` and `pace` are still Theil-Sen's until 04.
+- **The Satz zum Morgen is the page's `h1`.** On the other two statuses the `h1` is the statement („Noch kein Urteil“, „Letzte Messung vor N Tagen“). The dimming while a fetch runs (`page.module.css`) and the page tests find the verdict by that `h1`.
+- **`isLossLikelier(certainty)`** in `src/verdict/traffic-light.ts` is the one rule for "at least 50 %". AC-3's line and rule 9 of the Satz both use it. `EVEN_CHANCE` moved there from `morning-sentence.ts`.
+- **Font sizes on the wide screen.** The design shows only the phone, so I chose these: the Satz at 44px, the line at 14px, and the statements at 48px as before.
+- **`walkOn` in the run skill** now returns the surface colour in place of the headline's `emphasis`, which no longer exists.
+
+**Departures from a nudge**
+- **The removal list.** I removed `src/verdict/verdict.ts`, `src/trend/week-pace.ts` and the 7- and 14-day thresholds in `scatter.ts`, each with its tests.
+  - `scatter.ts`, `outlier.ts` and `LongTerm.tsx` stay. The Context keeps them for `pace.ts`, the graph and „Langfristig“, and Not here gives those to 04 and 05.
+  - `gap-comparison.ts` and `MorningDeviation.tsx` were already removed in 02.
+  - The 7700 / 7 factor in `pace.ts` is untouched.
+- **The glossary.** I redefined Urteil and adjusted `assessment`, and 7-/14-Tage-Tempo and Warnstufe are gone. I did not redefine Tempo and Ausreißer, or drop Tempo-Stufe and Streuung: the code still uses their old meanings in „Langfristig“ and the graph until 04 and 05, and the glossary describes the code as it is.
+
+**Names not taken from the glossary** (please confirm)
+- `isLossLikelier`: whether the Sicherheit is at least 50 %.
+- `certaintyLine` in `src/app/Verdict.tsx`, and the CSS classes `line`, `sentence` and `statement`. They are the „Zeile über dem Satz“, the Satz zum Morgen, and the headline without a verdict.

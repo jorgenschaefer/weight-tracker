@@ -20,7 +20,7 @@ worker another project registered for localhost:3000
    fixture `src/test/fixtures/gewicht-2026-07-bis-10.csv` under
    `walk:fixture`.
 2. Run `walk-on.js` on the page once. Then `await walkOn("2026-08-30")`
-   returns the headline's emphasis and the page's text on that day;
+   returns the surface's colour and the page's text on that day;
    `{ keep: true }` leaves the frame open to screenshot, and `only` puts
    made-up measurements in place of the test data.
 

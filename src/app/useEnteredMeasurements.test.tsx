@@ -105,7 +105,7 @@ describe("an entered weight", () => {
     renderPage();
 
     await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
-    await isShown("Noch kein Urteil");
+    await isShown("Ob du abnimmst, ist noch offen.");
     isNotShown(FIRST_VISIT);
     await fetchButton();
   });

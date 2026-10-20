@@ -48,6 +48,8 @@ afterEach(leavePage);
 
 const verdict = () => screen.getByRole("heading", { level: 1 });
 const verdictSection = () => verdict().closest("section");
+/** The Satz zum Morgen of {@link storeLoss}. */
+const LOSS_SENTENCE = "Du nimmst seit Wochen ab.";
 
 describe("the first visit", () => {
   it("shows only the sentence of explanation and the button", async () => {
@@ -69,15 +71,15 @@ describe("the first visit", () => {
 });
 
 describe("opening the page with a cache", () => {
-  it("turns the button to fetch around on the surface, so it stands out on every level", async () => {
+  it("turns the button to fetch around on the surface, so it stands out on every Ampel", async () => {
     openHistoryOn("2026-09-12");
 
     const button = await fetchButton();
     expect(screen.getByRole("main")).toHaveStyle({
-      backgroundColor: "#8A380A",
+      backgroundColor: "#F2C6B8",
     });
-    expect(button.style.getPropertyValue("--button-bg")).toBe("#FFF3E8");
-    expect(button.style.getPropertyValue("--button-color")).toBe("#8A380A");
+    expect(button.style.getPropertyValue("--button-bg")).toBe("#5A1A0B");
+    expect(button.style.getPropertyValue("--button-color")).toBe("#F2C6B8");
   });
 
   it("shows the latest measurement from the cache at once, without Google", async () => {
@@ -114,7 +116,7 @@ describe("opening the page with a cache", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
-      "Nimmt ab",
+      LOSS_SENTENCE,
     );
     expect(screen.getByText(/^Letzte Messung 17\.10\./)).toBeInTheDocument();
     expect(fetchMeasurements).not.toHaveBeenCalled();
@@ -124,7 +126,7 @@ describe("opening the page with a cache", () => {
     storeLoss();
     renderPage();
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
-      "Nimmt ab",
+      LOSS_SENTENCE,
     );
 
     vi.setSystemTime(daysAgo(-4));
@@ -142,7 +144,7 @@ describe("opening the page with a cache", () => {
 
     const button = await fetchButton();
     expect(verdictSection()).toContainElement(button);
-    expect(verdict()).toHaveTextContent("Nimmt ab");
+    expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
     await user.click(button);
 
     await isShown(MORNING_SHOWN);
@@ -185,14 +187,14 @@ describe("the colour of the browser around the page", () => {
     openHistoryOn("2026-09-12");
     await fetchButton();
 
-    expect(themeColours()).toEqual(["#8A380A"]);
+    expect(themeColours()).toEqual(["#F2C6B8"]);
   });
 
   it("follows the surface when a fetch changes it, without reloading", async () => {
     google.measurements = steady("2026-10-17", 35, -0.5);
     await openAndClick(fetchButton);
 
-    await waitFor(() => expect(themeColours()).toEqual(["#D5E4F1"]));
+    await waitFor(() => expect(themeColours()).toEqual(["#D3EAD0"]));
   });
 });
 
@@ -204,7 +206,7 @@ describe("fetching", () => {
 
     await isShown("Vorläufig, wird aktualisiert …");
     expect(verdictSection()).toHaveAttribute("aria-busy", "true");
-    expect(verdict()).toHaveTextContent("Nimmt ab");
+    expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
     hasNoButton("Daten abrufen");
     answer.resolve({ ok: true, value: [] });
     await waitFor(() => isNotShown(/wird aktualisiert/i));
@@ -247,7 +249,7 @@ describe("a failed fetch", () => {
     const error = await screen.findByText(
       "Abruf fehlgeschlagen: Google antwortet nicht.",
     );
-    expect(verdict()).toHaveTextContent("Nimmt ab");
+    expect(verdict()).toHaveTextContent(LOSS_SENTENCE);
     expect(error.previousElementSibling).toHaveTextContent(/^Letzte Messung/);
   });
 
