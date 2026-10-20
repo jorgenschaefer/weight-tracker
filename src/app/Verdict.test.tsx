@@ -483,7 +483,7 @@ describe("the figures", () => {
     expect(figure("Gewicht, geschätzt")).toMatch(/^95,2 ± /);
     expect(figure("Tempo")).toMatch(/^±0,00 ± /);
     const graph = await screen.findByRole("img", {
-      name: "Messungen und Trend der letzten sechs Wochen",
+      name: "Messungen und Trend, 6 Wochen, Bis heute",
     });
     expect(graph.querySelectorAll("circle")).toHaveLength(4);
     expect(graph.querySelectorAll("polyline")).toHaveLength(1);
@@ -501,7 +501,7 @@ describe("the figures", () => {
     expect(figure("Gemessen")).toBe("97,0 kg");
     expect(figure("Gewicht, geschätzt")).not.toBeNull();
     const graph = await screen.findByRole("img", {
-      name: "Messungen und Trend der letzten sechs Wochen",
+      name: "Messungen und Trend, 6 Wochen, Bis heute",
     });
     // 21.9. alone between two gaps.
     expect(graph.querySelectorAll("polyline")).toHaveLength(3);

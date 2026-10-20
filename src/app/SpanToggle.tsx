@@ -1,5 +1,6 @@
 import { UnstyledButton } from "@mantine/core";
 import type { Span } from "@/trend/graph-window/graph-window";
+import { formatSpan } from "./format";
 import classes from "./SpanToggle.module.css";
 import type { SurfaceColours } from "./Verdict";
 
@@ -19,7 +20,7 @@ export function SpanToggle({
 }) {
   return (
     <fieldset aria-label="Zeitraum" className={classes.toggle}>
-      {SPANS.map(({ value, name }) => (
+      {SPANS.map((value) => (
         <UnstyledButton
           key={value}
           className={classes.option}
@@ -31,15 +32,11 @@ export function SpanToggle({
           }
           onClick={() => onChoose(value)}
         >
-          {name}
+          {formatSpan(value)}
         </UnstyledButton>
       ))}
     </fieldset>
   );
 }
 
-const SPANS: { value: Span; name: string }[] = [
-  { value: "sixWeeks", name: "6 Wochen" },
-  { value: "threeMonths", name: "3 Monate" },
-  { value: "oneYear", name: "1 Jahr" },
-];
+const SPANS: Span[] = ["sixWeeks", "threeMonths", "oneYear"];

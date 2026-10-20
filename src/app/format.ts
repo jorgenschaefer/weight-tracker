@@ -4,6 +4,7 @@
  */
 
 import type { CalendarDay } from "@/measurement/calendar-day";
+import type { GraphWindow, Span } from "@/trend/graph-window/graph-window";
 
 /** A weight in kg, with a decimal comma and one decimal: `98,6`. */
 export function formatKg(kg: number): string {
@@ -45,9 +46,54 @@ export function formatMonth(day: CalendarDay): string {
   return MONTH.format(new Date(`${day}T12:00:00Z`));
 }
 
+/** The name of `span`: `6 Wochen`, `3 Monate`, `1 Jahr`. */
+export function formatSpan(span: Span): string {
+  switch (span) {
+    case "sixWeeks":
+      return "6 Wochen";
+    case "threeMonths":
+      return "3 Monate";
+    case "oneYear":
+      return "1 Jahr";
+  }
+}
+
+/**
+ * The range of a window of `span` beside ‹ ›: for „6 Wochen“ „Bis heute“ up
+ * to `today`, otherwise its first and last day, `8.9.26 – 19.10.26`; for
+ * „3 Monate“ its first and last month, `Aug – Okt 2026`, each with its year
+ * where they differ; for „1 Jahr“ its year.
+ */
+export function formatRange(
+  span: Span,
+  graphWindow: GraphWindow,
+  today: CalendarDay,
+): string {
+  const { firstDay, lastDay } = graphWindow;
+  const firstYear = firstDay.slice(0, 4);
+  const lastYear = lastDay.slice(0, 4);
+  switch (span) {
+    case "sixWeeks":
+      if (lastDay === today) return "Bis heute";
+      return `${formatDayWithYear(firstDay)} – ${formatDayWithYear(lastDay)}`;
+    case "threeMonths":
+      if (firstYear === lastYear)
+        return `${formatMonth(firstDay)} – ${formatMonth(lastDay)} ${lastYear}`;
+      return `${formatMonth(firstDay)} ${firstYear} – ${formatMonth(lastDay)} ${lastYear}`;
+    case "oneYear":
+      return firstYear;
+  }
+}
+
 /** The Berlin time of day of `instant`: `7:12`. */
 export function formatTime(instant: Date): string {
   return TIME.format(instant);
+}
+
+/** A calendar day with a two-digit year: `8.9.26`. */
+function formatDayWithYear(day: CalendarDay): string {
+  // Noon UTC falls on the same day in Berlin, in summer and in winter.
+  return DAY_WITH_YEAR.format(new Date(`${day}T12:00:00Z`));
 }
 
 /**
@@ -79,6 +125,13 @@ const DAY = new Intl.DateTimeFormat("de-DE", {
   timeZone: "Europe/Berlin",
   day: "numeric",
   month: "numeric",
+});
+
+const DAY_WITH_YEAR = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+  day: "numeric",
+  month: "numeric",
+  year: "2-digit",
 });
 
 const MONTH = new Intl.DateTimeFormat("de-DE", {

@@ -10,8 +10,13 @@ import {
   type Measurement,
 } from "@/measurement/measurement";
 import {
+  earlierWindow,
   type GraphWindow,
+  hasEarlierWindow,
+  hasLaterWindow,
+  laterWindow,
   type Span,
+  windowOnSwitch,
   windowUpTo,
 } from "@/trend/graph-window/graph-window";
 import {
@@ -26,7 +31,7 @@ import {
 } from "@/verdict/assessment";
 import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
-import { formatDay, formatKg, formatTime } from "./format";
+import { formatDay, formatKg, formatRange, formatTime } from "./format";
 import { GoogleStatus } from "./GoogleStatus";
 import classes from "./page.module.css";
 import { ShownDayAnnouncement, ShownDayBand } from "./ShownDayBand";
@@ -40,6 +45,7 @@ import {
   Verdict,
 } from "./Verdict";
 import { WeightGraph } from "./WeightGraph";
+import { WindowBar } from "./WindowBar";
 
 export default function Page() {
   const measurements = useMeasurements();
@@ -47,9 +53,8 @@ export default function Page() {
   const [chosenDay, setChosenDay] = useChosenDay(
     measurements?.fetchFailure ?? null,
   );
-  // Opened anew, the page shows „6 Wochen“; the window is that of the span
-  // up to today, which moves on with today.
-  const [span, setSpan] = useState<Span>("sixWeeks");
+  const { span, graphWindow, chooseSpan, showEarlier, showLater } =
+    useGraphWindow(today);
   const graph = useRef<SVGSVGElement>(null);
   if (measurements === null) {
     return (
@@ -91,7 +96,7 @@ export default function Page() {
   if (shownDay !== chosenDay) setChosenDay(null);
   const latestToday = latestMeasurement(all);
   const assessmentToday = assess(counting, today);
-  const graphWindow = windowUpTo(span, today);
+  const firstMeasuredDay = counting.at(0)?.day;
   const known = shownDay === null ? all : measurementsKnownOn(all, shownDay);
   const assessment =
     shownDay === null
@@ -126,8 +131,15 @@ export default function Page() {
         graph={{
           series: windowSeries(counting, graphWindow),
           span,
-          onChooseSpan: setSpan,
+          onChooseSpan: chooseSpan,
           graphWindow,
+          range: formatRange(span, graphWindow, today),
+          onEarlier:
+            firstMeasuredDay !== undefined &&
+            hasEarlierWindow(graphWindow, firstMeasuredDay)
+              ? showEarlier
+              : null,
+          onLater: hasLaterWindow(graphWindow, today) ? showLater : null,
           shownDay,
           onChooseDay: setChosenDay,
           colours,
@@ -152,6 +164,28 @@ function useToday(): CalendarDay {
     return () => document.removeEventListener("visibilitychange", readClock);
   }, []);
   return today;
+}
+
+/**
+ * The span chosen and the window of it the graph shows: the window up to
+ * today, which moves on with today, until ‹ › show an earlier one. Opened
+ * anew, the page shows „6 Wochen“ up to today.
+ */
+function useGraphWindow(today: CalendarDay) {
+  const [span, setSpan] = useState<Span>("sixWeeks");
+  // The earlier window ‹ › show; `null` for the window up to today.
+  const [pastWindow, setPastWindow] = useState<GraphWindow | null>(null);
+  const graphWindow = pastWindow ?? windowUpTo(span, today);
+  return {
+    span,
+    graphWindow,
+    chooseSpan(chosen: Span) {
+      setSpan(chosen);
+      setPastWindow(windowOnSwitch(chosen, graphWindow, today));
+    },
+    showEarlier: () => setPastWindow(earlierWindow(span, graphWindow)),
+    showLater: () => setPastWindow(laterWindow(span, graphWindow, today)),
+  };
 }
 
 /**
@@ -265,8 +299,9 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 /**
  * The page from the cached measurements and those entered that Google Health
  * has not returned yet: their newest, `latest`, the verdict and the four
- * figures of the day shown, and under them the toggle of the span and the
- * graph of its window, in which an earlier day is chosen.
+ * figures of the day shown, and under them the toggle of the span, the range
+ * of its window with ‹ › and the graph of the window, in which an earlier
+ * day is chosen.
  */
 function CachedMeasurements({
   latest,
@@ -282,6 +317,9 @@ function CachedMeasurements({
     span: Span;
     onChooseSpan: (span: Span) => void;
     graphWindow: GraphWindow;
+    range: string;
+    onEarlier: (() => void) | null;
+    onLater: (() => void) | null;
     shownDay: CalendarDay | null;
     onChooseDay: (day: CalendarDay | null) => void;
     colours: SurfaceColours;
@@ -307,24 +345,31 @@ function CachedMeasurements({
       </div>
       {/* Without any measurement, there is nothing to show over time. */}
       {latest !== null && (
-        <SpanToggle
-          span={graph.span}
-          colours={graph.colours}
-          onChoose={graph.onChooseSpan}
-        />
+        <>
+          <SpanToggle
+            span={graph.span}
+            colours={graph.colours}
+            onChoose={graph.onChooseSpan}
+          />
+          <WindowBar
+            range={graph.range}
+            onEarlier={graph.onEarlier}
+            onLater={graph.onLater}
+          />
+          <div className={classes.graph}>
+            <WeightGraph
+              series={graph.series}
+              span={graph.span}
+              graphWindow={graph.graphWindow}
+              today={today}
+              shownDay={graph.shownDay}
+              onChooseDay={graph.onChooseDay}
+              surface={graph.colours.surface}
+              ref={graph.ref}
+            />
+          </div>
+        </>
       )}
-      <div className={classes.graph}>
-        <WeightGraph
-          series={graph.series}
-          span={graph.span}
-          graphWindow={graph.graphWindow}
-          today={today}
-          shownDay={graph.shownDay}
-          onChooseDay={graph.onChooseDay}
-          surface={graph.colours.surface}
-          ref={graph.ref}
-        />
-      </div>
     </>
   );
 }

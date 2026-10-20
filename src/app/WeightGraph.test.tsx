@@ -101,7 +101,7 @@ async function drawGraph(
     />,
   );
   const graph = await screen.findByRole("img", {
-    name: "Messungen und Trend der letzten sechs Wochen",
+    name: /^Messungen und Trend/,
   });
   // Safe: the element with this role is the graph's <svg>.
   return graph as unknown as SVGSVGElement;
@@ -196,9 +196,13 @@ const trendOn = (day: string, kg: number, sdKg = 0.3): Trend => ({
 /** Three days up to 17.10., the second one an outlier, without a trend. */
 const withOutlierInTheMiddle: WindowSeries = {
   measurements: [
-    { measurement: measured("2026-10-15", 98.0), outlier: false },
-    { measurement: measured("2026-10-16", 99.5), outlier: true },
-    { measurement: measured("2026-10-17", 98.1), outlier: false },
+    {
+      measurement: measured("2026-10-15", 98.0),
+      outlier: false,
+      latest: false,
+    },
+    { measurement: measured("2026-10-16", 99.5), outlier: true, latest: false },
+    { measurement: measured("2026-10-17", 98.1), outlier: false, latest: true },
   ],
   trendLine: [],
 };
@@ -230,6 +234,18 @@ describe("WeightGraph", () => {
     expect(radius(last)).toBeGreaterThan(radius(first));
   });
 
+  it("draws no larger dot in a window before the last day's measurement", async () => {
+    const earlierWindow = windowUpTo("sixWeeks", "2026-09-08" as CalendarDay);
+    const graph = await drawGraph(
+      windowSeries(countingMeasurements(weightHistory()), earlierWindow),
+      320,
+      null,
+      { span: "sixWeeks", graphWindow: earlierWindow, today: october17 },
+    );
+
+    expect(points(graph).filter(isFullDot)).toEqual([]);
+  });
+
   it("draws the last day's measurement as a ring as large as the full dot where it is an outlier", async () => {
     const [, , fullDot] = points(await drawGraph(withOutlierInTheMiddle));
     const fullDotRadius = radius(fullDot);
@@ -237,7 +253,10 @@ describe("WeightGraph", () => {
     const [, ring] = points(
       await drawGraph({
         ...withOutlierInTheMiddle,
-        measurements: withOutlierInTheMiddle.measurements.slice(0, 2),
+        measurements: [
+          withOutlierInTheMiddle.measurements[0],
+          { ...withOutlierInTheMiddle.measurements[1], latest: true },
+        ],
       }),
     );
 
@@ -281,7 +300,11 @@ describe("WeightGraph", () => {
   it("draws a trend of the same weight as a measurement at its height", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-16", 98.0), outlier: false },
+        {
+          measurement: measured("2026-10-16", 98.0),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [[trendOn("2026-10-16", 98.0), trendOn("2026-10-17", 97.0)]],
     });
@@ -307,7 +330,11 @@ describe("WeightGraph", () => {
   it("draws the band from the trend plus its standard deviation to the trend minus it", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-16", 98.0), outlier: false },
+        {
+          measurement: measured("2026-10-16", 98.0),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [
         [trendOn("2026-10-16", 98.0, 0.5), trendOn("2026-10-17", 97.0, 0.4)],
@@ -328,8 +355,16 @@ describe("WeightGraph", () => {
   it("scales the weights so the band stays inside", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-16", 98.0), outlier: false },
-        { measurement: measured("2026-10-17", 98.2), outlier: false },
+        {
+          measurement: measured("2026-10-16", 98.0),
+          outlier: false,
+          latest: false,
+        },
+        {
+          measurement: measured("2026-10-17", 98.2),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [
         [trendOn("2026-10-16", 98.0, 3), trendOn("2026-10-17", 98.1, 3)],
@@ -419,6 +454,34 @@ describe("WeightGraph", () => {
   });
 
   it.each([
+    ["sixWeeks", "2026-10-17", "Messungen und Trend, 6 Wochen, Bis heute"],
+    [
+      "sixWeeks",
+      "2026-09-08",
+      "Messungen und Trend, 6 Wochen, 29.7.26 – 8.9.26",
+    ],
+    [
+      "threeMonths",
+      "2026-10-17",
+      "Messungen und Trend, 3 Monate, Aug – Okt 2026",
+    ],
+    ["oneYear", "2026-10-17", "Messungen und Trend, 1 Jahr, 2026"],
+  ] as const)(
+    "tells a screen reader its span and range: %s up to %s, on 17.10., is „%s“",
+    async (span, lastDay, name) => {
+      const graphWindow = windowUpTo(span, lastDay as CalendarDay);
+      const graph = await drawGraph(
+        windowSeries(countingMeasurements(weightHistory()), graphWindow),
+        320,
+        null,
+        { span, graphWindow, today: october17 },
+      );
+
+      expect(graph).toHaveAccessibleName(name);
+    },
+  );
+
+  it.each([
     [599, "190"],
     [600, "380"],
   ])("draws a graph %d px wide %s px tall", async (width, height) => {
@@ -428,7 +491,7 @@ describe("WeightGraph", () => {
     );
   });
 
-  it("draws nothing where the six weeks hold no measurement", async () => {
+  it("says „Keine Messung in diesem Zeitraum“ in place of a drawing where the window holds no measurement", async () => {
     stubContainerWidth(320);
     const { container } = render(
       <WeightGraph
@@ -445,13 +508,22 @@ describe("WeightGraph", () => {
     await act(() => new Promise(requestAnimationFrame));
 
     expect(container.querySelector("svg")).toBeNull();
+    expect(container).toHaveTextContent(/^Keine Messung in diesem Zeitraum$/);
   });
 
   it("marks a trend piece of a single day, after a gap, where the trend lies", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-10", 98.0), outlier: false },
-        { measurement: measured("2026-10-15", 97.6), outlier: false },
+        {
+          measurement: measured("2026-10-10", 98.0),
+          outlier: false,
+          latest: false,
+        },
+        {
+          measurement: measured("2026-10-15", 97.6),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [[trendOn("2026-10-15", 97.3)]],
     });
@@ -466,8 +538,16 @@ describe("WeightGraph", () => {
   it("draws the band of a trend piece of a single day as a bar the width of the line", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-10", 98.0), outlier: false },
-        { measurement: measured("2026-10-15", 97.6), outlier: false },
+        {
+          measurement: measured("2026-10-10", 98.0),
+          outlier: false,
+          latest: false,
+        },
+        {
+          measurement: measured("2026-10-15", 97.6),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [[trendOn("2026-10-15", 97.3, 0.4)]],
     });
@@ -516,8 +596,16 @@ describe("WeightGraph", () => {
   it("scales the weights so a trend far below the measurements stays inside", async () => {
     const graph = await drawGraph({
       measurements: [
-        { measurement: measured("2026-10-16", 99.0), outlier: false },
-        { measurement: measured("2026-10-17", 99.2), outlier: false },
+        {
+          measurement: measured("2026-10-16", 99.0),
+          outlier: false,
+          latest: false,
+        },
+        {
+          measurement: measured("2026-10-17", 99.2),
+          outlier: false,
+          latest: true,
+        },
       ],
       trendLine: [[trendOn("2026-10-16", 96.0), trendOn("2026-10-17", 96.1)]],
     });
@@ -749,7 +837,7 @@ describe("the outliers on the page", () => {
   async function graphOnPage(today: string): Promise<SVGSVGElement> {
     openHistoryOn(today);
     const graph = await screen.findByRole("img", {
-      name: "Messungen und Trend der letzten sechs Wochen",
+      name: "Messungen und Trend, 6 Wochen, Bis heute",
     });
     // Safe: the element with this role is the graph's <svg>.
     return graph as unknown as SVGSVGElement;

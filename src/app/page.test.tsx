@@ -77,7 +77,7 @@ beforeEach(() => standInForGoogle(NOW));
 afterEach(leavePage);
 
 /** What a screen reader is told the graph is. */
-const GRAPH = "Messungen und Trend der letzten sechs Wochen";
+const GRAPH = "Messungen und Trend, 6 Wochen, Bis heute";
 
 const verdict = () => screen.getByRole("heading", { level: 1 });
 /** The Satz zum Morgen of {@link storeLoss}. */
@@ -617,7 +617,8 @@ describe("the layout", () => {
 });
 
 describe("the span", () => {
-  const graph = () => screen.findByRole("img", { name: GRAPH });
+  const graph = () =>
+    screen.findByRole("img", { name: /^Messungen und Trend/ });
   const spanToggle = () => screen.queryByRole("group", { name: "Zeitraum" });
   const spanButton = (name: string) => screen.findByRole("button", { name });
   /** The labels under the graph, of days or months. */
@@ -774,6 +775,227 @@ describe("the span", () => {
     await isShown(FIRST_VISIT);
     expect(spanToggle()).toBeNull();
   });
+});
+
+describe("the window", () => {
+  const graph = () =>
+    screen.findByRole("img", { name: /^Messungen und Trend/ });
+  const spanButton = (name: string) => screen.findByRole("button", { name });
+  const earlier = () => screen.findByRole("button", { name: "Früher" });
+  const later = () => screen.findByRole("button", { name: "Später" });
+  /** How many points the graph draws. */
+  const pointCount = async () =>
+    (await graph()).querySelectorAll("circle").length;
+  /** How many days from `first` to `last`, both included, the test data has. */
+  const daysWithData = (first: string, last: string) =>
+    countingMeasurements(weightHistoryUntil(last)).filter(
+      (measurement) => measurement.day >= first,
+    ).length;
+
+  it("goes back with ‹ by 42 days on „6 Wochen“, and forward with › to today", async () => {
+    const user = openHistoryOn("2026-10-20");
+
+    await user.click(await earlier());
+
+    await isShown("29.7.26 – 8.9.26");
+    expect(await pointCount()).toBe(daysWithData("2026-07-29", "2026-09-08"));
+
+    await user.click(await later());
+
+    await isShown("Bis heute");
+    expect(await pointCount()).toBe(daysWithData("2026-09-09", "2026-10-20"));
+  });
+
+  it("on switching the span takes the last day of the window: its 3 months, its 42 days, its year", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await earlier());
+
+    await user.click(await spanButton("3 Monate"));
+    await isShown("Jul – Sep 2026");
+    expect(await pointCount()).toBe(daysWithData("2026-07-01", "2026-09-30"));
+
+    await user.click(await spanButton("6 Wochen"));
+    await isShown("20.8.26 – 30.9.26");
+
+    await user.click(await spanButton("1 Jahr"));
+    await isShown("2026");
+    expect(await later()).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("on switching the span from a window that holds today takes today", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await spanButton("1 Jahr"));
+
+    await user.click(await spanButton("6 Wochen"));
+
+    await isShown("Bis heute");
+  });
+
+  it("shows with › the window up to today where the next would hold today", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await earlier());
+    await user.click(await spanButton("3 Monate"));
+    await isShown("Jul – Sep 2026");
+
+    await user.click(await later());
+
+    await isShown("Aug – Okt 2026");
+    expect(await later()).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps an earlier window as the day changes", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await earlier());
+
+    vi.setSystemTime(evening("2026-10-21"));
+    await comeIntoView();
+
+    await isShown("29.7.26 – 8.9.26");
+  });
+
+  it("says „Keine Messung in diesem Zeitraum“ in place of the graph for a window without a measurement, under the toggle, range and arrows", async () => {
+    const user = openHistoryOn("2026-10-20", "2026-07-31");
+
+    const empty = await screen.findByText("Keine Messung in diesem Zeitraum");
+    expect(
+      screen.queryByRole("img", { name: /^Messungen und Trend/ }),
+    ).toBeNull();
+    expect(await spanButton("6 Wochen")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    for (const above of [
+      screen.getByRole("group", { name: "Zeitraum" }),
+      screen.getByText("Bis heute"),
+      await earlier(),
+      await later(),
+    ])
+      expect(above.compareDocumentPosition(empty)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+
+    await user.click(await earlier());
+
+    expect(await pointCount()).toBe(daysWithData("2026-07-29", "2026-07-31"));
+  });
+
+  it("stands between the toggle and the graph", async () => {
+    openHistoryOn("2026-10-20");
+
+    const drawing = await graph();
+    const range = screen.getByText("Bis heute");
+    expect(
+      screen
+        .getByRole("group", { name: "Zeitraum" })
+        .compareDocumentPosition(range),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(range.compareDocumentPosition(drawing)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("tells a screen reader the span and the range of the graph", async () => {
+    const user = openHistoryOn("2026-10-20");
+    expect(await graph()).toHaveAccessibleName(
+      "Messungen und Trend, 6 Wochen, Bis heute",
+    );
+
+    await user.click(await spanButton("1 Jahr"));
+
+    expect(await graph()).toHaveAccessibleName(
+      "Messungen und Trend, 1 Jahr, 2026",
+    );
+  });
+
+  it("has no arrows without any measurement", async () => {
+    storeCache(daysAgo(1), []);
+    renderPage();
+
+    await isShown(
+      "Noch keine Messung in Google Health in den letzten 90 Tagen",
+    );
+    hasNoButton("Früher");
+    hasNoButton("Später");
+  });
+
+  it("does not say „Keine Messung in diesem Zeitraum“ without any measurement", async () => {
+    storeCache(daysAgo(1), []);
+    renderPage();
+
+    await isShown(
+      "Noch keine Messung in Google Health in den letzten 90 Tagen",
+    );
+    isNotShown("Keine Messung in diesem Zeitraum");
+  });
+
+  it("tells a screen reader the range ‹ and › move to", async () => {
+    const user = openHistoryOn("2026-10-20");
+
+    await user.click(await earlier());
+
+    await isShown("29.7.26 – 8.9.26");
+    const announced = screen
+      .getAllByRole("status")
+      .find((status) => status.textContent === "29.7.26 – 8.9.26");
+    expect(announced).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("keeps the focus on ‹ as it locks", async () => {
+    const user = openHistoryOn("2026-10-20");
+    const button = await earlier();
+    button.focus();
+
+    await user.keyboard("{Enter}{Enter}");
+
+    await isShown("17.6.26 – 28.7.26");
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps the focus on › as it locks", async () => {
+    const user = openHistoryOn("2026-10-20");
+    await user.click(await earlier());
+    const button = await later();
+    button.focus();
+
+    await user.keyboard("{Enter}");
+
+    await isShown("Bis heute");
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("locks › while the window holds today", async () => {
+    const user = openHistoryOn("2026-10-20");
+
+    expect(await later()).toHaveAttribute("aria-disabled", "true");
+    expect(await earlier()).toHaveAttribute("aria-disabled", "false");
+
+    await user.click(await later());
+
+    await isShown("Bis heute");
+  });
+
+  it.each([
+    ["6 Wochen", 2, "17.6.26 – 28.7.26"],
+    ["3 Monate", 1, "Mai – Jul 2026"],
+    ["1 Jahr", 0, "2026"],
+  ])(
+    "locks ‹ on „%s“ once the window starts on or before 1.7., the first counting measurement, %i back",
+    async (span, back, range) => {
+      const user = openHistoryOn("2026-10-20");
+      await user.click(await spanButton(span));
+
+      for (let i = 0; i < back; i++) await user.click(await earlier());
+
+      await isShown(range);
+      expect(await earlier()).toHaveAttribute("aria-disabled", "true");
+
+      await user.click(await earlier());
+
+      await isShown(range);
+    },
+  );
 });
 
 describe("an earlier day", () => {
@@ -1024,7 +1246,9 @@ describe("an earlier day", () => {
 
       await tapOn(user, "2026-10-18");
 
-      const announced = screen.getByRole("status");
+      const announced = screen
+        .getAllByRole("status")
+        .find((status) => status.textContent?.startsWith("Stand"));
       expect(announced).toHaveTextContent("Stand 18.10.");
       expect(announced).toHaveAttribute("aria-live", "polite");
     });

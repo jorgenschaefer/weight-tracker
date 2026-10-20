@@ -10,7 +10,12 @@ import {
 import type { GraphWindow, Span } from "@/trend/graph-window/graph-window";
 import type { WindowSeries } from "@/trend/graph-window/window-series";
 import type { Trend } from "@/trend/trend";
-import { formatCalendarDay, formatMonth } from "./format";
+import {
+  formatCalendarDay,
+  formatMonth,
+  formatRange,
+  formatSpan,
+} from "./format";
 import classes from "./WeightGraph.module.css";
 
 /**
@@ -18,8 +23,8 @@ import classes from "./WeightGraph.module.css";
  * counting measurements of `series` as points, the trend as a line inside a
  * band of ± its standard deviation, both broken at gaps. Where the window
  * reaches past `today`, a dashed line marks it.
- * Drawn in the text colour it inherits; nothing where the window holds no
- * measurement, as without one there is no weight to scale to.
+ * Drawn in the text colour it inherits; where the window holds no
+ * measurement, there is no weight to scale to, and it says so instead.
  *
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
  * `surface`, the colour of the surface. A tap, a drag or ← and → choose the
@@ -48,9 +53,12 @@ export function WeightGraph({
   ref?: Ref<SVGSVGElement>;
 }) {
   const { ref: sized, width } = useElementSize();
+  if (series.measurements.length === 0) {
+    return <p className={classes.empty}>Keine Messung in diesem Zeitraum</p>;
+  }
   return (
     <div ref={sized}>
-      {width > 0 && series.measurements.length > 0 && (
+      {width > 0 && (
         <Drawing
           series={series}
           span={span}
@@ -101,7 +109,7 @@ function Drawing({
       width={width}
       height={layout.height}
       role="img"
-      aria-label="Messungen und Trend der letzten sechs Wochen"
+      aria-label={`Messungen und Trend, ${formatSpan(span)}, ${formatRange(span, graphWindow, today)}`}
       // A picture still, though it takes ← and → to choose a day: the band
       // above says which one is shown.
       // biome-ignore lint/a11y/noNoninteractiveTabindex: see above
@@ -163,13 +171,13 @@ function Drawing({
           fillOpacity={0.16}
         />
       ))}
-      {series.measurements.map(({ measurement, outlier }, i) => (
+      {series.measurements.map(({ measurement, outlier, latest }) => (
         <Point
           key={measurement.day}
           cx={scale.x(measurement.day)}
           cy={scale.y(measurement.kg)}
           radius={layout.radius}
-          mark={mark(i === series.measurements.length - 1, outlier)}
+          mark={mark(latest, outlier)}
         />
       ))}
       {series.trendLine.map((piece) => (
@@ -260,7 +268,10 @@ const WIDE: Layout = {
 
 type Mark = "counting" | "outlier" | "latest" | "latestOutlier";
 
-/** The last day's measurement is the largest mark, hollow where it is an outlier. */
+/**
+ * The last day's measurement of all is the largest mark, hollow where it is
+ * an outlier.
+ */
 function mark(latest: boolean, outlier: boolean): Mark {
   if (latest) return outlier ? "latestOutlier" : "latest";
   return outlier ? "outlier" : "counting";

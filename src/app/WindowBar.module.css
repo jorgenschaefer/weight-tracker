@@ -1,0 +1,45 @@
+/* Under the toggle of the span (SpanToggle.module.css): the range on the
+   left, the arrows on the right. */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.range {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.arrows {
+  display: flex;
+  gap: 6px;
+}
+
+.arrow {
+  width: 34px;
+  height: 30px;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+  border: 1.5px solid currentColor;
+  border-radius: 8px;
+}
+
+/* Faded, but for the focus ring: a locked arrow keeps the focus. */
+.arrow[aria-disabled="true"] {
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  cursor: default;
+}
+
+.arrow[aria-disabled="true"] .glyph {
+  opacity: 0.3;
+}
+
+.arrow:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

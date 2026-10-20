@@ -6,11 +6,16 @@ import type { GraphWindow } from "./graph-window";
 
 /**
  * What the graph draws of a window: the counting measurements, each marked
- * whether it is an outlier, and the trend of each day as a line with its
+ * whether it is an outlier and whether it is the last counting measurement
+ * of all, the latest, and the trend of each day as a line with its
  * uncertainty, in pieces broken at every gap. Both ordered by day.
  */
 export interface WindowSeries {
-  measurements: { measurement: CountingMeasurement; outlier: boolean }[];
+  measurements: {
+    measurement: CountingMeasurement;
+    outlier: boolean;
+    latest: boolean;
+  }[];
   trendLine: Trend[][];
 }
 
@@ -26,7 +31,13 @@ export function windowSeries(
   // `trends` holds one trend per counting measurement, in the same order.
   const measurements = counting.flatMap((measurement, i) =>
     inWindow(measurement.day, graphWindow)
-      ? [{ measurement, outlier: isOutlier(everyTrend[i]) }]
+      ? [
+          {
+            measurement,
+            outlier: isOutlier(everyTrend[i]),
+            latest: i === counting.length - 1,
+          },
+        ]
       : [],
   );
   const trendLine = breakAtGaps(

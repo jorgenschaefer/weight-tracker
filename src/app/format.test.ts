@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
+import type { Span } from "@/trend/graph-window/graph-window";
 import {
   formatCalendarDay,
   formatDay,
@@ -7,6 +8,8 @@ import {
   formatMonth,
   formatPace,
   formatPaceDeviation,
+  formatRange,
+  formatSpan,
   formatTime,
   isPaceShownAsZero,
 } from "./format";
@@ -100,6 +103,62 @@ describe("formatMonth", () => {
     // Safe: valid `YYYY-MM-DD`s.
     expect(formatMonth(day as CalendarDay)).toBe(text);
   });
+});
+
+describe("formatSpan", () => {
+  it.each([
+    ["sixWeeks", "6 Wochen"],
+    ["threeMonths", "3 Monate"],
+    ["oneYear", "1 Jahr"],
+  ] as const)("names %s „%s“", (span, name) => {
+    expect(formatSpan(span)).toBe(name);
+  });
+});
+
+describe("formatRange", () => {
+  // Safe: valid `YYYY-MM-DD`s.
+  const range = (span: Span, firstDay: string, lastDay: string) =>
+    formatRange(
+      span,
+      { firstDay: firstDay as CalendarDay, lastDay: lastDay as CalendarDay },
+      "2026-10-20" as CalendarDay,
+    );
+
+  it("is „Bis heute“ for „6 Wochen“ up to today", () => {
+    expect(range("sixWeeks", "2026-09-09", "2026-10-20")).toBe("Bis heute");
+  });
+
+  it.each([
+    ["2026-07-29", "2026-09-08", "29.7.26 – 8.9.26"],
+    ["2026-09-08", "2026-10-19", "8.9.26 – 19.10.26"],
+    ["2025-11-30", "2026-01-10", "30.11.25 – 10.1.26"],
+  ])(
+    "is the first and the last day with a two-digit year for „6 Wochen“ from %s to %s: %s",
+    (firstDay, lastDay, text) => {
+      expect(range("sixWeeks", firstDay, lastDay)).toBe(text);
+    },
+  );
+
+  it.each([
+    ["2026-08-01", "2026-10-31", "Aug – Okt 2026"],
+    ["2026-05-01", "2026-07-31", "Mai – Jul 2026"],
+    ["2025-11-01", "2026-01-31", "Nov 2025 – Jan 2026"],
+  ])(
+    "is the first and the last month for „3 Monate“ from %s to %s: %s",
+    (firstDay, lastDay, text) => {
+      expect(range("threeMonths", firstDay, lastDay)).toBe(text);
+    },
+  );
+
+  it.each([
+    ["2026-01-01", "2026-12-31", "2026"],
+    ["2025-01-01", "2025-12-31", "2025"],
+  ])(
+    "is the year for „1 Jahr“ from %s to %s: %s",
+    (firstDay, lastDay, text) => {
+      expect(range("oneYear", firstDay, lastDay)).toBe(text);
+    },
+  );
 });
 
 describe("formatTime", () => {

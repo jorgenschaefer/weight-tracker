@@ -18,8 +18,9 @@ others can read it, borrow from it or run their own copy.
   the measured one, the pace in kg per week and the calories a day it stands
   for, each estimate with its uncertainty.
 - **A graph of the last six weeks, of this month and the two before, or of
-  this calendar year**, switched above it: the measurements, the estimated
-  weight as a line inside a band of ± its uncertainty, and the outliers.
+  this calendar year**, switched above it and moved back and forth a whole
+  span with ‹ ›: the measurements, the estimated weight as a line inside a
+  band of ± its uncertainty, and the outliers.
 - **A field to enter today's weight**, which writes it to Google Health.
 
 The verdict comes from a Kalman filter of weight and pace, stepping from one

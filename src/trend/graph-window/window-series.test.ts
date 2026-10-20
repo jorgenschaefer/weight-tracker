@@ -61,6 +61,24 @@ describe("windowSeries", () => {
     ]);
   });
 
+  it("marks the last counting measurement of all as the latest, in the window that holds it", () => {
+    const latest = windowSeries(realHistory(), sixWeeksUpTo(october17))
+      .measurements.filter(({ latest }) => latest)
+      .map(({ measurement }) => measurement.day);
+
+    expect(latest).toEqual(["2026-10-17"]);
+  });
+
+  it("marks none as the latest in a window before the last counting measurement", () => {
+    const series = windowSeries(
+      realHistory(),
+      sixWeeksUpTo("2026-09-08" as CalendarDay),
+    );
+
+    expect(series.measurements.at(-1)?.measurement.day).toBe("2026-09-08");
+    expect(series.measurements.some(({ latest }) => latest)).toBe(false);
+  });
+
   it("marks outliers from the second measurement on, the first never", () => {
     const fewDays = countingMeasurements(
       [99.0, 80.0].map((kg, i) => ({
