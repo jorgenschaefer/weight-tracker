@@ -10,17 +10,16 @@ import {
   serializeCache,
 } from "@/measurement/cache";
 import {
-  type AccessToken,
   enterMeasurement,
   fetchMeasurements,
   type GoogleHealthError,
   type GoogleHealthResult,
   loadGoogleSignIn,
   revokeAccess,
-  type SignedIn,
   signIn,
 } from "@/measurement/google-health";
 import type { Measurement } from "@/measurement/measurement";
+import { type HeldToken, hasExpired, held, maySave } from "./held-token";
 import { useEnteredMeasurements } from "./useEnteredMeasurements";
 
 /** What went wrong on the page, and in doing what. */
@@ -91,7 +90,7 @@ export function useMeasurements(): Measurements | null {
     if (token === null || cache === undefined) return;
     const fetchOnReturn = () => {
       if (document.visibilityState !== "visible" || fetching) return;
-      if (hasExpired(token)) {
+      if (hasExpired(token, new Date())) {
         setToken(null);
         return;
       }
@@ -122,7 +121,9 @@ export function useMeasurements(): Measurements | null {
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
     const access =
-      heldToken === null ? held(await signIn()) : signedInWith(heldToken);
+      heldToken === null
+        ? held(await signIn(), new Date())
+        : signedInWith(heldToken);
     if (!isCurrent()) return;
     if (!access.ok) {
       setFetching(false);
@@ -153,7 +154,9 @@ export function useMeasurements(): Measurements | null {
     const measurement: Measurement = { time: new Date(), kg };
     // signIn runs before the first await, so the popup still counts as
     // opened by the click.
-    const access = maySave(token) ? signedInWith(token) : held(await signIn());
+    const access = maySave(token, new Date())
+      ? signedInWith(token)
+      : held(await signIn(), new Date());
     if (!access.ok) return access;
     if (!access.value.writeGranted) {
       return { ok: false, error: { kind: "writeNotGranted" } };
@@ -175,7 +178,9 @@ export function useMeasurements(): Measurements | null {
   async function revoke(heldToken: HeldToken | null) {
     const started = logOuts.current;
     const access =
-      heldToken === null ? held(await signIn()) : signedInWith(heldToken);
+      heldToken === null
+        ? held(await signIn(), new Date())
+        : signedInWith(heldToken);
     const revoked = access.ok ? await revokeAccess(access.value.token) : access;
     if (!revoked.ok && logOuts.current === started) {
       setProblem({ action: "revoke", error: revoked.error });
@@ -199,48 +204,14 @@ export function useMeasurements(): Measurements | null {
       setFetching(false);
       setProblem(null);
       // An expired token cannot revoke; a new sign-in gets one that can.
-      void revoke(token !== null && !hasExpired(token) ? token : null);
+      void revoke(
+        token !== null && !hasExpired(token, new Date()) ? token : null,
+      );
     },
   };
 }
 
 const REFETCH_AFTER_MS = 5 * 60_000;
-
-/**
- * The access token this visit holds, when Google stops accepting it, and
- * whether it may enter measurements.
- */
-interface HeldToken {
-  token: AccessToken;
-  /** Milliseconds since the epoch, as `Date.now()` counts them. */
-  expiresAt: number;
-  writeGranted: boolean;
-}
-
-/** Whether `token` is held, not expired and may enter measurements. */
-function maySave(token: HeldToken | null): token is HeldToken {
-  return token?.writeGranted === true && !hasExpired(token);
-}
-
-function hasExpired(token: HeldToken): boolean {
-  return Date.now() >= token.expiresAt;
-}
-
-/** The token of a sign-in, held from now on. */
-function held(
-  signedIn: GoogleHealthResult<SignedIn>,
-): GoogleHealthResult<HeldToken> {
-  if (!signedIn.ok) return signedIn;
-  const { token, expiresInSeconds, writeGranted } = signedIn.value;
-  return {
-    ok: true,
-    value: {
-      token,
-      expiresAt: Date.now() + expiresInSeconds * 1000,
-      writeGranted,
-    },
-  };
-}
 
 /** The sign-in this visit already holds, as a sign-in would yield it. */
 function signedInWith(token: HeldToken): GoogleHealthResult<HeldToken> {
