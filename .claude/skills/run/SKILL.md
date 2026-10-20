@@ -39,8 +39,11 @@ page reads the clock both ways - and dispatch `visibilitychange` on
 
 ## Signing in, fetching and entering without Google
 
-The real Google takes no write until its consent screen lists the scope to
-write. To drive „Eintragen“, sign-in and fetching anyway, run
+Only the deployed page at https://gewicht.jorgenschaefer.de asks Google for
+the scope to write; a real sign-in here only reads, and the page answers
+„Eintragen“ with writing not granted. Never drive „Eintragen“ on the
+deployed page: it enters into the person's real weights. To drive
+„Eintragen“, sign-in and fetching here, run
 `google-stand-in.js` on the page once it has loaded (javascript tool). It
 puts a Google in memory in place of the real one until the next reload;
 `window.standIn` holds its measurements and how it answers - grants only

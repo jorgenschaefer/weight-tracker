@@ -21,6 +21,7 @@ afterEach(() => {
 
 type TokenClientConfig = {
   scope: string;
+  include_granted_scopes?: boolean;
   callback: (response: Record<string, string>) => void;
   error_callback: (error: { type: string }) => void;
 };
@@ -70,7 +71,8 @@ describe("signIn", () => {
     });
   });
 
-  it("asks to read and to write the health metrics and measurements, and nothing more", async () => {
+  it("asks the page at https://gewicht.jorgenschaefer.de to read and to write the health metrics and measurements, and nothing more", async () => {
+    vi.stubGlobal("location", { origin: "https://gewicht.jorgenschaefer.de" });
     const { configs } = stubGoogleSignIn(granted);
 
     await signIn();
@@ -81,6 +83,38 @@ describe("signIn", () => {
         "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.writeonly",
       ],
     ]);
+  });
+
+  it.each([
+    ["the dev server", "http://localhost:3000"],
+    ["another host", "http://127.0.0.1:3000"],
+    ["another scheme", "http://gewicht.jorgenschaefer.de"],
+  ])(
+    "asks %s only to read, so no run of it writes into the real Google Health",
+    async (_, origin) => {
+      vi.stubGlobal("location", { origin });
+      const { configs } = stubGoogleSignIn(granted);
+
+      await signIn();
+
+      expect(configs.map((c) => c.scope)).toEqual([READ_SCOPE]);
+    },
+  );
+
+  it("asks only to read where there is no page", async () => {
+    const { configs } = stubGoogleSignIn(granted);
+
+    await signIn();
+
+    expect(configs.map((c) => c.scope)).toEqual([READ_SCOPE]);
+  });
+
+  it("leaves out the scopes granted in earlier sign-ins, so a sign-in that asks only to read cannot write", async () => {
+    const { configs } = stubGoogleSignIn(granted);
+
+    await signIn();
+
+    expect(configs.map((c) => c.include_granted_scopes)).toEqual([false]);
   });
 
   it("yields a token that only reads where the scope to write was left unticked", async () => {

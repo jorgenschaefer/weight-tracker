@@ -52,21 +52,28 @@ export function loadGoogleSignIn(): void {
 }
 
 /**
- * Signs in with Google for an access token that reads the weights and, where
- * the person allows it, enters them. Call it
- * straight from the click, before anything is awaited, or the browser blocks
- * the popup.
+ * Signs in with Google for an access token that reads the weights and, on the
+ * page at {@link WRITING_ORIGIN} where the person allows it, enters them. Call
+ * it straight from the click, before anything is awaited, or the browser
+ * blocks the popup.
  */
 export function signIn(): Promise<GoogleHealthResult<SignedIn>> {
   const oauth2 = globalThis.google?.accounts.oauth2;
   if (oauth2 === undefined)
     return Promise.resolve(failure("signInUnavailable"));
 
+  // Anywhere else - the dev server, a local build, a test - the token only
+  // reads, so Google refuses whatever a run there tries to enter into the
+  // person's real weights.
+  const writes = globalThis.location?.origin === WRITING_ORIGIN;
   return new Promise((resolve) => {
     oauth2
       .initTokenClient({
         client_id: clientId(),
-        scope: `${READ_SCOPE} ${WRITE_SCOPE}`,
+        scope: writes ? `${READ_SCOPE} ${WRITE_SCOPE}` : READ_SCOPE,
+        // Otherwise the token carries the scope to write from an earlier
+        // sign-in that granted it.
+        include_granted_scopes: false,
         callback: (response) => resolve(grantedToken(response)),
         error_callback: () => resolve(failure("signInFailed")),
       })
@@ -132,6 +139,9 @@ export interface SignedIn {
   expiresInSeconds: number;
   writeGranted: boolean;
 }
+
+/** The deployed page, the only one that asks for the scope to write. */
+const WRITING_ORIGIN = "https://gewicht.jorgenschaefer.de";
 
 const SCRIPT_ID = "google-identity-services";
 
@@ -326,6 +336,7 @@ declare global {
             initTokenClient(config: {
               client_id: string;
               scope: string;
+              include_granted_scopes: boolean;
               callback: (response: TokenResponse) => void;
               error_callback: (error: { type: string }) => void;
             }): { requestAccessToken(): void };
