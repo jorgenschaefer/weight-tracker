@@ -477,6 +477,20 @@ describe("the layout", () => {
     }
   });
 
+  // The wide screen sets the four figures beside that column, from its top.
+  it("puts „Letzte Messung“ and the verdict in one column, the four figures beside it", async () => {
+    storeLoss();
+    renderPage();
+
+    const figures = (await screen.findByText("Gewicht, geschätzt")).closest(
+      "dl",
+    );
+    const column = figures?.previousElementSibling;
+
+    expect(column).toContainElement(screen.getByText(/^Letzte Messung /));
+    expect(column).toContainElement(verdict());
+  });
+
   // jsdom lays nothing out, so the stylesheets are read instead.
   const stylesheets = [
     "page.module.css",
@@ -515,7 +529,7 @@ describe("the layout", () => {
       /@media \(min-width: 65em\) \{([\s\S]*)\}/.exec(css)?.[1] ?? "",
       selector,
     );
-  const [, , statusCss, bandCss] = stylesheets;
+  const [pageCss, verdictCss, statusCss, bandCss] = stylesheets;
 
   it("makes „Zurück zu heute“ in the band of an earlier day at least 48 px tall", () => {
     expect(rule(bandCss, ".back")).toMatch(/min-height:\s*48px/);
@@ -538,14 +552,48 @@ describe("the layout", () => {
     expect(rule(bandCss, ".back")).toMatch(/white-space:\s*nowrap/);
   });
 
-  it("sets the band on the wide screen where the status line sits, as wide", () => {
-    const status = wideRule(statusCss, ".status");
-    const band = wideRule(bandCss, ".band");
+  it("keeps the band of an earlier day as wide as the content on the wide screen, as the status line", () => {
+    expect(wideRule(bandCss, ".band")).toBeUndefined();
+  });
 
-    expect(status).toMatch(/width:\s*420px/);
-    expect(band).toMatch(/width:\s*420px/);
-    expect(band).toMatch(/margin-left:\s*auto/);
-    expect(status).toMatch(/margin-left:\s*auto/);
+  it("sets the four figures on the wide screen without a line or a gap over them", () => {
+    const figures = wideRule(verdictCss, ".figures");
+
+    expect(figures).toMatch(/padding-top:\s*0/);
+    expect(figures).toMatch(/border-top:\s*none/);
+  });
+
+  it("sets „X % sicher, dass du abnimmst“ right under „Letzte Messung“ on the phone", () => {
+    const shortScreen = /@media \(max-height: 45em\) \{([\s\S]*?)\n\}/.exec(
+      verdictCss,
+    )?.[1];
+
+    expect(rule(verdictCss, ".line")).toMatch(/margin:\s*0;/);
+    expect(shortScreen).not.toMatch(/\.line\b/);
+  });
+
+  // Set at the bottom, the verdict would stand lower by as much as the four
+  // figures beside it are taller.
+  it("sets „X % sicher, dass du abnimmst“ right under „Letzte Messung“ on the wide screen", () => {
+    const summary = wideRule(pageCss, ".summary");
+
+    expect(summary).not.toMatch(/margin-top/);
+    expect(summary).toMatch(/align-items:\s*start/);
+    expect(wideRule(verdictCss, ".line")).not.toMatch(/margin/);
+  });
+
+  // The verdict's column flows as blocks, so that the alert's gap and the
+  // 28 px over „Noch kein Urteil“ collapse into one.
+  it("keeps „Widerruf fehlgeschlagen …“ 28 px off the verdict under it", () => {
+    expect(rule(pageCss, ".problem")).toMatch(/margin-bottom:\s*28px/);
+    expect(rule(pageCss, ".verdict") ?? "").not.toMatch(/display:\s*flex/);
+  });
+
+  // In the column of the verdict on the wide screen, as the four figures
+  // start their column.
+  it("sets „Letzte Messung“ no farther from the status line than the four figures", () => {
+    expect(rule(pageCss, ".latest")).not.toMatch(/margin/);
+    expect(rule(pageCss, ".summary")).toMatch(/margin-top:\s*8px/);
   });
 
   it("sets nothing wider than a 360 px screen outside the wide screen, but the limit", () => {

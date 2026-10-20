@@ -273,15 +273,17 @@ function CachedMeasurements({
 }) {
   return (
     <>
-      <LatestMeasurement
-        latest={latest}
-        enteredMeasurements={measurements.enteredMeasurements}
-      />
-      <RevokeFailure error={measurements.revokeFailure} />
       <div className={classes.summary}>
-        <section className={classes.verdict}>
-          <Verdict status={assessment.status} />
-        </section>
+        <div>
+          <LatestMeasurement
+            latest={latest}
+            enteredMeasurements={measurements.enteredMeasurements}
+          />
+          <RevokeFailure error={measurements.revokeFailure} />
+          <section>
+            <Verdict status={assessment.status} />
+          </section>
+        </div>
         <Figures assessment={assessment} />
       </div>
       <div className={classes.graph}>

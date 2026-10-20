@@ -1,7 +1,7 @@
 /* The verdict on the colour field, in the surface's text colour: the line
    saying how certain it is, and the Satz zum Morgen large under it. */
 .line {
-  margin: 28px 0 0;
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -41,10 +41,6 @@
 /* A screen as short as 360 × 640: the verdict and the four figures fit
    above its bottom edge only with narrower gaps than the specimen's. */
 @media (max-height: 45em) {
-  .line {
-    margin-top: 12px;
-  }
-
   .figures {
     margin-top: 12px;
   }
@@ -81,7 +77,6 @@
    in a column too narrow for the phone's proportion. */
 @media (min-width: 65em) {
   .line {
-    margin-top: 0;
     font-size: 14px;
   }
 
@@ -97,6 +92,8 @@
 
   .figures {
     margin-top: 0;
+    padding-top: 0;
+    border-top: none;
     gap: 20px 24px;
   }
 

@@ -37,24 +37,23 @@
 }
 
 .latest {
-  margin-top: 8px;
   font-size: 14px;
   line-height: 1.4;
   opacity: 0.85;
 }
 
+/* Set off from the verdict under it, whose line sits right under „Letzte
+   Messung“. The verdict's column flows as blocks, so this gap and the one
+   over „Noch kein Urteil“ (Verdict.module.css) collapse into one. */
 .problem {
   margin-top: 4px;
+  margin-bottom: 28px;
   font-size: 14px;
   font-weight: 600;
 }
 
 .summary {
-  display: flex;
-  flex-direction: column;
-}
-
-.verdict {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
 }
@@ -74,9 +73,7 @@
 }
 
 /* The wide screen: the verdict on the left, the four figures beside it,
-   the graph under both. Verdict.module.css switches at the same width, and
-   GoogleStatus.module.css sets the status line as wide as the figures'
-   column. */
+   the graph under both. Verdict.module.css switches at the same width. */
 @media (min-width: 65em) {
   .surface {
     padding-top: 40px;
@@ -87,11 +84,10 @@
   }
 
   .summary {
-    margin-top: 32px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 420px;
     gap: 48px;
-    align-items: end;
+    align-items: start;
   }
 
   .graph {

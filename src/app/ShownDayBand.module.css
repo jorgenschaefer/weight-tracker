@@ -39,12 +39,3 @@
   outline: 3px solid currentColor;
   outline-offset: 2px;
 }
-
-/* The wide screen of page.module.css: where the status line sits, as wide
-   as the column of the four figures. */
-@media (min-width: 65em) {
-  .band {
-    width: 420px;
-    margin-left: auto;
-  }
-}

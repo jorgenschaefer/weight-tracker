@@ -556,25 +556,22 @@ describe("the layout", () => {
   const wide = (stylesheet: string) =>
     /@media \(min-width: 65em\)\s*\{([\s\S]*)\}\s*$/.exec(stylesheet)?.[1];
 
-  it("makes ⟳ 48 × 48 px and the status line at least 48 px tall", () => {
+  // The row stretches ⟳ to the line's height, also where a failure makes
+  // the line taller.
+  it("makes the status line at least 48 px tall and ⟳ 48 px wide and as tall as the line", () => {
     const refresh = /\.refresh\s*\{([^}]*)\}/.exec(status)?.[1];
     expect(refresh).toMatch(/width:\s*48px/);
-    expect(refresh).toMatch(/height:\s*48px/);
+    expect(refresh).not.toMatch(/(^|[^-])height/);
+    expect(/\.status\s*\{([^}]*)\}/.exec(status)?.[1]).not.toMatch(
+      /align-items/,
+    );
     expect(/\.line\s*\{([^}]*)\}/.exec(status)?.[1]).toMatch(
       /min-height:\s*48px/,
     );
   });
 
-  it("puts the status line and ⟳ on the wide screen at the right, as wide as the column of the four figures", () => {
-    const figuresColumn =
-      /grid-template-columns:\s*minmax\(0, 1fr\) (\d+px)/.exec(
-        wide(css("page.module.css")) ?? "",
-      )?.[1];
-    const statusRule = /\.status\s*\{([^}]*)\}/.exec(wide(status) ?? "")?.[1];
-
-    expect(figuresColumn).toBe("420px");
-    expect(statusRule).toMatch(new RegExp(`width:\\s*${figuresColumn}`));
-    expect(statusRule).toMatch(/margin-left:\s*auto/);
+  it("keeps the status line and ⟳ as wide as the content on the wide screen", () => {
+    expect(/\.status\s*\{/.test(wide(status) ?? "")).toBe(false);
   });
 
   it("shows a failure neither faded nor light", () => {
