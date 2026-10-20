@@ -414,7 +414,7 @@ function LatestMeasurement({
   if (latest === null) {
     return (
       <Text className={classes.latest}>
-        Noch keine Messung in Google Health in den letzten 90 Tagen
+        Noch keine Messung in Google Health
       </Text>
     );
   }

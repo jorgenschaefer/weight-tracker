@@ -143,8 +143,12 @@ export function steady(
   });
 }
 
+/** Stores a cache whose fetches have reached back over the whole history. */
 export function storeCache(fetchedAt: Date, measurements: Measurement[]) {
-  localStorage.setItem(CACHE_KEY, serializeCache({ fetchedAt, measurements }));
+  localStorage.setItem(
+    CACHE_KEY,
+    serializeCache({ fetchedAt, fullHistory: true, measurements }),
+  );
 }
 
 export const storedCache = () => parseCache(localStorage.getItem(CACHE_KEY));

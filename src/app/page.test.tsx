@@ -256,9 +256,7 @@ describe("opening the page with a cache", () => {
     storeCache(daysAgo(1), []);
     renderPage();
 
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
   });
 
   it("has no „Abmelden“ of its own, signed in or not", async () => {
@@ -319,6 +317,7 @@ describe("a failed fetch", () => {
     expect(screen.getByText(MORNING_SHOWN)).toBeInTheDocument();
     expect(storedCache()).toEqual({
       fetchedAt: daysAgo(1),
+      fullHistory: true,
       measurements: cached,
     });
     expect(await statusLine()).toContainElement(
@@ -704,6 +703,26 @@ describe("the span", () => {
     expect(await todayLine()).not.toBeNull();
   });
 
+  it.each([
+    ["3 Monate", 1, "2026-05-01", "2026-07-31"],
+    ["1 Jahr", 0, "2026-01-01", "2026-10-20"],
+  ])(
+    "shows on „%s“ measurements older than 90 days after the first fetch, %i window(s) back",
+    async (span, windowsBack, firstDay, lastDay) => {
+      vi.setSystemTime(evening("2026-10-20"));
+      google.measurements = weightHistoryUntil("2026-10-20");
+      const user = await openAndClick(signInButton);
+      await waitFor(() => expect(storedCache()).not.toBeNull());
+
+      await user.click(await spanButton(span));
+      for (let i = 0; i < windowsBack; i++) {
+        await user.click(await screen.findByRole("button", { name: "Früher" }));
+      }
+
+      expect(await pointCount()).toBe(daysWithData(firstDay, lastDay));
+    },
+  );
+
   it("shows on „1 Jahr“ the calendar year, every second month named on a phone, behind a line for today", async () => {
     const user = openHistoryOn("2026-10-20");
 
@@ -763,9 +782,7 @@ describe("the span", () => {
     storeCache(daysAgo(1), []);
     renderPage();
 
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
     expect(spanToggle()).toBeNull();
   });
 
@@ -911,9 +928,7 @@ describe("the window", () => {
     storeCache(daysAgo(1), []);
     renderPage();
 
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
     hasNoButton("Früher");
     hasNoButton("Später");
   });
@@ -922,9 +937,7 @@ describe("the window", () => {
     storeCache(daysAgo(1), []);
     renderPage();
 
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
     isNotShown("Keine Messung in diesem Zeitraum");
   });
 

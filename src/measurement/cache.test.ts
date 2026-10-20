@@ -9,6 +9,7 @@ import {
 
 const cache = {
   fetchedAt: new Date("2026-10-17T08:00:00.000Z"),
+  fullHistory: true,
   measurements: [
     { time: new Date("2026-10-16T05:30:00.000Z"), kg: 98.8 },
     { time: new Date("2026-10-17T05:30:00.000Z"), kg: 98.599 },
@@ -22,9 +23,10 @@ describe("CACHE_KEY", () => {
 });
 
 describe("serializeCache", () => {
-  it("stores the time of the fetch and every measurement, times in ISO", () => {
+  it("stores the time of the fetch, whether it holds the whole history, and every measurement, times in ISO", () => {
     expect(JSON.parse(serializeCache(cache))).toEqual({
       fetchedAt: "2026-10-17T08:00:00.000Z",
+      fullHistory: true,
       measurements: [
         { time: "2026-10-16T05:30:00.000Z", kg: 98.8 },
         { time: "2026-10-17T05:30:00.000Z", kg: 98.599 },
@@ -40,9 +42,22 @@ describe("parseCache", () => {
 
   it("reads a cache without measurements", () => {
     expect(
+      parseCache(
+        '{"fetchedAt":"2026-10-17T08:00:00.000Z","fullHistory":false,"measurements":[]}',
+      ),
+    ).toEqual({
+      fetchedAt: new Date("2026-10-17T08:00:00.000Z"),
+      fullHistory: false,
+      measurements: [],
+    });
+  });
+
+  it("reads a cache from before the whole history was fetched as not holding it", () => {
+    expect(
       parseCache('{"fetchedAt":"2026-10-17T08:00:00.000Z","measurements":[]}'),
     ).toEqual({
       fetchedAt: new Date("2026-10-17T08:00:00.000Z"),
+      fullHistory: false,
       measurements: [],
     });
   });
@@ -66,6 +81,14 @@ describe("parseCache", () => {
     [
       "a time of the fetch that is a number",
       JSON.stringify({ fetchedAt: 1792224000000, measurements: [valid] }),
+    ],
+    [
+      "a whole history that is no truth value",
+      JSON.stringify({
+        fetchedAt: valid.time,
+        fullHistory: "ja",
+        measurements: [valid],
+      }),
     ],
     ["no measurements", JSON.stringify({ fetchedAt: valid.time })],
     [
@@ -119,15 +142,21 @@ describe("parseCache", () => {
 const now = new Date("2026-10-17T08:00:00.000Z");
 const daysBeforeNow = (days: number) =>
   new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-const fetchedDaysAgo = (days: number) => ({
+const HISTORY_START = new Date("2000-01-01T00:00:00.000Z");
+const fetchedDaysAgo = (days: number, fullHistory = true) => ({
   fetchedAt: daysBeforeNow(days),
+  fullHistory,
   measurements: [],
 });
 
 describe("periodToFetch", () => {
-  it("fetches the last 90 days without a valid cache", () => {
-    expect(periodToFetch(null, now)).toEqual({
-      from: daysBeforeNow(90),
+  it("fetches everything since 1.1.2000 without a valid cache", () => {
+    expect(periodToFetch(null, now)).toEqual({ from: HISTORY_START, to: now });
+  });
+
+  it("fetches everything since 1.1.2000 after a fetch of less than the whole history", () => {
+    expect(periodToFetch(fetchedDaysAgo(1 / 24, false), now)).toEqual({
+      from: HISTORY_START,
       to: now,
     });
   });
@@ -137,9 +166,8 @@ describe("periodToFetch", () => {
     ["the last 14 days after a fetch 13 days ago", 13, 14],
     ["the last 14 days after a fetch exactly 14 days ago", 14, 14],
     ["everything since a fetch 20 days ago", 20, 20],
-    ["everything since a fetch 90 days ago", 90, 90],
-    ["the last 90 days after a fetch 91 days ago", 91, 90],
-    ["the last 90 days after a fetch a year ago", 365, 90],
+    ["everything since a fetch 91 days ago", 91, 91],
+    ["everything since a fetch three years ago", 3 * 365, 3 * 365],
     ["the last 14 days after a fetch dated after now", -1, 14],
   ])("fetches %s", (_, fetchedAgo, days) => {
     expect(periodToFetch(fetchedDaysAgo(fetchedAgo), now)).toEqual({
@@ -161,13 +189,53 @@ describe("replaceFetchedPeriod", () => {
 
     expect(replaceFetchedPeriod(null, period, fetched)).toEqual({
       fetchedAt: now,
+      fullHistory: false,
       measurements: fetched,
     });
   });
 
+  it.each([
+    ["fetching everything since 1.1.2000", null, HISTORY_START, true],
+    [
+      "fetching everything since 1.1.2000 into a cache without it",
+      false,
+      HISTORY_START,
+      true,
+    ],
+    [
+      "fetching less after the whole history was fetched",
+      true,
+      daysBeforeNow(14),
+      true,
+    ],
+    [
+      "fetching less into a cache without the whole history",
+      false,
+      daysBeforeNow(14),
+      false,
+    ],
+  ])(
+    "knows whether it holds the whole history after %s",
+    (_, cachedWhole, from, whole) => {
+      const cached =
+        cachedWhole === null
+          ? null
+          : {
+              fetchedAt: daysBeforeNow(1),
+              fullHistory: cachedWhole,
+              measurements: [],
+            };
+
+      expect(
+        replaceFetchedPeriod(cached, { from, to: now }, []).fullHistory,
+      ).toBe(whole);
+    },
+  );
+
   it("replaces the cached measurements of the period and keeps the older ones", () => {
     const cache = {
       fetchedAt: daysBeforeNow(2),
+      fullHistory: true,
       measurements: [
         at("2026-09-01T05:30:00Z", 101.0), // before the period: stays
         at("2026-10-03T07:59:59Z", 100.2), // a second before the period: stays
@@ -184,6 +252,7 @@ describe("replaceFetchedPeriod", () => {
 
     expect(replaceFetchedPeriod(cache, period, fetched)).toEqual({
       fetchedAt: now,
+      fullHistory: true,
       measurements: [
         at("2026-09-01T05:30:00Z", 101.0),
         at("2026-10-03T07:59:59Z", 100.2),
@@ -197,6 +266,7 @@ describe("replaceFetchedPeriod", () => {
   it("empties the period where Google Health returns nothing for it", () => {
     const cache = {
       fetchedAt: daysBeforeNow(2),
+      fullHistory: true,
       measurements: [
         at("2026-09-01T05:30:00Z", 101.0),
         at("2026-10-12T05:30:00Z", 99.5),
@@ -205,6 +275,7 @@ describe("replaceFetchedPeriod", () => {
 
     expect(replaceFetchedPeriod(cache, period, [])).toEqual({
       fetchedAt: now,
+      fullHistory: true,
       measurements: [at("2026-09-01T05:30:00Z", 101.0)],
     });
   });
@@ -212,6 +283,7 @@ describe("replaceFetchedPeriod", () => {
   it("leaves the cache outside the period alone even where Google Health returns measurements outside it", () => {
     const cache = {
       fetchedAt: daysBeforeNow(2),
+      fullHistory: true,
       measurements: [at("2026-09-01T05:30:00Z", 101.0)],
     };
     const fetched = [
@@ -221,6 +293,7 @@ describe("replaceFetchedPeriod", () => {
 
     expect(replaceFetchedPeriod(cache, period, fetched)).toEqual({
       fetchedAt: now,
+      fullHistory: true,
       measurements: [
         at("2026-09-01T05:30:00Z", 101.0),
         at("2026-10-17T05:30:00Z", 98.6),
@@ -231,6 +304,7 @@ describe("replaceFetchedPeriod", () => {
   it("keeps the measurements in time order whatever order Google Health returns them in", () => {
     const cache = {
       fetchedAt: daysBeforeNow(2),
+      fullHistory: true,
       measurements: [
         at("2026-10-12T05:30:00Z", 99.5),
         at("2026-09-01T05:30:00Z", 101.0),

@@ -1,7 +1,7 @@
 // The hook is tested where the person uses it: on the page.
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE_KEY } from "@/measurement/cache";
+import { CACHE_KEY, toStoredMeasurement } from "@/measurement/cache";
 import {
   enterMeasurement,
   fetchMeasurements,
@@ -91,10 +91,10 @@ describe("fetching", () => {
 
   it.each([
     [
-      "the last 90 days on the first fetch",
+      "every weight Google Health has on the first fetch",
       null,
-      [at(daysAgo(91), 101.0), at(daysAgo(89), 100.0)],
-      [at(daysAgo(89), 100.0)],
+      [at("2015-12-28T06:00:00Z", 120.0), at(daysAgo(91), 101.0)],
+      [at("2015-12-28T06:00:00Z", 120.0), at(daysAgo(91), 101.0)],
     ],
     [
       "the last 14 days anew, so corrections and deletions arrive, and keeps older cached ones",
@@ -115,14 +115,71 @@ describe("fetching", () => {
       [at(daysAgo(40), 95.0), at(daysAgo(25), 98.0), at(daysAgo(2), 97.0)],
       [at(daysAgo(40), 99.0), at(daysAgo(25), 98.0), at(daysAgo(2), 97.0)],
     ],
+    [
+      "everything since the last fetch where that lies further back than 90 days",
+      { fetchedAt: daysAgo(200), measurements: [at(daysAgo(210), 99.0)] },
+      [at(daysAgo(210), 95.0), at(daysAgo(150), 98.0)],
+      [at(daysAgo(210), 99.0), at(daysAgo(150), 98.0)],
+    ],
   ])("gets %s, into the cache", async (_, cached, inGoogle, kept) => {
     if (cached !== null) storeCache(cached.fetchedAt, cached.measurements);
     google.measurements = inGoogle;
     await openAndClick(signInButton);
 
     await waitFor(() =>
-      expect(storedCache()).toEqual({ fetchedAt: NOW, measurements: kept }),
+      expect(storedCache()).toEqual({
+        fetchedAt: NOW,
+        fullHistory: true,
+        measurements: kept,
+      }),
     );
+  });
+
+  describe("with a cache from before the whole history was fetched", () => {
+    const OLD = at("2015-12-28T06:00:00Z", 120.0);
+    const CACHE_FROM_BEFORE = JSON.stringify({
+      fetchedAt: daysAgo(1).toISOString(),
+      measurements: [toStoredMeasurement(MORNING)],
+    });
+    beforeEach(() => localStorage.setItem(CACHE_KEY, CACHE_FROM_BEFORE));
+
+    it("gets every weight Google Health has, into the cache", async () => {
+      google.measurements = [OLD, MORNING];
+      await openAndClick(signInButton);
+
+      await waitFor(() =>
+        expect(storedCache()).toEqual({
+          fetchedAt: NOW,
+          fullHistory: true,
+          measurements: [OLD, MORNING],
+        }),
+      );
+    });
+
+    it("shows the cache and says it fetches while it gets them", async () => {
+      holdFetch();
+      await openAndClick(signInButton);
+
+      await isShown("ruft ab …");
+      await isShown(MORNING_SHOWN);
+    });
+
+    it("leaves the cache as it was where the fetch fails, and gets them on the next", async () => {
+      google.measurements = [OLD, MORNING];
+      vi.mocked(fetchMeasurements).mockResolvedValueOnce(
+        failure({ kind: "unreachable" }),
+      );
+      const user = await openAndClick(signInButton);
+      await isShown("Abruf fehlgeschlagen: Google antwortet nicht.");
+      expect(localStorage.getItem(CACHE_KEY)).toBe(CACHE_FROM_BEFORE);
+      await isShown(MORNING_SHOWN);
+
+      await user.click(await refreshButton());
+
+      await waitFor(() =>
+        expect(storedCache()?.measurements).toEqual([OLD, MORNING]),
+      );
+    });
   });
 });
 
@@ -287,9 +344,7 @@ describe("opening the page again", () => {
 
   it("does not fetch on the next open where Google rejected the token on „Eintragen“", async () => {
     const user = await openAndClick(signInButton);
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
     google.grants = [];
     await enterWeight(user);
     await isShown("Speichern fehlgeschlagen: Die Anmeldung ist abgelaufen.");
@@ -540,9 +595,7 @@ describe("entering a weight", () => {
       });
       google.grants = ["held"];
       const user = await openAndClick(signInButton);
-      await isShown(
-        "Noch keine Messung in Google Health in den letzten 90 Tagen",
-      );
+      await isShown("Noch keine Messung in Google Health");
       vi.setSystemTime(NOW.getTime() + 1000);
 
       await enterWeight(user);
@@ -568,13 +621,9 @@ describe("entering a weight", () => {
       });
       google.grants = ["held"];
       await openAndClick(signInButton);
-      await isShown(
-        "Noch keine Messung in Google Health in den letzten 90 Tagen",
-      );
+      await isShown("Noch keine Messung in Google Health");
       const user = reload();
-      await isShown(
-        "Noch keine Messung in Google Health in den letzten 90 Tagen",
-      );
+      await isShown("Noch keine Messung in Google Health");
 
       await enterWeight(user);
 
@@ -704,9 +753,7 @@ describe("entering a weight", () => {
       failure({ kind: "tokenRejected" }),
     );
     const user = await openAndClick(signInButton);
-    await isShown(
-      "Noch keine Messung in Google Health in den letzten 90 Tagen",
-    );
+    await isShown("Noch keine Messung in Google Health");
     await enterWeight(user);
     await isShown("Speichern fehlgeschlagen: Die Anmeldung ist abgelaufen.");
 

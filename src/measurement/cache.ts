@@ -9,11 +9,13 @@ import { byTime, type Measurement } from "./measurement";
 export const CACHE_KEY = "gewicht:v1";
 
 /**
- * The raw measurements of every period fetched so far, and when the last
- * fetch was.
+ * The raw measurements of every period fetched so far, when the last fetch
+ * was, and whether a fetch has reached back to {@link HISTORY_START}.
  */
 export interface MeasurementCache {
   fetchedAt: Date;
+  /** `false` in a cache stored before the whole history was fetched. */
+  fullHistory: boolean;
   measurements: Measurement[];
 }
 
@@ -24,32 +26,31 @@ export interface FetchPeriod {
 }
 
 /**
- * The period to fetch at `now`: the last 90 days without a valid cache;
- * otherwise the last 14 days, or everything since the last fetch where that
- * lies further back, at most the last 90 days.
+ * The period to fetch at `now`: everything since {@link HISTORY_START} until
+ * a fetch has reached back that far; after that the last 14 days, or
+ * everything since the last fetch where that lies further back.
  */
 export function periodToFetch(
   cache: MeasurementCache | null,
   now: Date,
 ): FetchPeriod {
-  const earliest = daysBefore(now, MAX_FETCHED_DAYS);
-  if (cache === null) return { from: earliest, to: now };
-
+  if (cache === null || !cache.fullHistory) {
+    return { from: HISTORY_START, to: now };
+  }
   const sinceLastFetch = Math.min(
     cache.fetchedAt.getTime(),
     daysBefore(now, REFETCHED_DAYS).getTime(),
   );
-  return {
-    from: new Date(Math.max(sinceLastFetch, earliest.getTime())),
-    to: now,
-  };
+  return { from: new Date(sinceLastFetch), to: now };
 }
 
 /**
  * The cache after fetching `period`: the `fetched` measurements of the period
  * replace the cached ones of it, so corrected ones are corrected and deleted
  * ones gone; cached measurements outside it stay unchanged. The fetch is
- * dated to the end of the period.
+ * dated to the end of the period. It holds the whole history once a fetch
+ * has reached back to {@link HISTORY_START}, since each later period reaches
+ * back to the fetch before it.
  */
 export function replaceFetchedPeriod(
   cache: MeasurementCache | null,
@@ -61,13 +62,16 @@ export function replaceFetchedPeriod(
     ...kept.filter((m) => !isIn(period, m)),
     ...fetched.filter((m) => isIn(period, m)),
   ].toSorted(byTime);
-  return { fetchedAt: period.to, measurements };
+  const fullHistory =
+    (cache?.fullHistory ?? false) || period.from <= HISTORY_START;
+  return { fetchedAt: period.to, fullHistory, measurements };
 }
 
 /** The stored form of `cache`, as kept under {@link CACHE_KEY}. */
 export function serializeCache(cache: MeasurementCache): string {
   return JSON.stringify({
     fetchedAt: cache.fetchedAt.toISOString(),
+    fullHistory: cache.fullHistory,
     measurements: cache.measurements.map(toStoredMeasurement),
   });
 }
@@ -75,7 +79,8 @@ export function serializeCache(cache: MeasurementCache): string {
 /**
  * The cache stored as `stored`, or `null` where there is no valid cache: the
  * entry is missing, is not the stored form of a cache, or holds a time that is
- * not one.
+ * not one. An entry without `fullHistory`, stored before it existed, does not
+ * hold the whole history.
  */
 export function parseCache(stored: string | null): MeasurementCache | null {
   if (stored === null) return null;
@@ -83,15 +88,21 @@ export function parseCache(stored: string | null): MeasurementCache | null {
   if (!isRecord(entry) || !Array.isArray(entry.measurements)) return null;
 
   const fetchedAt = parseTime(entry.fetchedAt);
+  const fullHistory = entry.fullHistory ?? false;
   const measurements = entry.measurements.map(parseStoredMeasurement);
-  if (fetchedAt === null || !measurements.every((m) => m !== null)) {
+  if (
+    fetchedAt === null ||
+    typeof fullHistory !== "boolean" ||
+    !measurements.every((m) => m !== null)
+  ) {
     return null;
   }
-  return { fetchedAt, measurements };
+  return { fetchedAt, fullHistory, measurements };
 }
 
+/** How far back the first fetch reaches, before any weight Google Health has. */
+const HISTORY_START = new Date("2000-01-01T00:00:00.000Z");
 const REFETCHED_DAYS = 14;
-const MAX_FETCHED_DAYS = 90;
 
 function isIn(period: FetchPeriod, measurement: Measurement): boolean {
   return period.from <= measurement.time && measurement.time <= period.to;

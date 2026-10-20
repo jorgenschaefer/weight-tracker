@@ -39,7 +39,11 @@ window.walkOn = async (day, opts = {}) => {
   localStorage.removeItem("gewicht:token:v1");
   localStorage.setItem(
     "gewicht:v1",
-    JSON.stringify({ fetchedAt: new Date(now).toISOString(), measurements }),
+    JSON.stringify({
+      fetchedAt: new Date(now).toISOString(),
+      fullHistory: true,
+      measurements,
+    }),
   );
   const frame = document.createElement("iframe");
   frame.style.cssText = `width:${width}px;height:${height}px;border:0;position:fixed;top:0;left:0;z-index:99999`;
