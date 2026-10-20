@@ -50,7 +50,9 @@ serves it at https://gewicht.jorgenschaefer.de.
 ## Tests
 
 - Vitest and Testing Library; tests sit beside the code (`Foo.tsx` →
-  `Foo.test.tsx`). `*.test.tsx` runs under jsdom, `*.test.ts` under Node.
+  `Foo.test.tsx`). `*.test.tsx` runs under jsdom, `*.test.ts` under Node;
+  a `.test.ts` also tests a browser snippet in `.js` or `.mjs`, as in
+  `.claude/skills/run/`.
 - One test file per source file, named after it; no topic files like
   `Foo.bar.test.tsx`. `src/test/test-files.test.ts` enforces it, and each of
   its messages names the file and the fix.
