@@ -13,6 +13,11 @@ import {
   standInForGoogle,
   steady,
 } from "@/test/open-page";
+import {
+  NEUTRAL,
+  TRAFFIC_LIGHT_COLOURS,
+  TRAFFIC_LIGHT_LINE_COLOURS,
+} from "./Verdict";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -533,3 +538,39 @@ describe("the Satz zum Morgen as it is set", () => {
     );
   });
 });
+
+describe("the colours of the trend line (AC-6)", () => {
+  const surfaces = [...Object.values(TRAFFIC_LIGHT_COLOURS), NEUTRAL].map(
+    ({ surface }) => surface,
+  );
+
+  it.each(
+    Object.entries(TRAFFIC_LIGHT_LINE_COLOURS).flatMap(([light, line]) =>
+      surfaces.map((surface) => [light, line, surface]),
+    ),
+  )(
+    "stands off every surface by at least 3:1: %s %s on %s",
+    (_, line, surface) => {
+      expect(contrast(line, surface)).toBeGreaterThanOrEqual(3);
+    },
+  );
+});
+
+/** The WCAG contrast ratio of two colours `#RRGGBB`. */
+function contrast(one: string, other: string): number {
+  const [lighter, darker] = [luminance(one), luminance(other)].sort(
+    (a, b) => b - a,
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/** The WCAG relative luminance of a colour `#RRGGBB`. */
+function luminance(colour: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const channel = Number.parseInt(colour.slice(i, i + 2), 16) / 255;
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}

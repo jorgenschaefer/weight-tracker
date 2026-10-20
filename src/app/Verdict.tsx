@@ -89,10 +89,20 @@ export function surfaceColours(status: AssessmentStatus): SurfaceColours {
   }
 }
 
-const TRAFFIC_LIGHT_COLOURS: Record<TrafficLight, SurfaceColours> = {
+export const TRAFFIC_LIGHT_COLOURS: Record<TrafficLight, SurfaceColours> = {
   green: { surface: "#D3EAD0", ink: "#163D1B" },
   yellow: { surface: "#F3E2A2", ink: "#3B3004" },
   red: { surface: "#F2C6B8", ink: "#5A1A0B" },
+};
+
+/**
+ * The colour of a stretch of the trend line under its Ampel, standing off
+ * each surface, of an Ampel or {@link NEUTRAL}, by at least 3:1.
+ */
+export const TRAFFIC_LIGHT_LINE_COLOURS: Record<TrafficLight, string> = {
+  green: "#2E6B34",
+  yellow: "#7D6200",
+  red: "#9C3A1C",
 };
 
 /**

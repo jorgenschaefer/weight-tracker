@@ -10,20 +10,24 @@ import {
 import type { GraphWindow, Span } from "@/trend/graph-window/graph-window";
 import type { WindowSeries } from "@/trend/graph-window/window-series";
 import type { Trend } from "@/trend/trend";
+import { type TrafficLight, trafficLight } from "@/verdict/traffic-light";
 import {
   formatCalendarDay,
   formatMonth,
   formatRange,
   formatSpan,
 } from "./format";
+import { TRAFFIC_LIGHT_LINE_COLOURS } from "./Verdict";
 import classes from "./WeightGraph.module.css";
 
 /**
  * The graph of `graphWindow` in `span`, as wide as the space it is given: the
  * counting measurements of `series` as points, the trend as a line inside a
- * band of ± its standard deviation, both broken at gaps. Where the window
- * reaches past `today`, a dashed line marks it.
- * Drawn in the text colour it inherits; where the window holds no
+ * band of ± its standard deviation, both broken at gaps. Each stretch of the
+ * line from one day with a measurement to the next takes the colour of the
+ * Ampel of the later day. Where the window reaches past `today`, a dashed
+ * line marks it.
+ * The rest is drawn in the text colour it inherits; where the window holds no
  * measurement, there is no weight to scale to, and it says so instead.
  *
  * It marks `shownDay`, an earlier day with a measurement, rimmed in
@@ -199,12 +203,12 @@ function Drawing({
           mark={mark(latest, outlier)}
         />
       ))}
-      {series.trendLine.map((piece) => (
+      {series.trendLine.flatMap(sameLightRuns).map(({ light, trends }) => (
         <polyline
-          key={piece[0].day}
-          points={trendCorners(piece, scale).join(" ")}
+          key={trends.at(-1)?.day}
+          points={trendCorners(trends, scale).join(" ")}
           fill="none"
-          stroke="currentColor"
+          stroke={TRAFFIC_LIGHT_LINE_COLOURS[light]}
           strokeWidth={LINE_WIDTH}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -613,11 +617,33 @@ function monthLabels(
 }
 
 /**
- * The corners of one piece of the trend line. A piece of a single day gets
+ * One piece of the trend line in runs of stretches under the same Ampel, the
+ * Ampel of the later day of each stretch; each run begins on the day the one
+ * before ends on. A piece of a single day is one run under its own Ampel.
+ */
+function sameLightRuns(
+  piece: Trend[],
+): { light: TrafficLight; trends: Trend[] }[] {
+  if (piece.length === 1) {
+    return [{ light: trafficLight(piece[0]), trends: piece }];
+  }
+  const runs: { light: TrafficLight; trends: Trend[] }[] = [];
+  for (const [i, trend] of piece.entries()) {
+    if (i === 0) continue;
+    const light = trafficLight(trend);
+    const run = runs.at(-1);
+    if (run?.light === light) run.trends.push(trend);
+    else runs.push({ light, trends: [piece[i - 1], trend] });
+  }
+  return runs;
+}
+
+/**
+ * The corners of one run of the trend line. A run of a single day gets
  * its corner twice: a line of no length, which the round caps draw as a dot.
  */
-function trendCorners(piece: Trend[], scale: ChartScale): string[] {
-  const corners = piece.map(
+function trendCorners(trends: Trend[], scale: ChartScale): string[] {
+  const corners = trends.map(
     (trend) => `${scale.x(trend.day)},${scale.y(trend.kg)}`,
   );
   return corners.length === 1 ? [corners[0], corners[0]] : corners;

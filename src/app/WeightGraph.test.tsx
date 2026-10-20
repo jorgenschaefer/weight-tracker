@@ -164,6 +164,30 @@ const cornerPoints = (shape: Element) =>
 
 const corners = (piece: Element) => cornerPoints(piece).length;
 
+/**
+ * How many corners each piece of the line between gaps has: the polylines
+ * of `pieces` joined where one ends on the corner the next begins with.
+ */
+function joinedCornerCounts(pieces: Element[]): number[] {
+  const counts: number[] = [];
+  let previousEnd: { x: number; y: number } | undefined;
+  for (const piece of pieces) {
+    const piecePoints = cornerPoints(piece);
+    const [first] = piecePoints;
+    if (
+      previousEnd !== undefined &&
+      previousEnd.x === first.x &&
+      previousEnd.y === first.y
+    ) {
+      counts[counts.length - 1] += piecePoints.length - 1;
+    } else {
+      counts.push(piecePoints.length);
+    }
+    previousEnd = piecePoints.at(-1);
+  }
+  return counts;
+}
+
 const centre = (point: Element) => ({
   x: Number(point.getAttribute("cx")),
   y: Number(point.getAttribute("cy")),
@@ -198,6 +222,13 @@ const trendOn = (day: string, kg: number, sdKg = 0.3): Trend => ({
   paceVariance: 0.09,
   z: 0,
 });
+
+/** Paces, in kg per week, whose Ampel is green, yellow or red. */
+const GREEN = -1;
+const YELLOW = -0.1;
+const RED = 1;
+
+const withPace = (trend: Trend, pace: number): Trend => ({ ...trend, pace });
 
 /** Three days up to 17.10., the second one an outlier, without a trend. */
 const withOutlierInTheMiddle: WindowSeries = {
@@ -274,15 +305,55 @@ describe("WeightGraph", () => {
     const series = realSeries();
     const pieces = trendPieces(await drawGraph(series));
 
-    expect(pieces.map(corners)).toEqual(
+    expect(joinedCornerCounts(pieces)).toEqual(
       series.trendLine.map((piece) => piece.length),
     );
-    expect(pieces).toHaveLength(2);
+    expect(series.trendLine).toHaveLength(2);
     for (const piece of pieces) {
       expect(piece).toHaveAttribute("fill", "none");
-      expect(piece).toHaveAttribute("stroke", "currentColor");
       expect(piece).toHaveAttribute("stroke-width", "3");
     }
+  });
+
+  it("colours each stretch of the line between two days with a measurement in the Ampel of the later day", async () => {
+    const days = ["2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"];
+    const graph = await drawGraph({
+      measurements: [...days, "2026-10-16"].map((day, i) => ({
+        measurement: measured(day, 98),
+        outlier: false,
+        latest: i === days.length,
+      })),
+      trendLine: [
+        [
+          withPace(trendOn(days[0], 98), RED),
+          withPace(trendOn(days[1], 98), GREEN),
+          withPace(trendOn(days[2], 98), GREEN),
+          withPace(trendOn(days[3], 98), RED),
+        ],
+        [withPace(trendOn("2026-10-16", 98), YELLOW)],
+      ],
+    });
+
+    expect(
+      trendPieces(graph).map((piece) => [
+        piece.getAttribute("stroke"),
+        corners(piece),
+      ]),
+    ).toEqual([
+      ["#2E6B34", 3],
+      ["#9C3A1C", 2],
+      ["#7D6200", 2],
+    ]);
+  });
+
+  it("colours the whole line of the user's weight in the three colours of the Ampel", async () => {
+    const strokes = new Set(
+      trendPieces(await drawSpan("threeMonths")).map((piece) =>
+        piece.getAttribute("stroke"),
+      ),
+    );
+
+    expect(strokes).toEqual(new Set(["#2E6B34", "#7D6200", "#9C3A1C"]));
   });
 
   it("draws only the points, and no trend line, where there is no trend", async () => {

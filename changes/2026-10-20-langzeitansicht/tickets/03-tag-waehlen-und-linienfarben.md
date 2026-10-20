@@ -3,8 +3,8 @@ criteria:  CRITERIA.md
 closes:    AC-5, AC-6, AC-7, AC-8
 advances:  
 after:     02-fenster-verschieben
-status:    ready
-attempts:  0
+status:    done
+attempts:  1
 ---
 
 ## Build
@@ -50,3 +50,25 @@ Umschalter, Bereich, ‹ › und das Fenster bis heute bauen 01 und 02, den Abru
 Aus `Out of scope`: Beschriftete höchste und tiefste Punkte: Sie sind im Graphen zu sehen, und das Wählen eines Tages gibt Datum und Wert.
 
 ## Left standing
+
+**Review findings not fixed:**
+- Should-fix (round 2): in a window without a measurement („Keine Messung in diesem Zeitraum“, reachable with ‹ across a gap of 42 days or more), ← → cannot step from a chosen day, as there is no graph to take the keys or the focus (`WeightGraph.tsx`, the empty state from 02). Not fixed: a focusable message that takes ← → is behaviour the criteria do not settle, i.e. what it says and announces and where its focus ring goes. ‹ › and the toggle still lead out of such a window. The test data has no such gap; with the whole history (04) it becomes reachable, so the developer should decide.
+- Nit (round 2): `TRAFFIC_LIGHT_COLOURS`, now exported, and the new `TRAFFIC_LIGHT_LINE_COLOURS` sit past the first 60 lines of `src/app/Verdict.tsx`, beside `NEUTRAL` and `surfaceColours`, which were already there. Kept, because the nudge places the line colours beside the surface colours.
+
+**Fixed after the last review:** none. The round-1 blocker (a cancelled press restored a kept day out of the window through `onChooseDay`, and so moved the window) was fixed before round 2. ← → now report to their own `onStepToDay`, and only that moves the window. Round 2 reviewed it in the code.
+
+**Checks not run:** round 2 drove no browser, as its session had no browser tool. So the fix above was not driven in the real page; a jsdom page test pins it, and that test uses a mouse press, not a finger. Round 1 drove everything below before the fix.
+
+**Criteria parts no automated test proves:**
+- AC-5, how the coloured line looks: the joins between runs and the line on each surface. Round 1 drove the page in headless Chromium at 360 × 800 and 1440 × 900 on 20.10. (green), 3.8. (yellow), 5.9. (red) and 29.9. (neutral). The line was continuous at the joins, broken at the gap from 22.9., and plainly visible on every surface. Red on red has the least contrast, which still passes AC-6's 3:1, and a test proves that. On „1 Jahr“ at 360 px, short runs are only a few pixels long.
+- AC-7 in the real page: round 1 walked ← → across windows in all three spans, tap and drag (mouse and touch) in earlier windows, and the day kept through ‹ ›, the toggle, Escape and „Zurück zu heute“, before the fix.
+
+**Decisions costly to reverse:**
+- `windowHolding(span, graphWindow, day, today)` in `src/trend/graph-window/graph-window.ts` walks ‹ or › from the window shown. It returns `null` for the window up to today, like `laterWindow` and `windowOnSwitch`.
+- `WeightGraph` takes `measuredDays`, the days of all counting measurements, for ← →, and reports their choice to `onStepToDay`. Taps, drags, Escape and the cancel restore keep `onChooseDay`, which never moves the window. `page.tsx` moves the window only in `stepToDay`, „Zurück zu heute“ and a saved entry (`showWindowHolding`, `showWindowUpToToday` in `useGraphWindow`).
+- The trend line is drawn as one `polyline` per run of stretches under the same Ampel, each run starting on the corner the last one ends on, rather than one per piece between gaps. Tests that count polylines count runs now.
+- A trend piece of a single day, between two gaps, is a dot in the colour of its own day's Ampel; AC-5 names only stretches between two days.
+
+**Departures from nudges:** none. The line colours are the specimen's, written in upper case like the surface colours.
+
+**Names not from the glossary, to confirm:** `windowHolding`, `showWindowHolding`, `showWindowUpToToday`, `stepToDay` / `onStepToDay`, `measuredDays`, `TRAFFIC_LIGHT_LINE_COLOURS`, `sameLightRuns`. The glossary entries Ampel, `GraphWindow` and Stand now say what the line colours, ← → and the kept day do.
