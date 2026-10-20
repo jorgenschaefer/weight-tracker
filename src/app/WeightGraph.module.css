@@ -1,9 +1,11 @@
 /* The graph takes taps and drags across it, while a swipe up or down still
-   scrolls the page. */
+   scrolls the page. A drag chooses a day, so it selects none of the labels
+   it passes. */
 .drawing {
   display: block;
   touch-action: pan-y;
   cursor: crosshair;
+  user-select: none;
 }
 
 /* No ring after a tap or a click, which the browser would draw by default

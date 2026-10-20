@@ -581,6 +581,13 @@ describe("WeightGraph: the day shown", () => {
       /touch-action:\s*pan-y/,
     );
   });
+
+  // jsdom selects no text, so the stylesheet is read instead.
+  it("selects none of its labels on a drag across it", () => {
+    expect(/\.drawing\s*\{([^}]*)\}/.exec(css)?.[1]).toMatch(
+      /(^|[^-])user-select:\s*none/,
+    );
+  });
 });
 
 describe("the outliers on the page", () => {
