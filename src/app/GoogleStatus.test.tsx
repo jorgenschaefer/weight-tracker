@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { MantineProvider } from "@mantine/core";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
@@ -507,7 +507,9 @@ describe("for a screen reader", () => {
     const answer = holdFetch();
     await openAndClick(signInButton);
 
-    const announced = await screen.findByRole("status");
+    // Safe: the status line sits in the element of GoogleStatus.
+    const status = (await statusLine()).parentElement as HTMLElement;
+    const announced = within(status).getByRole("status");
     expect(announced).toHaveAttribute("aria-live", "polite");
     await waitFor(() =>
       expect(announced).toHaveTextContent("Google Health, ruft ab …"),

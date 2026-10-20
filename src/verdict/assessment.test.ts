@@ -8,7 +8,7 @@ import {
 import { weightHistoryUntil } from "@/test/weight-history-fixture";
 import { sixWeekSeries } from "@/trend/six-week-series";
 import { trends } from "@/trend/trend";
-import { assess } from "./assessment";
+import { assess, measurementsKnownOn } from "./assessment";
 
 /** Counting measurements of [day, kg] pairs, each at 05:00 UTC. */
 const countingFrom = (days: [string, number][]) =>
@@ -228,5 +228,37 @@ describe("assess: no verdict yet", () => {
       trend: null,
       sixWeekSeries: { measurements: [], trendLine: [] },
     });
+  });
+});
+
+describe("measurementsKnownOn: the page of an earlier day", () => {
+  const evening18 = { time: new Date("2026-10-18T19:30:00+02:00"), kg: 99.1 };
+  // 0:30 in Berlin on 19.10., still 18.10. in UTC.
+  const justAfterMidnight = {
+    time: new Date("2026-10-19T00:30:00+02:00"),
+    kg: 97.2,
+  };
+
+  it("knows every measurement up to and including that day, counting or not, and none after it", () => {
+    const measurements = weightHistoryUntil("2026-10-20", [
+      evening18,
+      justAfterMidnight,
+    ]);
+
+    const known = measurementsKnownOn(
+      measurements,
+      "2026-10-18" as CalendarDay,
+    );
+
+    expect(known).toEqual(weightHistoryUntil("2026-10-18", [evening18]));
+  });
+
+  it("knows nothing on a day before every measurement", () => {
+    expect(
+      measurementsKnownOn(
+        weightHistoryUntil("2026-10-20"),
+        "2026-06-30" as CalendarDay,
+      ),
+    ).toEqual([]);
   });
 });

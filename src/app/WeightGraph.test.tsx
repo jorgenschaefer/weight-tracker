@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarDay } from "@/measurement/calendar-day";
@@ -35,14 +37,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The graph, drawn into a container `width` px wide. */
+/** The colour of the surface the graph is drawn on. */
+const SURFACE = "#D3EAD0";
+
+/** The graph, drawn into a container `width` px wide, marking `shownDay`. */
 async function drawGraph(
   series: SixWeekSeries,
   width = 320,
   today = october17,
+  shownDay: CalendarDay | null = null,
 ): Promise<SVGSVGElement> {
   stubContainerWidth(width);
-  render(<WeightGraph series={series} today={today} />);
+  render(
+    <WeightGraph
+      series={series}
+      today={today}
+      shownDay={shownDay}
+      onShowDay={() => {}}
+      surface={SURFACE}
+    />,
+  );
   const graph = await screen.findByRole("img", {
     name: "Messungen und Trend der letzten sechs Wochen",
   });
@@ -358,6 +372,9 @@ describe("WeightGraph", () => {
       <WeightGraph
         series={{ measurements: [], trendLine: [] }}
         today={october17}
+        shownDay={null}
+        onShowDay={() => {}}
+        surface={SURFACE}
       />,
     );
     // The width arrives in the next frame.
@@ -447,6 +464,96 @@ describe("WeightGraph", () => {
       expect(y).toBeGreaterThan(0);
       expect(y).toBeLessThan(height);
     }
+  });
+});
+
+describe("WeightGraph: the day shown", () => {
+  // Safe: valid `YYYY-MM-DD`s.
+  const october15 = "2026-10-15" as CalendarDay;
+  const october16 = "2026-10-16" as CalendarDay;
+
+  /** The upright lines of the drawing: the grid lines run across. */
+  const rules = (graph: SVGSVGElement) =>
+    gridLines(graph).filter(
+      (line) => line.getAttribute("x1") === line.getAttribute("x2"),
+    );
+
+  it("marks nothing where no earlier day is shown", async () => {
+    const graph = await drawGraph(withOutlierInTheMiddle);
+
+    expect(points(graph)).toHaveLength(3);
+    expect(rules(graph)).toEqual([]);
+  });
+
+  it("marks it with a rule from top to bottom through its point", async () => {
+    const graph = await drawGraph(
+      withOutlierInTheMiddle,
+      320,
+      october17,
+      october15,
+    );
+    const [point] = points(graph).map(centre);
+    const [rule] = rules(graph);
+
+    expect(rules(graph)).toHaveLength(1);
+    expect(Number(rule.getAttribute("x1"))).toBe(point.x);
+    expect(Number(rule.getAttribute("y1"))).toBeLessThan(point.y);
+    expect(Number(rule.getAttribute("y2"))).toBeGreaterThan(point.y);
+    expect(Number(rule.getAttribute("y2"))).toBeLessThan(
+      Number(graph.getAttribute("height")),
+    );
+  });
+
+  it("marks it with a full point larger than the last day's, rimmed in the colour of the surface", async () => {
+    const graph = await drawGraph(
+      withOutlierInTheMiddle,
+      320,
+      october17,
+      october15,
+    );
+    const [first, , last, shown] = points(graph);
+
+    expect(points(graph)).toHaveLength(4);
+    expect(centre(shown)).toEqual(centre(first));
+    expect(radius(shown)).toBeGreaterThan(radius(last));
+    expect(shown).toHaveAttribute("fill", "currentColor");
+    expect(shown).toHaveAttribute("stroke", SURFACE);
+  });
+
+  it("keeps the point hollow where the day shown is an outlier", async () => {
+    const graph = await drawGraph(
+      withOutlierInTheMiddle,
+      320,
+      october17,
+      october16,
+    );
+    const [, outlier, last, shown] = points(graph);
+
+    expect(centre(shown)).toEqual(centre(outlier));
+    expect(radius(shown)).toBeGreaterThan(radius(last));
+    expect(shown).toHaveAttribute("fill", SURFACE);
+    expect(shown).toHaveAttribute("stroke", "currentColor");
+  });
+
+  const css = readFileSync(
+    join(import.meta.dirname, "WeightGraph.module.css"),
+    "utf8",
+  );
+
+  // jsdom draws no focus ring, so the stylesheet is read instead.
+  it("rings the drawing in focus only where the browser shows the focus, not after a tap", () => {
+    expect(/\.drawing:focus\s*\{([^}]*)\}/.exec(css)?.[1]).toMatch(
+      /outline:\s*none/,
+    );
+    expect(/\.drawing:focus-visible\s*\{([^}]*)\}/.exec(css)?.[1]).toMatch(
+      /outline:\s*3px solid currentColor/,
+    );
+  });
+
+  it("lets a swipe up or down over it scroll the page", () => {
+    expect(/\.drawing\s*\{([^}]*)\}/.exec(css)?.[1]).toMatch(
+      /touch-action:\s*pan-y/,
+    );
   });
 });
 

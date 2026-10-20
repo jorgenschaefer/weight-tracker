@@ -1,5 +1,12 @@
-import { type CalendarDay, daysBetween } from "@/measurement/calendar-day";
-import type { CountingMeasurement } from "@/measurement/measurement";
+import {
+  berlinDay,
+  type CalendarDay,
+  daysBetween,
+} from "@/measurement/calendar-day";
+import type {
+  CountingMeasurement,
+  Measurement,
+} from "@/measurement/measurement";
 import { type SixWeekSeries, sixWeekSeries } from "@/trend/six-week-series";
 import { type Trend, trends } from "@/trend/trend";
 import { type MorningSentence, morningSentence } from "./morning-sentence";
@@ -80,6 +87,21 @@ export function assess(
     trend: everyTrend[everyTrend.length - 1],
     sixWeekSeries: series,
   };
+}
+
+/**
+ * What the page of `day` knows of `measurements`: those taken up to and
+ * including that Berlin calendar day, counting or not. Its assessment comes
+ * from their counting measurements, its „Letzte Messung“ from their newest.
+ */
+export function measurementsKnownOn(
+  measurements: Measurement[],
+  day: CalendarDay,
+): Measurement[] {
+  // `YYYY-MM-DD` orders as text the way the days do.
+  return measurements.filter(
+    (measurement) => berlinDay(measurement.time) <= day,
+  );
 }
 
 const MAX_DAYS_SINCE_LAST_MEASUREMENT = 3;

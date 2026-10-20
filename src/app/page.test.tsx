@@ -1,13 +1,22 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE_KEY } from "@/measurement/cache";
+import type { CalendarDay } from "@/measurement/calendar-day";
 import {
   fetchMeasurements,
   revokeAccess,
   signIn,
 } from "@/measurement/google-health";
+import { countingMeasurements } from "@/measurement/measurement";
 import {
   at,
   daysAgo,
@@ -29,6 +38,8 @@ import {
   openAndClick,
   openEntrySheet,
   openHistoryOn,
+  openOn,
+  refreshButton,
   renderPage,
   sheet,
   signInButton,
@@ -41,6 +52,8 @@ import {
   storeLoss,
   storeMorning,
 } from "@/test/open-page";
+import { weightHistoryUntil } from "@/test/weight-history-fixture";
+import { sixWeekSeries } from "@/trend/six-week-series";
 
 vi.mock("@/measurement/google-health", () => ({
   loadGoogleSignIn: vi.fn(),
@@ -461,6 +474,7 @@ describe("the layout", () => {
     "page.module.css",
     "Verdict.module.css",
     "GoogleStatus.module.css",
+    "ShownDayBand.module.css",
   ].map((file) => readFileSync(join(import.meta.dirname, file), "utf8"));
 
   it("leaves room below the page for the button to enter a weight, 20 px over it, so it covers nothing scrolled to the bottom", () => {
@@ -482,6 +496,50 @@ describe("the layout", () => {
     expect(content).toMatch(/margin-inline:\s*auto/);
   });
 
+  /** The declarations of `selector` in `css`, outside any media query. */
+  const rule = (css: string, selector: string) =>
+    new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`).exec(
+      css.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, ""),
+    )?.[1];
+  /** The declarations of `selector` on the wide screen, from 65em. */
+  const wideRule = (css: string, selector: string) =>
+    rule(
+      /@media \(min-width: 65em\) \{([\s\S]*)\}/.exec(css)?.[1] ?? "",
+      selector,
+    );
+  const [, , statusCss, bandCss] = stylesheets;
+
+  it("makes „Zurück zu heute“ in the band of an earlier day at least 48 px tall", () => {
+    expect(rule(bandCss, ".back")).toMatch(/min-height:\s*48px/);
+  });
+
+  // The status line is its two lines of 14 and 13 px, the 1 px between them
+  // and 5 px above and below (GoogleStatus.module.css): 52.85 px, more than
+  // its 48 px least height. The band takes its place without moving the page.
+  it("makes the band of an earlier day as tall as the status line", () => {
+    expect(rule(statusCss, ".text")).toMatch(
+      /gap:\s*1px;[\s\S]*padding:\s*5px 0/,
+    );
+    expect(rule(bandCss, ".band")).toMatch(
+      /min-height:\s*calc\(\(14px \+ 13px\) \* var\(--mantine-line-height\) \+ 11px\)/,
+    );
+  });
+
+  it("keeps „Stand <day>“ and „Zurück zu heute“ in one line", () => {
+    expect(rule(bandCss, ".day")).toMatch(/white-space:\s*nowrap/);
+    expect(rule(bandCss, ".back")).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it("sets the band on the wide screen where the status line sits, as wide", () => {
+    const status = wideRule(statusCss, ".status");
+    const band = wideRule(bandCss, ".band");
+
+    expect(status).toMatch(/width:\s*420px/);
+    expect(band).toMatch(/width:\s*420px/);
+    expect(band).toMatch(/margin-left:\s*auto/);
+    expect(status).toMatch(/margin-left:\s*auto/);
+  });
+
   it("sets nothing wider than a 360 px screen outside the wide screen, but the limit", () => {
     const narrow = stylesheets.map((css) =>
       css
@@ -494,5 +552,434 @@ describe("the layout", () => {
 
     expect(lengths.length).toBeGreaterThan(0);
     expect(lengths.filter((px) => px > 360)).toEqual([]);
+  });
+});
+
+describe("an earlier day", () => {
+  const GRAPH = "Messungen und Trend der letzten sechs Wochen";
+  const graph = () => screen.findByRole("img", { name: GRAPH });
+  /** „Stand <day>“ in the band, not in what a screen reader is told. */
+  const band = () =>
+    screen.queryByText(/^Stand /, { ignore: "script, style, [role=status]" });
+  const backToToday = () =>
+    screen.findByRole("button", { name: "Zurück zu heute" });
+
+  /**
+   * Where the point of `day` lies across the graph of the page opened in the
+   * evening of `today` with the test data up to `lastDay`.
+   */
+  async function xOf(day: string, today = "2026-10-20", lastDay = today) {
+    const { measurements } = sixWeekSeries(
+      countingMeasurements(weightHistoryUntil(lastDay)),
+      today as CalendarDay,
+    );
+    const i = measurements.findIndex(
+      ({ measurement }) => measurement.day === day,
+    );
+    const point = (await graph()).querySelectorAll("circle")[i];
+    return Number(point.getAttribute("cx"));
+  }
+
+  /** A tap into the graph `x` px from its left edge. */
+  async function tapAt(user: UserEvent, x: number) {
+    await user.pointer({
+      keys: "[MouseLeft]",
+      target: await graph(),
+      coords: { clientX: x },
+    });
+  }
+
+  const tapOn = async (user: UserEvent, day: string, today?: string) =>
+    tapAt(user, await xOf(day, today));
+
+  /** What the page shows above the graph, and the colours around it. */
+  async function aboveTheGraph() {
+    await graph();
+    const main = screen.getByRole("main");
+    return {
+      latest: screen.getByText(/^Letzte Messung /).textContent,
+      verdict: verdict().parentElement?.textContent,
+      figures: screen.getByText("Gemessen", { selector: "dt" }).closest("dl")
+        ?.textContent,
+      surface: main.style.backgroundColor,
+      ink: main.style.color,
+      themeColour: document.head
+        .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+        ?.getAttribute("content"),
+    };
+  }
+
+  const figure = (label: string) =>
+    screen.getByText(label, { selector: "dt" }).nextElementSibling?.textContent;
+
+  describe("chosen in the graph", () => {
+    it("by a tap on its point, shows the page as it was on that day", async () => {
+      openHistoryOn("2026-10-18");
+      const onThatDay = await aboveTheGraph();
+      cleanup();
+      const user = openHistoryOn("2026-10-20");
+      const today = await aboveTheGraph();
+
+      await tapOn(user, "2026-10-18");
+
+      expect(await aboveTheGraph()).toEqual(onThatDay);
+      expect(onThatDay).not.toEqual(today);
+      expect(figure("Gemessen")).toBe("98,4 kg");
+      expect(verdict()).toHaveTextContent(
+        "Achtung, die Abnahme wird langsamer.",
+      );
+    });
+
+    it("names the newest measurement up to that day as „Letzte Messung“, counting or not", async () => {
+      const user = openOn(
+        "2026-10-20",
+        weightHistoryUntil("2026-10-20", [
+          { time: new Date("2026-10-18T19:30:00+02:00"), kg: 99.1 },
+        ]),
+      );
+
+      await tapOn(user, "2026-10-18");
+
+      await isShown("Letzte Messung 18.10. um 19:30 Uhr: 99,1 kg");
+      expect(figure("Gemessen")).toBe("98,4 kg");
+    });
+
+    it("by a tap in a gap, shows the day whose point lies nearest across", async () => {
+      const user = openHistoryOn("2026-10-20");
+      const before = await xOf("2026-09-22");
+      const after = await xOf("2026-10-01");
+
+      await tapAt(user, before + (after - before) / 3);
+
+      expect(band()).toHaveTextContent("Stand 22.9.");
+      expect(figure("Gemessen")).toBe("99,4 kg");
+    });
+
+    it("by dragging over it, shows each nearest day in turn", async () => {
+      const user = openHistoryOn("2026-10-20");
+      const target = await graph();
+      const [x18, x16, x14] = [
+        await xOf("2026-10-18"),
+        await xOf("2026-10-16"),
+        await xOf("2026-10-14"),
+      ];
+
+      await user.pointer({
+        keys: "[MouseLeft>]",
+        target,
+        coords: { clientX: x18 },
+      });
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      await user.pointer({ target, coords: { clientX: x16 + 1 } });
+      expect(band()).toHaveTextContent("Stand 16.10.");
+      await user.pointer({ target, coords: { clientX: x14 } });
+      expect(band()).toHaveTextContent("Stand 14.10.");
+      await user.pointer({ keys: "[/MouseLeft]", target });
+
+      expect(band()).toHaveTextContent("Stand 14.10.");
+      expect(figure("Gemessen")).toBe("97,4 kg");
+    });
+
+    it("shows nothing new where the mouse moves over the graph unpressed", async () => {
+      const user = openHistoryOn("2026-10-20");
+      const target = await graph();
+
+      await user.pointer({
+        target,
+        coords: { clientX: await xOf("2026-10-14") },
+      });
+
+      expect(band()).toBeNull();
+    });
+
+    describe("by touch", () => {
+      it("by a tap with a finger", async () => {
+        const user = openHistoryOn("2026-10-20");
+
+        await user.pointer({
+          keys: "[TouchA]",
+          target: await graph(),
+          coords: { clientX: await xOf("2026-10-18"), clientY: 100 },
+        });
+
+        expect(band()).toHaveTextContent("Stand 18.10.");
+      });
+
+      it("by dragging a finger across, each nearest day in turn", async () => {
+        const user = openHistoryOn("2026-10-20");
+        const target = await graph();
+        const x18 = await xOf("2026-10-18");
+        const x14 = await xOf("2026-10-14");
+
+        await user.pointer([
+          { keys: "[TouchA>]", target, coords: { clientX: x18, clientY: 100 } },
+          {
+            pointerName: "TouchA",
+            target,
+            coords: { clientX: x14, clientY: 102 },
+          },
+        ]);
+
+        expect(band()).toHaveTextContent("Stand 14.10.");
+      });
+
+      it("not while a finger swipes up or down, not even before the page scrolls", async () => {
+        const user = openHistoryOn("2026-10-20");
+        const target = await graph();
+        const x = await xOf("2026-10-07");
+
+        await user.pointer([
+          { keys: "[TouchA>]", target, coords: { clientX: x, clientY: 100 } },
+          {
+            pointerName: "TouchA",
+            target,
+            coords: { clientX: x + 2, clientY: 80 },
+          },
+        ]);
+
+        expect(band()).toBeNull();
+        fireEvent.pointerCancel(target);
+        expect(band()).toBeNull();
+      });
+    });
+
+    it("is not chosen by a swipe the browser takes over to scroll", async () => {
+      const user = openHistoryOn("2026-10-20");
+      const target = await graph();
+      await tapOn(user, "2026-10-18");
+
+      await user.pointer({
+        keys: "[MouseLeft>]",
+        target,
+        coords: { clientX: await xOf("2026-10-07") },
+      });
+      fireEvent.pointerCancel(target);
+
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      expect(figure("Gemessen")).toBe("98,4 kg");
+    });
+
+    it("by a tap on the point of the last day with a measurement, is no earlier day", async () => {
+      const user = openHistoryOn("2026-10-21", "2026-10-20");
+      await graph();
+
+      await tapOn(user, "2026-10-20", "2026-10-21");
+
+      expect(band()).toBeNull();
+      expect(await statusLine()).toBeInTheDocument();
+    });
+  });
+
+  describe("shown", () => {
+    it("has a band „Stand <day>“ with „Zurück zu heute“ in place of the status line and ⟳", async () => {
+      const user = openHistoryOn("2026-10-20");
+
+      await tapOn(user, "2026-10-18");
+
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      expect(await backToToday()).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /^Google Health/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: /^(Abrufen|Anmelden und abrufen)$/,
+        }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("sets the band in the text colour of the surface of that day", async () => {
+      const user = openHistoryOn("2026-10-20");
+
+      await tapOn(user, "2026-10-18");
+
+      const { ink, surface } = await aboveTheGraph();
+      const bar = band()?.parentElement;
+      expect(bar?.style.backgroundColor).toBe(ink);
+      expect(bar?.style.color).toBe(surface);
+    });
+
+    it("announces the band politely", async () => {
+      const user = openHistoryOn("2026-10-20");
+
+      await tapOn(user, "2026-10-18");
+
+      const announced = screen.getByRole("status");
+      expect(announced).toHaveTextContent("Stand 18.10.");
+      expect(announced).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("keeps drawing the six weeks up to today with all their measurements", async () => {
+      const user = openHistoryOn("2026-10-20");
+      const before = [...(await graph()).querySelectorAll("circle")].map(
+        (point) => point.outerHTML,
+      );
+
+      await tapOn(user, "2026-10-18");
+
+      const after = [...(await graph()).querySelectorAll("circle")].map(
+        (point) => point.outerHTML,
+      );
+      expect(after.slice(0, before.length)).toEqual(before);
+    });
+  });
+
+  describe("back to today", () => {
+    /** The page on 20.10. as it is before any day is chosen. */
+    async function untouched() {
+      openHistoryOn("2026-10-20");
+      const page = {
+        above: await aboveTheGraph(),
+        graph: (await graph()).outerHTML,
+      };
+      cleanup();
+      return page;
+    }
+
+    const isToday = async (page: Awaited<ReturnType<typeof untouched>>) => {
+      expect(band()).toBeNull();
+      expect(await statusLine()).toBeInTheDocument();
+      expect(await refreshButton()).toBeInTheDocument();
+      expect(await aboveTheGraph()).toEqual(page.above);
+      expect((await graph()).outerHTML).toBe(page.graph);
+    };
+
+    it("with „Zurück zu heute“", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await user.click(await backToToday());
+
+      await isToday(page);
+    });
+
+    it("with a second tap on the point shown", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await tapOn(user, "2026-10-18");
+
+      await isToday(page);
+    });
+
+    it("with a tap on the point of the last day with a measurement", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await tapOn(user, "2026-10-20");
+
+      await isToday(page);
+    });
+
+    it("with Escape on the graph", async () => {
+      const page = await untouched();
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await user.keyboard("{Escape}");
+
+      await isToday(page);
+    });
+
+    // jsdom has no :focus-visible; what the page asks of the browser is all
+    // a test can see.
+    it.each([
+      [
+        "a tap",
+        false,
+        (user: UserEvent, button: HTMLElement) => user.click(button),
+      ],
+      [
+        "the keyboard",
+        true,
+        async (user: UserEvent, button: HTMLElement) => {
+          button.focus();
+          await user.keyboard("{Enter}");
+        },
+      ],
+    ])(
+      "rings the graph in focus after „Zurück zu heute“ by %s: %s",
+      async (_, ringed, press) => {
+        const user = openHistoryOn("2026-10-20");
+        await tapOn(user, "2026-10-18");
+        const focus = vi.spyOn(await graph(), "focus");
+
+        await press(user, await backToToday());
+
+        expect(focus).toHaveBeenCalledWith({ focusVisible: ringed });
+      },
+    );
+
+    it("puts the focus on the graph after „Zurück zu heute“", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-18");
+
+      await user.click(await backToToday());
+
+      expect(await graph()).toHaveFocus();
+    });
+  });
+
+  describe("with the keyboard", () => {
+    /** Tabs from the start of the page until the graph has the focus. */
+    async function tabToGraph(user: UserEvent) {
+      const target = await graph();
+      for (let i = 0; i < 10 && document.activeElement !== target; i++)
+        await user.tab();
+      expect(target).toHaveFocus();
+    }
+
+    it("reaches the graph with Tab, with no day chosen yet", async () => {
+      const user = openHistoryOn("2026-10-20");
+
+      await tabToGraph(user);
+
+      expect(band()).toBeNull();
+    });
+
+    it("chooses the day with a measurement before with ←, and after with →", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tabToGraph(user);
+
+      await user.keyboard("{ArrowLeft}");
+      expect(band()).toHaveTextContent("Stand 19.10.");
+      await user.keyboard("{ArrowLeft}");
+      expect(band()).toHaveTextContent("Stand 18.10.");
+      await user.keyboard("{ArrowRight}");
+      expect(band()).toHaveTextContent("Stand 19.10.");
+    });
+
+    it("comes back to today with → onto the last day with a measurement", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tabToGraph(user);
+      await user.keyboard("{ArrowLeft}");
+
+      await user.keyboard("{ArrowRight}");
+
+      expect(band()).toBeNull();
+      await user.keyboard("{ArrowRight}");
+      expect(band()).toBeNull();
+    });
+
+    it("steps over a gap with ←", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-10-01");
+
+      await user.keyboard("{ArrowLeft}");
+
+      expect(band()).toHaveTextContent("Stand 22.9.");
+    });
+
+    it("stays on the first day of the six weeks with ←", async () => {
+      const user = openHistoryOn("2026-10-20");
+      await tapOn(user, "2026-09-09");
+
+      await user.keyboard("{ArrowLeft}");
+
+      expect(band()).toHaveTextContent("Stand 9.9.");
+    });
   });
 });

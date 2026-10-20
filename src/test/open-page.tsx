@@ -180,16 +180,19 @@ export async function comeIntoView() {
 /** 18:00 in Berlin summer time on `day`. */
 export const evening = (day: string) => new Date(`${day}T18:00:00+02:00`);
 
-/** Opens the page in the evening of `today`, with `measurements` in the cache. */
+/**
+ * Opens the page in the evening of `today`, with `measurements` in the cache;
+ * returns the user to click on with.
+ */
 export function openOn(today: string, measurements: Measurement[]) {
   vi.setSystemTime(evening(today));
   storeCache(evening(today), measurements);
-  renderPage();
+  return renderPage();
 }
 
 /**
  * Opens the page in the evening of `today` with the user's weight and 18.10.
- * to 20.10., up to `lastDay`.
+ * to 20.10., up to `lastDay`; returns the user to click on with.
  */
 export const openHistoryOn = (today: string, lastDay = today) =>
   openOn(today, weightHistoryUntil(lastDay));

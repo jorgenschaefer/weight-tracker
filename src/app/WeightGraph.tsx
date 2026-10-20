@@ -1,6 +1,7 @@
 "use client";
 
 import { useElementSize } from "@mantine/hooks";
+import { type Ref, useRef } from "react";
 import {
   type CalendarDay,
   calendarDayBefore,
@@ -9,6 +10,7 @@ import {
 import type { SixWeekSeries } from "@/trend/six-week-series";
 import type { Trend } from "@/trend/trend";
 import { formatCalendarDay } from "./format";
+import classes from "./WeightGraph.module.css";
 
 /**
  * The graph of the six weeks up to `today`, as wide as the space it is given:
@@ -16,19 +18,42 @@ import { formatCalendarDay } from "./format";
  * ± its standard deviation, both broken at gaps.
  * Drawn in the text colour it inherits; nothing where the six weeks hold no
  * measurement, as without one there is no weight to scale to.
+ *
+ * It marks `shownDay`, an earlier day with a measurement, rimmed in
+ * `surface`, the colour of the surface. A tap, a drag or ← and → choose the
+ * day with a measurement nearest across or next to it, and report it to
+ * `onShowDay`; the last day with a measurement is no earlier day and is
+ * reported as `null`, as are a second tap on the day shown and Escape. `ref`
+ * reaches the drawing, which takes the focus.
  */
 export function WeightGraph({
   series,
   today,
+  shownDay,
+  onShowDay,
+  surface,
+  ref,
 }: {
   series: SixWeekSeries;
   today: CalendarDay;
+  shownDay: CalendarDay | null;
+  onShowDay: (day: CalendarDay | null) => void;
+  surface: string;
+  ref?: Ref<SVGSVGElement>;
 }) {
-  const { ref, width } = useElementSize();
+  const { ref: sized, width } = useElementSize();
   return (
-    <div ref={ref}>
+    <div ref={sized}>
       {width > 0 && series.measurements.length > 0 && (
-        <Drawing series={series} today={today} width={width} />
+        <Drawing
+          series={series}
+          today={today}
+          width={width}
+          shownDay={shownDay}
+          onShowDay={onShowDay}
+          surface={surface}
+          ref={ref}
+        />
       )}
     </div>
   );
@@ -38,19 +63,38 @@ function Drawing({
   series,
   today,
   width,
+  shownDay,
+  onShowDay,
+  surface,
+  ref,
 }: {
   series: SixWeekSeries;
   today: CalendarDay;
   width: number;
+  shownDay: CalendarDay | null;
+  onShowDay: (day: CalendarDay | null) => void;
+  surface: string;
+  ref?: Ref<SVGSVGElement>;
 }) {
   const layout = width < WIDE_FROM_WIDTH ? COMPACT : WIDE;
   const scale = chartScale(series, today, width, layout);
+  const choice = useDayChoice(series, scale, shownDay, onShowDay);
+  const shown = series.measurements.find(
+    ({ measurement }) => measurement.day === shownDay,
+  );
   return (
     <svg
+      ref={ref}
+      className={classes.drawing}
       width={width}
       height={layout.height}
       role="img"
       aria-label="Messungen und Trend der letzten sechs Wochen"
+      // A picture still, though it takes ← and → to choose a day: the band
+      // above says which one is shown.
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: see above
+      tabIndex={0}
+      {...choice}
     >
       {scale.labelledKilos.map((kg) => (
         <g key={kg}>
@@ -115,6 +159,16 @@ function Drawing({
           strokeLinecap="round"
         />
       ))}
+      {shown !== undefined && (
+        <ShownDayMark
+          x={scale.x(shown.measurement.day)}
+          y={scale.y(shown.measurement.kg)}
+          outlier={shown.outlier}
+          radius={layout.radius.shown}
+          rule={[layout.top, layout.height - layout.bottom]}
+          surface={surface}
+        />
+      )}
     </svg>
   );
 }
@@ -136,8 +190,8 @@ interface Layout {
   /** Above this many kilos from the lowest to the highest, every other one. */
   everyOtherKiloAbove: number;
   daysPerLabel: number;
-  /** The radius of each mark: the latest is largest. */
-  radius: Record<Exclude<Mark, "latestOutlier">, number>;
+  /** The radius of each mark: the latest is largest, but for the day shown. */
+  radius: Record<Exclude<Mark, "latestOutlier"> | "shown", number>;
 }
 
 const COMPACT: Layout = {
@@ -150,7 +204,7 @@ const COMPACT: Layout = {
   labelGap: 6,
   everyOtherKiloAbove: 5,
   daysPerLabel: 10,
-  radius: { counting: 3.5, outlier: 4.5, latest: 5.5 },
+  radius: { counting: 3.5, outlier: 4.5, latest: 5.5, shown: 7 },
 };
 
 /** The narrowest drawing in the wide layout. */
@@ -166,7 +220,7 @@ const WIDE: Layout = {
   labelGap: 8,
   everyOtherKiloAbove: Number.POSITIVE_INFINITY,
   daysPerLabel: 7,
-  radius: { counting: 4.5, outlier: 5.5, latest: 6.5 },
+  radius: { counting: 4.5, outlier: 5.5, latest: 6.5, shown: 8 },
 };
 
 type Mark = "counting" | "outlier" | "latest" | "latestOutlier";
@@ -219,6 +273,164 @@ function Ring({ cx, cy, r }: { cx: number; cy: number; r: number }) {
       stroke="currentColor"
       strokeWidth={2}
     />
+  );
+}
+
+/**
+ * The mark of the day shown: a rule from top to bottom through its point, and
+ * a larger point over it, hollow where it is an outlier, rimmed in `surface`
+ * so it stands off the trend line.
+ */
+function ShownDayMark({
+  x,
+  y,
+  outlier,
+  radius,
+  rule: [top, bottom],
+  surface,
+}: {
+  x: number;
+  y: number;
+  outlier: boolean;
+  radius: number;
+  rule: [number, number];
+  surface: string;
+}) {
+  return (
+    <g>
+      <line
+        x1={x}
+        x2={x}
+        y1={top}
+        y2={bottom}
+        stroke="currentColor"
+        strokeOpacity={0.5}
+        strokeWidth={1.5}
+      />
+      {outlier ? (
+        <circle
+          cx={x}
+          cy={y}
+          r={radius}
+          fill={surface}
+          stroke="currentColor"
+          strokeWidth={2.5}
+        />
+      ) : (
+        <circle
+          cx={x}
+          cy={y}
+          r={radius}
+          fill="currentColor"
+          stroke={surface}
+          strokeWidth={2.5}
+        />
+      )}
+    </g>
+  );
+}
+
+/**
+ * The handlers by which the drawing chooses a day of `series` for
+ * `onShowDay`: a press on the drawing chooses the day whose point lies
+ * nearest across, and so does every move while it is held; letting go of a
+ * press that began on the day shown without choosing another goes back to
+ * today. A press the browser takes over to scroll the page leaves the day
+ * shown before it; a finger chooses only once it has let go or moved more
+ * across than up or down, so a swipe to scroll shows no other day meanwhile. ← and → choose the day with a measurement before and after, Escape
+ * goes back to today. The last day with a measurement is today's page,
+ * `null`, as is `shownDay` where no earlier day is shown.
+ */
+function useDayChoice(
+  series: SixWeekSeries,
+  scale: ChartScale,
+  shownDay: CalendarDay | null,
+  onShowDay: (day: CalendarDay | null) => void,
+) {
+  // The press now held down: the day shown before it, the day it began on and
+  // whether that is the day shown and no other has been chosen since; for a
+  // finger that has chosen nothing yet, where it went down. `null` while
+  // nothing is pressed.
+  const press = useRef<{
+    before: CalendarDay | null;
+    pressedDay: CalendarDay;
+    onShownDay: boolean;
+    fingerDown: { x: number; y: number } | null;
+  } | null>(null);
+  const days = series.measurements.map(({ measurement }) => measurement.day);
+  // Safe: the drawing has at least one measurement, so a last day.
+  const lastDay = days.at(-1) as CalendarDay;
+  const current = shownDay ?? lastDay;
+  const show = (day: CalendarDay) => onShowDay(day === lastDay ? null : day);
+  const nearestTo = (event: React.PointerEvent<SVGSVGElement>) =>
+    nearestDay(
+      days,
+      scale,
+      event.clientX - event.currentTarget.getBoundingClientRect().left,
+    );
+  return {
+    onPointerDown(event: React.PointerEvent<SVGSVGElement>) {
+      const day = nearestTo(event);
+      const finger = event.pointerType === "touch";
+      press.current = {
+        before: shownDay,
+        pressedDay: day,
+        onShownDay: day === current,
+        fingerDown: finger ? { x: event.clientX, y: event.clientY } : null,
+      };
+      if (!finger) show(day);
+    },
+    onPointerMove(event: React.PointerEvent<SVGSVGElement>) {
+      if (event.buttons === 0) return;
+      const held = press.current;
+      if (held?.fingerDown) {
+        const across = Math.abs(event.clientX - held.fingerDown.x);
+        if (across <= Math.abs(event.clientY - held.fingerDown.y)) return;
+        held.fingerDown = null;
+      }
+      const day = nearestTo(event);
+      if (day === current) return;
+      if (press.current !== null) press.current.onShownDay = false;
+      show(day);
+    },
+    onPointerUp() {
+      if (press.current?.onShownDay) onShowDay(null);
+      else if (press.current?.fingerDown) show(press.current.pressedDay);
+      press.current = null;
+    },
+    onPointerCancel() {
+      if (press.current !== null && press.current.fingerDown === null)
+        onShowDay(press.current.before);
+      press.current = null;
+    },
+    onKeyDown(event: React.KeyboardEvent<SVGSVGElement>) {
+      const i = days.indexOf(current);
+      switch (event.key) {
+        case "ArrowLeft":
+          show(days[Math.max(0, i - 1)]);
+          break;
+        case "ArrowRight":
+          show(days[Math.min(days.length - 1, i + 1)]);
+          break;
+        case "Escape":
+          onShowDay(null);
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    },
+  };
+}
+
+/** Of `days`, the one whose point lies nearest across to `x`. */
+function nearestDay(
+  days: CalendarDay[],
+  scale: ChartScale,
+  x: number,
+): CalendarDay {
+  return days.reduce((nearest, day) =>
+    Math.abs(scale.x(day) - x) < Math.abs(scale.x(nearest) - x) ? day : nearest,
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Anchor, Text } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { berlinDay, type CalendarDay } from "@/measurement/calendar-day";
 import type { GoogleHealthError } from "@/measurement/google-health";
 import {
@@ -9,12 +9,18 @@ import {
   latestMeasurement,
   type Measurement,
 } from "@/measurement/measurement";
-import { type Assessment, assess } from "@/verdict/assessment";
+import type { SixWeekSeries } from "@/trend/six-week-series";
+import {
+  type Assessment,
+  assess,
+  measurementsKnownOn,
+} from "@/verdict/assessment";
 import { EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
 import { formatDay, formatKg, formatTime } from "./format";
 import { GoogleStatus } from "./GoogleStatus";
 import classes from "./page.module.css";
+import { ShownDayAnnouncement, ShownDayBand } from "./ShownDayBand";
 import { type Measurements, useMeasurements } from "./useMeasurements";
 import {
   Figures,
@@ -28,6 +34,9 @@ import { WeightGraph } from "./WeightGraph";
 export default function Page() {
   const measurements = useMeasurements();
   const today = useToday();
+  // The earlier day whose page is shown, chosen in the graph; `null` for today.
+  const [shownDay, setShownDay] = useState<CalendarDay | null>(null);
+  const graph = useRef<SVGSVGElement>(null);
   if (measurements === null) {
     return (
       <Surface
@@ -35,6 +44,7 @@ export default function Page() {
         measurements={null}
         today={today}
         latestKg={null}
+        shown={null}
       />
     );
   }
@@ -46,25 +56,45 @@ export default function Page() {
         measurements={measurements}
         today={today}
         latestKg={null}
+        shown={null}
       >
         <FirstVisit measurements={measurements} />
       </Surface>
     );
   }
-  const shown = [...(cache?.measurements ?? []), ...enteredMeasurements];
-  const latest = latestMeasurement(shown);
-  const assessment = assess(countingMeasurements(shown), today);
+  const all = [...(cache?.measurements ?? []), ...enteredMeasurements];
+  const latestToday = latestMeasurement(all);
+  const assessmentToday = assess(countingMeasurements(all), today);
+  const known = shownDay === null ? all : measurementsKnownOn(all, shownDay);
+  const assessment =
+    shownDay === null
+      ? assessmentToday
+      : assess(countingMeasurements(known), shownDay);
   const colours = surfaceColours(assessment.status);
+  // The graph takes the focus, ringed only where the keyboard brought it,
+  // as after a tap the page is to look as if no day had been chosen.
+  const backToToday = (byKeyboard: boolean) => {
+    setShownDay(null);
+    graph.current?.focus({ focusVisible: byKeyboard });
+  };
   return (
     <Surface
       colours={colours}
       measurements={measurements}
       today={today}
-      latestKg={latest?.kg ?? null}
+      latestKg={latestToday?.kg ?? null}
+      shown={shownDay === null ? null : { day: shownDay, backToToday }}
     >
       <CachedMeasurements
-        latest={latest}
+        latest={latestMeasurement(known)}
         assessment={assessment}
+        graph={{
+          series: assessmentToday.sixWeekSeries,
+          shownDay,
+          onShowDay: setShownDay,
+          surface: colours.surface,
+          ref: graph,
+        }}
         today={today}
         measurements={measurements}
       />
@@ -92,19 +122,25 @@ function useToday(): CalendarDay {
  * The browser around the page, Android's status bar and address bar, takes
  * its colour. `measurements` is `null` for the moment before the page has
  * read its cache, in which neither the status line nor the button does
- * anything; the sheet suggests `latestKg`, the Letzte Messung.
+ * anything; the sheet suggests `latestKg`, the Letzte Messung. While the page
+ * of an earlier day is `shown`, its band stands in place of the status line.
  */
 function Surface({
   colours,
   measurements,
   today,
   latestKg,
+  shown,
   children,
 }: {
   colours: SurfaceColours;
   measurements: Measurements | null;
   today: CalendarDay;
   latestKg: number | null;
+  shown: {
+    day: CalendarDay;
+    backToToday: (byKeyboard: boolean) => void;
+  } | null;
   children?: React.ReactNode;
 }) {
   return (
@@ -115,7 +151,16 @@ function Surface({
       {/* React moves it into <head> and keeps it there in step. */}
       <meta name="theme-color" content={colours.surface} />
       <div className={classes.content}>
-        <GoogleStatus measurements={measurements} today={today} />
+        {shown === null ? (
+          <GoogleStatus measurements={measurements} today={today} />
+        ) : (
+          <ShownDayBand
+            shownDay={shown.day}
+            colours={colours}
+            onBackToToday={shown.backToToday}
+          />
+        )}
+        <ShownDayAnnouncement shownDay={shown?.day ?? null} />
         {children}
       </div>
       <EntrySheet
@@ -151,17 +196,26 @@ function FirstVisit({ measurements }: { measurements: Measurements }) {
 
 /**
  * The page from the cached measurements and those entered that Google Health
- * has not returned yet: their newest, `latest`, the verdict on `today` and
- * the four figures, and the graph under them.
+ * has not returned yet: their newest, `latest`, the verdict and the four
+ * figures of the day shown, and under them the graph of the six weeks up to
+ * `today`, in which an earlier day is chosen.
  */
 function CachedMeasurements({
   latest,
   assessment,
+  graph,
   today,
   measurements,
 }: {
   latest: Measurement | null;
   assessment: Assessment;
+  graph: {
+    series: SixWeekSeries;
+    shownDay: CalendarDay | null;
+    onShowDay: (day: CalendarDay | null) => void;
+    surface: string;
+    ref: RefObject<SVGSVGElement | null>;
+  };
   today: CalendarDay;
   measurements: Measurements;
 }) {
@@ -179,7 +233,14 @@ function CachedMeasurements({
         <Figures assessment={assessment} />
       </div>
       <div className={classes.graph}>
-        <WeightGraph series={assessment.sixWeekSeries} today={today} />
+        <WeightGraph
+          series={graph.series}
+          today={today}
+          shownDay={graph.shownDay}
+          onShowDay={graph.onShowDay}
+          surface={graph.surface}
+          ref={graph.ref}
+        />
       </div>
     </>
   );

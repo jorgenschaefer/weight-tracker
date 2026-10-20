@@ -1,0 +1,19 @@
+/* The graph takes taps and drags across it, while a swipe up or down still
+   scrolls the page. */
+.drawing {
+  display: block;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+/* No ring after a tap or a click, which the browser would draw by default
+   around an element focused by them; the keyboard's ring follows. */
+.drawing:focus {
+  outline: none;
+}
+
+.drawing:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
