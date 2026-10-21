@@ -201,7 +201,7 @@ function Drawing({
           key={measurement.day}
           cx={scale.x(measurement.day)}
           cy={scale.y(measurement.kg)}
-          radius={layout.radius}
+          radius={layout.radius[span]}
           mark={mark(latest, outlier)}
         />
       ))}
@@ -221,7 +221,7 @@ function Drawing({
           x={scale.x(shown.measurement.day)}
           y={scale.y(shown.measurement.kg)}
           outlier={shown.outlier}
-          radius={layout.radius.shown}
+          radius={layout.shownRadius}
           rule={[layout.top, layout.height - layout.bottom]}
           surface={surface}
         />
@@ -256,8 +256,14 @@ interface Layout {
   daysPerLabel: number;
   /** In „1 Jahr“; in „3 Monate“ each month has its label. */
   monthsPerLabelInAYear: number;
-  /** The radius of each mark: the latest is largest, but for the day shown. */
-  radius: Record<Exclude<Mark, "latestOutlier"> | "shown", number>;
+  /**
+   * The radius of each mark in each span, smaller the more days it shows:
+   * the latest is largest; an outlier's ring is 1 px smaller, so its 2 px
+   * stroke reaches only as far.
+   */
+  radius: Record<Span, MarkRadius>;
+  /** The radius of the day shown, in every span: larger than any other. */
+  shownRadius: number;
 }
 
 const COMPACT: Layout = {
@@ -271,7 +277,12 @@ const COMPACT: Layout = {
   everyOtherKiloAbove: 5,
   daysPerLabel: 10,
   monthsPerLabelInAYear: 2,
-  radius: { counting: 3.5, outlier: 4.5, latest: 5.5, shown: 7 },
+  radius: {
+    sixWeeks: { counting: 3.5, outlier: 4.5, latest: 5.5 },
+    threeMonths: { counting: 2.4, outlier: 3, latest: 4 },
+    oneYear: { counting: 1.6, outlier: 2, latest: 3 },
+  },
+  shownRadius: 7,
 };
 
 /** The narrowest drawing in the wide layout. */
@@ -288,10 +299,18 @@ const WIDE: Layout = {
   everyOtherKiloAbove: Number.POSITIVE_INFINITY,
   daysPerLabel: 7,
   monthsPerLabelInAYear: 1,
-  radius: { counting: 4.5, outlier: 5.5, latest: 6.5, shown: 8 },
+  radius: {
+    sixWeeks: { counting: 4.5, outlier: 5.5, latest: 6.5 },
+    threeMonths: { counting: 3.4, outlier: 4, latest: 5 },
+    oneYear: { counting: 2.6, outlier: 3, latest: 4 },
+  },
+  shownRadius: 8,
 };
 
 type Mark = "counting" | "outlier" | "latest" | "latestOutlier";
+
+/** The radius of each mark but the latest outlier, which is the latest's. */
+type MarkRadius = Record<Exclude<Mark, "latestOutlier">, number>;
 
 /**
  * The last day's measurement of all is the largest mark, hollow where it is
@@ -311,7 +330,7 @@ function Point({
   cx: number;
   cy: number;
   mark: Mark;
-  radius: Layout["radius"];
+  radius: MarkRadius;
 }) {
   switch (mark) {
     case "counting":

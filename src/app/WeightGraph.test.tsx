@@ -271,6 +271,66 @@ describe("WeightGraph", () => {
     expect(radius(last)).toBeGreaterThan(radius(first));
   });
 
+  it.each([
+    ["sixWeeks", 320, 3.5, 5.5],
+    ["threeMonths", 320, 2.4, 4],
+    ["oneYear", 320, 1.6, 3],
+    ["sixWeeks", 800, 4.5, 6.5],
+    ["threeMonths", 800, 3.4, 5],
+    ["oneYear", 800, 2.6, 4],
+  ] as const)(
+    "draws in %s, %i px wide, the points %f px and the last day's dot %f px in radius",
+    async (span, width, counting, latest) => {
+      const view = viewOf(span, october17);
+      const graph = await drawGraph(
+        windowSeries(countingMeasurements(weightHistory()), view.graphWindow),
+        width,
+        null,
+        view,
+      );
+
+      const drawn = points(graph);
+      expect(radius(drawn[0])).toBe(counting);
+      expect(radius(drawn.filter(isFullDot)[0])).toBe(latest);
+    },
+  );
+
+  it.each([
+    ["sixWeeks", 320, 4.5, 5.5],
+    ["threeMonths", 320, 3, 4],
+    ["oneYear", 320, 2, 3],
+    ["sixWeeks", 800, 5.5, 6.5],
+    ["threeMonths", 800, 4, 5],
+    ["oneYear", 800, 3, 4],
+  ] as const)(
+    "draws in %s, %i px wide, an outlier's ring of %f px, its 2 px stroke reaching as far as the last day's dot of %f px, and the last day's outlier as large as that dot",
+    async (span, width, ring, latest) => {
+      const view = viewOf(span, october17);
+      const [, outlier] = points(
+        await drawGraph(withOutlierInTheMiddle, width, null, view),
+      );
+      expect(radius(outlier)).toBe(ring);
+      cleanup();
+
+      const [, latestOutlier] = points(
+        await drawGraph(
+          {
+            ...withOutlierInTheMiddle,
+            measurements: [
+              withOutlierInTheMiddle.measurements[0],
+              { ...withOutlierInTheMiddle.measurements[1], latest: true },
+            ],
+          },
+          width,
+          null,
+          view,
+        ),
+      );
+      expect(isHollowRing(latestOutlier)).toBe(true);
+      expect(radius(latestOutlier)).toBe(latest);
+    },
+  );
+
   it("draws no larger dot in a window before the last day's measurement", async () => {
     const earlierWindow = windowUpTo("sixWeeks", "2026-09-08" as CalendarDay);
     const graph = await drawGraph(
