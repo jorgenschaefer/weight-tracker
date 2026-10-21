@@ -99,6 +99,14 @@
   }
 }
 
+/* Still where the person asks for less motion: the second line says what
+   runs, and ⟳ takes no tap meanwhile. */
+@media (prefers-reduced-motion: reduce) {
+  .refresh[data-busy] svg {
+    animation: none;
+  }
+}
+
 .line:focus-visible,
 .refresh:focus-visible {
   outline: 3px solid currentColor;

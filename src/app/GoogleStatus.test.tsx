@@ -606,6 +606,20 @@ describe("the layout", () => {
     }
   });
 
+  it("keeps ⟳ still where the person asks for less motion", () => {
+    const reduced =
+      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\}\s*\}/.exec(
+        status,
+      )?.[1];
+    expect(reduced).toMatch(
+      /\.refresh\[data-busy\] svg\s*\{\s*animation:\s*none;/,
+    );
+    // As specific as the turning rule, it wins only by coming after it.
+    expect(status.indexOf("prefers-reduced-motion")).toBeGreaterThan(
+      status.search(/\.refresh\[data-busy\] svg\s*\{\s*animation:\s*turn/),
+    );
+  });
+
   it("shows a failure neither faded nor light", () => {
     const failed = /\.line\[data-failed\] \.detail\s*\{([^}]*)\}/.exec(
       status,
