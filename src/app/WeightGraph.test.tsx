@@ -400,9 +400,9 @@ describe("WeightGraph", () => {
         corners(piece),
       ]),
     ).toEqual([
-      ["#2E6B34", 3],
-      ["#9C3A1C", 2],
-      ["#7D6200", 2],
+      ["#047F21", 3],
+      ["#B61F02", 2],
+      ["#B78006", 2],
     ]);
   });
 
@@ -413,7 +413,7 @@ describe("WeightGraph", () => {
       ),
     );
 
-    expect(strokes).toEqual(new Set(["#2E6B34", "#7D6200", "#9C3A1C"]));
+    expect(strokes).toEqual(new Set(["#047F21", "#B78006", "#B61F02"]));
   });
 
   it("draws only the points, and no trend line, where there is no trend", async () => {

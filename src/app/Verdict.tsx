@@ -96,13 +96,17 @@ export const TRAFFIC_LIGHT_COLOURS: Record<TrafficLight, SurfaceColours> = {
 };
 
 /**
- * The colour of a stretch of the trend line under its Ampel, standing off
- * each surface, of an Ampel or {@link NEUTRAL}, by at least 3:1.
+ * The colour of a stretch of the trend line under its Ampel. The three can be
+ * told apart at a glance, by at least ΔE 15 in OKLab, which takes
+ * more lightness and colour than 3:1 against every surface allows: they stand
+ * off each surface, of an Ampel or {@link NEUTRAL}, by at least 2:1. A stretch
+ * takes its own day's Ampel and the surface today's, so the closest is the
+ * yellow line on the red surface, at 2.2:1.
  */
 export const TRAFFIC_LIGHT_LINE_COLOURS: Record<TrafficLight, string> = {
-  green: "#2E6B34",
-  yellow: "#7D6200",
-  red: "#9C3A1C",
+  green: "#047F21",
+  yellow: "#B78006",
+  red: "#B61F02",
 };
 
 /**

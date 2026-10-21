@@ -549,12 +549,49 @@ describe("the colours of the trend line (AC-6)", () => {
       surfaces.map((surface) => [light, line, surface]),
     ),
   )(
-    "stands off every surface by at least 3:1: %s %s on %s",
+    "stands off every surface by at least 2:1: %s %s on %s",
     (_, line, surface) => {
-      expect(contrast(line, surface)).toBeGreaterThanOrEqual(3);
+      expect(contrast(line, surface)).toBeGreaterThanOrEqual(2);
     },
   );
+
+  it.each([
+    ["green", "yellow"],
+    ["yellow", "red"],
+    ["green", "red"],
+  ] as const)("tells %s from %s by at least ΔE 15", (one, other) => {
+    expect(
+      differenceOf(
+        TRAFFIC_LIGHT_LINE_COLOURS[one],
+        TRAFFIC_LIGHT_LINE_COLOURS[other],
+      ),
+    ).toBeGreaterThanOrEqual(15);
+  });
 });
+
+/**
+ * How far apart two colours `#RRGGBB` look: their distance in OKLab, times
+ * 100. Below 15 even full colour vision tells them apart only with effort.
+ */
+function differenceOf(one: string, other: string): number {
+  const [a, b] = [oklab(one), oklab(other)];
+  return 100 * Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+/** The OKLab coordinates of a colour `#RRGGBB`. */
+function oklab(colour: string): [number, number, number] {
+  const [r, g, b] = linearChannels(colour);
+  const [l, m, s] = [
+    0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+    0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+    0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b,
+  ].map(Math.cbrt);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
 
 /** The WCAG contrast ratio of two colours `#RRGGBB`. */
 function contrast(one: string, other: string): number {
@@ -566,11 +603,16 @@ function contrast(one: string, other: string): number {
 
 /** The WCAG relative luminance of a colour `#RRGGBB`. */
 function luminance(colour: string): number {
-  const [r, g, b] = [1, 3, 5].map((i) => {
+  const [r, g, b] = linearChannels(colour);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** The linear red, green and blue of a colour `#RRGGBB`, each 0 to 1. */
+function linearChannels(colour: string): number[] {
+  return [1, 3, 5].map((i) => {
     const channel = Number.parseInt(colour.slice(i, i + 2), 16) / 255;
     return channel <= 0.04045
       ? channel / 12.92
       : ((channel + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
