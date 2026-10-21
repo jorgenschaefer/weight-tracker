@@ -8,6 +8,8 @@ export type SnippetRun = {
   window: Record<string, unknown>;
   /** Each write to `localStorage`, in order: "set key", "remove key", "clear". */
   written: string[];
+  /** The value of each key last set with `localStorage.setItem`. */
+  stored: Record<string, string>;
 };
 
 /**
@@ -21,9 +23,13 @@ export function runSnippet(
 ): SnippetRun {
   const { hostname, host, port } = new URL(url);
   const written: string[] = [];
+  const stored: Record<string, string> = {};
   const methods: Record<string, unknown> = {
     getItem: () => null,
-    setItem: (key: string) => written.push(`set ${key}`),
+    setItem: (key: string, value: string) => {
+      written.push(`set ${key}`);
+      stored[key] = value;
+    },
     removeItem: (key: string) => written.push(`remove ${key}`),
     clear: () => written.push("clear"),
   };
@@ -51,5 +57,5 @@ export function runSnippet(
   } catch (error) {
     thrown = error;
   }
-  return { thrown, window, written };
+  return { thrown, window, written, stored };
 }

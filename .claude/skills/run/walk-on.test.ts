@@ -35,4 +35,48 @@ describe("walk-on.js", () => {
     expect(window.walkOn).toBeTypeOf("function");
     expect(written).toEqual([]);
   });
+
+  it.each([
+    ["2026-01-15", "2026-01-15T06:00:00.000Z"],
+    ["2026-07-15", "2026-07-15T05:00:00.000Z"],
+    ["2026-03-29", "2026-03-29T05:00:00.000Z"],
+    ["2026-10-25", "2026-10-25T06:00:00.000Z"],
+  ])(
+    "stores the measurement of %s at 7:00 in Berlin, %s",
+    async (day, time) => {
+      const { window, stored } = runSnippet(
+        code,
+        "http://walk.localhost:3000/",
+        { document: documentThatOpensNoFrame() },
+      );
+      const walkOn = window.walkOn as (
+        day: string,
+        opts: object,
+      ) => Promise<unknown>;
+
+      await expect(walkOn(day, { only: [{ day, kg: 90 }] })).rejects.toThrow(
+        NO_FRAME,
+      );
+
+      const cache = JSON.parse(stored["gewicht:v1"]);
+      expect(cache.measurements).toEqual([{ time, kg: 90 }]);
+    },
+  );
 });
+
+const NO_FRAME = "no frame in this test";
+
+/**
+ * A `document` whose frame never reaches the page, so `walkOn` stops once it
+ * has stored the cache.
+ */
+function documentThatOpensNoFrame() {
+  return {
+    createElement: () => ({ style: {} }),
+    body: {
+      appendChild: () => {
+        throw new Error(NO_FRAME);
+      },
+    },
+  };
+}

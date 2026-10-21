@@ -30,7 +30,7 @@ window.walkOn = async (day, opts = {}) => {
       (r) => r.day <= day,
     );
   const measurements = rows.map((r) => ({
-    time: new Date(`${r.day}T07:00:00+02:00`).toISOString(),
+    time: berlinMorning(r.day).toISOString(),
     kg: r.kg,
   }));
   const now = new Date(`${day}T${time}`).getTime();
@@ -78,3 +78,17 @@ window.walkOn = async (day, opts = {}) => {
   else frame.remove();
   return result;
 };
+
+// 7:00 in Berlin on `day`, in winter time (+01:00) or summer time (+02:00).
+function berlinMorning(day) {
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Berlin",
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  for (const offset of ["+01:00", "+02:00"]) {
+    const morning = new Date(`${day}T07:00:00${offset}`);
+    if (hour.format(morning) === "07") return morning;
+  }
+  throw new Error(`7:00 does not fall on ${day} in Berlin`);
+}
