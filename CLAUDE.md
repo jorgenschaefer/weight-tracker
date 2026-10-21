@@ -58,4 +58,9 @@ serves it at https://gewicht.jorgenschaefer.de.
   its messages names the file and the fix.
 - TDD: every change of behaviour is pinned by a test that fails first.
 
+## Accepting a change
+
+The „+“ button may lie on the graph's newest days on a short screen; that
+is accepted, do not file it.
+
 @AGENTS.md
