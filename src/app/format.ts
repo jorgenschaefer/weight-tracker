@@ -40,6 +40,18 @@ export function formatCalendarDay(day: CalendarDay): string {
   return formatDay(new Date(`${day}T12:00:00Z`));
 }
 
+/**
+ * A calendar day as seen from `today`: without the year in the year of
+ * `today`, `5.8.`, otherwise with a two-digit year, `30.12.25`.
+ */
+export function formatCalendarDaySeenFrom(
+  day: CalendarDay,
+  today: CalendarDay,
+): string {
+  if (day.slice(0, 4) === today.slice(0, 4)) return formatCalendarDay(day);
+  return formatDayWithYear(day);
+}
+
 /** The month of a calendar day, short: `Jan`, `Mär`, `Sep`. */
 export function formatMonth(day: CalendarDay): string {
   // Noon UTC falls on the same day in Berlin, in summer and in winter.

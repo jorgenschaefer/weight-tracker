@@ -3,6 +3,7 @@ import type { CalendarDay } from "@/measurement/calendar-day";
 import type { Span } from "@/trend/graph-window/graph-window";
 import {
   formatCalendarDay,
+  formatCalendarDaySeenFrom,
   formatDay,
   formatKg,
   formatMonth,
@@ -90,6 +91,36 @@ describe("formatCalendarDay", () => {
     // Safe: valid `YYYY-MM-DD`s.
     expect(formatCalendarDay(day as CalendarDay)).toBe(text);
   });
+});
+
+describe("formatCalendarDaySeenFrom", () => {
+  it.each([
+    ["2026-08-05", "2026-10-21", "5.8."],
+    ["2026-01-01", "2026-12-31", "1.1."],
+    ["2026-12-31", "2026-12-31", "31.12."],
+  ])(
+    "writes %s seen from %s as %s, without the year of today",
+    (day, today, text) => {
+      // Safe: valid `YYYY-MM-DD`s.
+      expect(
+        formatCalendarDaySeenFrom(day as CalendarDay, today as CalendarDay),
+      ).toBe(text);
+    },
+  );
+
+  it.each([
+    ["2025-12-31", "2026-01-01", "31.12.25"],
+    ["2024-08-05", "2026-10-21", "5.8.24"],
+    ["2009-03-01", "2026-10-21", "1.3.09"],
+  ])(
+    "writes %s seen from %s as %s, with the year of another",
+    (day, today, text) => {
+      // Safe: valid `YYYY-MM-DD`s.
+      expect(
+        formatCalendarDaySeenFrom(day as CalendarDay, today as CalendarDay),
+      ).toBe(text);
+    },
+  );
 });
 
 describe("formatMonth", () => {

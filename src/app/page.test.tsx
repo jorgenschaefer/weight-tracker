@@ -1266,6 +1266,22 @@ describe("an earlier day", () => {
       expect(announced).toHaveAttribute("aria-live", "polite");
     });
 
+    it("names the year of a day in a year before today's, in the band, in what a screen reader is told and in „Letzte Messung“", async () => {
+      const user = openOn("2026-01-02", steady("2026-01-02", 10, 0));
+
+      (await graph()).focus();
+      await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+
+      expect(band()).toHaveTextContent(/^Stand 30\.12\.25$/);
+      const announced = screen
+        .getAllByRole("status")
+        .find((status) => status.textContent?.startsWith("Stand"));
+      expect(announced).toHaveTextContent(/^Stand 30\.12\.25$/);
+      expect(screen.getByText(/^Letzte Messung /)).toHaveTextContent(
+        /^Letzte Messung 30\.12\.25 um /,
+      );
+    });
+
     it("keeps drawing the six weeks up to today with all their measurements", async () => {
       const user = openHistoryOn("2026-10-20");
       const before = [...(await graph()).querySelectorAll("circle")].map(

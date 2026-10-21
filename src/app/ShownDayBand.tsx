@@ -1,21 +1,24 @@
 import { UnstyledButton, VisuallyHidden } from "@mantine/core";
 import type { CalendarDay } from "@/measurement/calendar-day";
-import { formatCalendarDay } from "./format";
+import { formatCalendarDaySeenFrom } from "./format";
 import classes from "./ShownDayBand.module.css";
 import type { SurfaceColours } from "./Verdict";
 
 /**
  * The band in place of the status line and ⟳ while the page of an earlier
- * day, `shownDay`, is shown: „Stand <day>“ in the surface's text colour, and
+ * day, `shownDay`, is shown: „Stand <day>“, with the year where it is not the
+ * year of `today`, in the surface's text colour, and
  * „Zurück zu heute“, which calls `onBackToToday`, telling it whether it
  * was pressed with the keyboard rather than tapped or clicked.
  */
 export function ShownDayBand({
   shownDay,
+  today,
   colours,
   onBackToToday,
 }: {
   shownDay: CalendarDay;
+  today: CalendarDay;
   colours: SurfaceColours;
   onBackToToday: (byKeyboard: boolean) => void;
 }) {
@@ -24,7 +27,7 @@ export function ShownDayBand({
       className={classes.band}
       style={{ backgroundColor: colours.ink, color: colours.surface }}
     >
-      <span className={classes.day}>{shownDayLabel(shownDay)}</span>
+      <span className={classes.day}>{shownDayLabel(shownDay, today)}</span>
       <UnstyledButton
         className={classes.back}
         style={{
@@ -48,16 +51,18 @@ export function ShownDayBand({
  */
 export function ShownDayAnnouncement({
   shownDay,
+  today,
 }: {
   shownDay: CalendarDay | null;
+  today: CalendarDay;
 }) {
   return (
     <VisuallyHidden role="status" aria-live="polite">
-      {shownDay === null ? "" : shownDayLabel(shownDay)}
+      {shownDay === null ? "" : shownDayLabel(shownDay, today)}
     </VisuallyHidden>
   );
 }
 
-function shownDayLabel(day: CalendarDay): string {
-  return `Stand ${formatCalendarDay(day)}`;
+function shownDayLabel(day: CalendarDay, today: CalendarDay): string {
+  return `Stand ${formatCalendarDaySeenFrom(day, today)}`;
 }

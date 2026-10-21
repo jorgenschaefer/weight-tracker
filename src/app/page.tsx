@@ -32,7 +32,12 @@ import {
 } from "@/verdict/assessment";
 import { type EnterWeight, EntrySheet } from "./EntrySheet";
 import { failureReason } from "./failure-reason";
-import { formatDay, formatKg, formatRange, formatTime } from "./format";
+import {
+  formatCalendarDaySeenFrom,
+  formatKg,
+  formatRange,
+  formatTime,
+} from "./format";
 import { GoogleStatus } from "./GoogleStatus";
 import classes from "./page.module.css";
 import { ShownDayAnnouncement, ShownDayBand } from "./ShownDayBand";
@@ -279,11 +284,12 @@ function Surface({
         ) : (
           <ShownDayBand
             shownDay={shown.day}
+            today={today}
             colours={colours}
             onBackToToday={shown.backToToday}
           />
         )}
-        <ShownDayAnnouncement shownDay={shown?.day ?? null} />
+        <ShownDayAnnouncement shownDay={shown?.day ?? null} today={today} />
         {children}
       </div>
       <EntrySheet
@@ -358,6 +364,7 @@ function CachedMeasurements({
         <div>
           <LatestMeasurement
             latest={latest}
+            today={today}
             enteredMeasurements={measurements.enteredMeasurements}
           />
           <RevokeFailure error={measurements.revokeFailure} />
@@ -401,14 +408,17 @@ function CachedMeasurements({
 }
 
 /**
- * „Letzte Messung“: the newest measurement, counting or not, and whether it
- * is one entered that no fetch has held yet.
+ * „Letzte Messung“: the newest measurement, counting or not, its day with the
+ * year where that is not the year of `today`, and whether it is one entered
+ * that no fetch has held yet.
  */
 function LatestMeasurement({
   latest,
+  today,
   enteredMeasurements,
 }: {
   latest: Measurement | null;
+  today: CalendarDay;
   enteredMeasurements: Measurement[];
 }) {
   if (latest === null) {
@@ -423,7 +433,7 @@ function LatestMeasurement({
     : "";
   return (
     <Text className={classes.latest}>
-      {`Letzte Messung ${formatDay(latest.time)} um ${formatTime(latest.time)} Uhr: ${formatKg(latest.kg)} kg${notYetFetched}`}
+      {`Letzte Messung ${formatCalendarDaySeenFrom(berlinDay(latest.time), today)} um ${formatTime(latest.time)} Uhr: ${formatKg(latest.kg)} kg${notYetFetched}`}
     </Text>
   );
 }
