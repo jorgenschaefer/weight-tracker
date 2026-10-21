@@ -1,0 +1,150 @@
+<title>Ältere Messungen laden</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: four phone frames of the real page side by side, wrapping; each
+     shows „1 Jahr“ while the history before the 90 days still loads. */
+  :root {
+    --page: #eef0f2;
+    --page-ink: #20262c;
+    --green: #d3ead0;
+    --green-ink: #163d1b;
+    --green-line: #047f21;
+    --veil: rgb(255 255 255 / 35%);
+    --font: "Archivo", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  body {
+    background: var(--page);
+    color: var(--page-ink);
+    font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px 48px;
+  }
+  header { max-width: 72ch; }
+  h1 { font-size: 22px; margin: 0 0 8px; text-wrap: balance; }
+  header p { font-size: 15px; line-height: 1.45; margin: 0 0 6px; }
+  .frames {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    margin-top: 24px;
+  }
+  figure { margin: 0; width: 340px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  figcaption { font-size: 14px; line-height: 1.4; min-height: 5.6em; }
+  figcaption b { display: block; font-size: 16px; margin-bottom: 2px; }
+  figcaption span { font-variant-numeric: tabular-nums; opacity: 0.8; }
+  .phone {
+    background: var(--green);
+    color: var(--green-ink);
+    border-radius: 22px;
+    padding: 12px 16px 20px;
+    box-shadow: 0 1px 0 rgb(0 0 0 / 6%), 0 8px 24px rgb(32 38 44 / 12%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .status { display: flex; gap: 8px; }
+  .line {
+    flex: 1; min-width: 0; min-height: 48px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 12px; border-radius: 10px; background: var(--veil);
+    font-size: 14px; font-weight: 600;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; margin: 0 4px; }
+  .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 5px 0; }
+  .detail { font-size: 13px; font-weight: 500; opacity: 0.75; }
+  .refresh {
+    width: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; background: var(--veil);
+  }
+  .refresh[data-busy] svg { animation: turn 1s linear infinite; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .refresh[data-busy] svg { animation: none; } }
+  .latest { font-size: 14px; opacity: 0.85; }
+  .percent { font-size: 14px; font-weight: 600; }
+  .sentence { font-size: 26px; font-weight: 700; line-height: 1.15; margin-top: -6px; }
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .figures b { display: block; font-size: 17px; }
+  .toggle { display: flex; background: var(--veil); border-radius: 10px; padding: 3px; font-size: 13px; font-weight: 600; }
+  .toggle span { flex: 1; text-align: center; padding: 7px 0; border-radius: 8px; }
+  .toggle .on { background: var(--green-ink); color: var(--green); }
+  .window { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; }
+  svg.graph { width: 100%; height: auto; display: block; }
+  .graph text { font-family: var(--font); fill: var(--green-ink); }
+</style>
+
+<header>
+  <h1>Während die älteren Messungen laden</h1>
+  <p>Die letzten 90 Tage sind da, die Seite zeigt Urteil und Graph. Die Messungen davor lädt sie noch. Das Bild zeigt „1 Jahr“ in diesem Moment. Vereinbart: die Statuszeile sagt es.</p>
+</header>
+
+<div class="frames" id="frames"></div>
+
+<script>
+  const variants = [
+    { key: "A", title: "Die Statuszeile sagt es", note: "⟳ dreht sich, bis alles da ist.", detail: "ruft ältere Messungen ab …", busy: true, graphNote: false },
+  ];
+
+  // The year 2026: 1.1. at x=30, 31.12. at x=330. Measurements from 22.7. to 20.10.
+  const W = 340, H = 190, x0 = 30, x1 = 330, yTop = 12, yBottom = 160;
+  const dayX = (d) => x0 + (d / 365) * (x1 - x0);
+  const kgY = (kg) => yTop + ((101 - kg) / (101 - 96)) * (yBottom - yTop);
+  const start = 202, today = 292;
+  let points = [], trend = [];
+  for (let d = start; d <= today; d++) {
+    const t = 100.2 - ((d - start) / (today - start)) * 2.8;
+    const noise = Math.sin(d * 1.7) * 0.35 + Math.cos(d * 0.9) * 0.2;
+    points.push([dayX(d), kgY(t + noise)]);
+    trend.push([dayX(d), kgY(t)]);
+  }
+  const months = ["J","F","M","A","M","J","J","A","S","O","N","D"];
+  const monthStarts = [0,31,59,90,120,151,181,212,243,273,304,334];
+
+  function graph(note) {
+    let s = `<svg class="graph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Graph 2026">`;
+    for (const kg of [97, 99, 101]) {
+      s += `<line x1="${x0}" x2="${x1}" y1="${kgY(kg)}" y2="${kgY(kg)}" stroke="currentColor" stroke-opacity="0.12"/>`;
+      s += `<text x="${x0 - 4}" y="${kgY(kg) + 4}" font-size="10" text-anchor="end">${kg}</text>`;
+    }
+    monthStarts.forEach((d, i) => {
+      s += `<text x="${dayX(d + 15)}" y="${yBottom + 18}" font-size="10" text-anchor="middle" opacity="0.7">${months[i]}</text>`;
+    });
+    s += `<line x1="${dayX(today)}" x2="${dayX(today)}" y1="${yTop}" y2="${yBottom}" stroke="currentColor" stroke-dasharray="3 3" stroke-opacity="0.5"/>`;
+    s += `<polyline points="${trend.map(p => p.join(",")).join(" ")}" fill="none" stroke="var(--green-line)" stroke-width="2.5"/>`;
+    for (const [x, y] of points) s += `<circle cx="${x}" cy="${y}" r="1.6" fill="var(--green-ink)" fill-opacity="0.55"/>`;
+    if (note) {
+      const left = x0 + 6, right = dayX(start) - 8;
+      s += `<rect x="${left}" y="${yTop + 34}" width="${right - left}" height="62" rx="8" fill="#ffffff" fill-opacity="0.35"/>`;
+      s += `<text x="${(left + right) / 2}" y="${yTop + 60}" font-size="12" font-weight="600" text-anchor="middle">Ältere Messungen</text>`;
+      s += `<text x="${(left + right) / 2}" y="${yTop + 77}" font-size="12" text-anchor="middle">werden abgerufen …</text>`;
+    }
+    return s + `</svg>`;
+  }
+
+  const refresh = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>`;
+
+  document.getElementById("frames").innerHTML = variants.map(v => `
+    <figure>
+      <figcaption><b>${v.title}</b><span>${v.note}</span></figcaption>
+      <div class="phone">
+        <div class="status">
+          <div class="line"><span class="dot"></span><span class="text"><span>Google Health</span><span class="detail">${v.detail}</span></span></div>
+          <div class="refresh" ${v.busy ? "data-busy" : ""}>${refresh}</div>
+        </div>
+        <div class="latest">Letzte Messung heute 7:02 Uhr: 97,1 kg</div>
+        <div class="percent">90 % sicher, dass du abnimmst</div>
+        <div class="sentence">Du nimmst seit 2 Tagen ab.</div>
+        <div class="figures">
+          <div>Gewicht, geschätzt<b>97,42 kg</b></div>
+          <div>Gemessen<b>97,10 kg</b></div>
+          <div>Tempo<b>−0,47 ± 0,29 kg/Wo</b></div>
+          <div>Defizit<b>520 ± 320 kcal</b></div>
+        </div>
+        <div class="toggle"><span>6 Wochen</span><span>3 Monate</span><span class="on">1 Jahr</span></div>
+        <div class="window"><span>‹</span><span>Bis heute</span><span style="opacity:.3">›</span></div>
+        ${graph(v.graphNote)}
+      </div>
+    </figure>`).join("");
+</script>
