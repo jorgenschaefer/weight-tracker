@@ -27,15 +27,20 @@ export function calendarDayAfter(day: CalendarDay, days: number): CalendarDay {
   return calendarDayBefore(day, -days);
 }
 
-/** The year of `day` and its month, January 0. */
+/**
+ * The year of `day` and its month, counted from January 0 like `Date.UTC`,
+ * not from 01 like the `MM` of a `CalendarDay`: `2026-10-17` is `[2026, 9]`.
+ */
 export function yearAndMonth(day: CalendarDay): [number, number] {
   return [Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1];
 }
 
 /**
- * Day `date` of `month` (January 0) in `year`; a month or date past either
- * end counts on into the next or back into the one before, so date 0 is the
- * last day of the month before.
+ * Day `date` of `month` in `year`, the month counted from January 0 like
+ * `Date.UTC` and {@link yearAndMonth}, not from 01 like the `MM` of a
+ * `CalendarDay`: `dayOfMonth(2026, 9, 17)` is `2026-10-17`. A month or date
+ * past either end counts on into the next or back into the one before, so
+ * date 0 is the last day of the month before.
  */
 export function dayOfMonth(
   year: number,
