@@ -17,6 +17,7 @@ import {
   enterWeight,
   FIRST_VISIT,
   failure,
+  fetchesAsked,
   google,
   holdFetch,
   isNotShown,
@@ -64,7 +65,7 @@ describe("an entered weight", () => {
     googleLags();
     const user = renderPage();
     await enterWeight(user);
-    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchesAsked()).toBe(1));
     await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
 
     google.measurements = [at(new Date(NOW.getTime() + 30_000), 98.64)];

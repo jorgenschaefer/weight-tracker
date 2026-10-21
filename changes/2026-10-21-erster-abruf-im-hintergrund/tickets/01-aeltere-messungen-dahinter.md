@@ -3,7 +3,7 @@ criteria:  CRITERIA.md
 closes:    AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11
 advances:
 after:
-status:    ready
+status:    done
 attempts:  0
 ---
 
@@ -67,3 +67,8 @@ The test doubles today answer every fetch alike - `src/test/open-page.tsx` filte
 - An upper bound in the second part's `filter`, and filling the graph page by page as Google's pages arrive: both were ruled out with the user.
 
 ## Left standing
+- Fixed after the last review, unseen by a reviewer (nits of the second round): the first part of a fetch is `"first"` in `Measurements.fetching`, not `"recent"`; the test helper counting fetches is `fetchesAsked` in `src/test/open-page.tsx`, with a doc saying what it counts; `HISTORY_START` is exported from `src/measurement/cache.ts` for the test double; the new paragraph of the run skill is rewrapped.
+- AC-11: the test reads only the stylesheet (jsdom lays nothing out); the first review saw it in the page at 360 px, where „ruft ältere Messungen ab …“ fits on one line and nothing is cut off.
+- Names not from the glossary: `olderPeriodToFetch` and the values `"first" | "older"` of `Measurements.fetching` („ältere Messungen“ comes from the criteria); the glossary entry „Abrufzeitraum“ names `olderPeriodToFetch`.
+- Both parts of a fetch end where it started, as `fetchedAt` dates it, so an entered weight is judged against the fetch's start, not against the start of its second part.
+- The stand-in now answers a fetch with the measurements since the beginning of its `filter`, as Google does, not with all of them.

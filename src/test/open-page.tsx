@@ -3,7 +3,12 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 import Page from "@/app/page";
-import { CACHE_KEY, parseCache, serializeCache } from "@/measurement/cache";
+import {
+  CACHE_KEY,
+  HISTORY_START,
+  parseCache,
+  serializeCache,
+} from "@/measurement/cache";
 import {
   type CalendarDay,
   calendarDayBefore,
@@ -61,7 +66,13 @@ export function standInForGoogle(now: Date) {
       value: { token, expiresInSeconds: TOKEN_LIFETIME_S, writeGranted: true },
     };
   });
+  olderFetchesHeld.length = 0;
   vi.mocked(fetchMeasurements).mockImplementation(async (token, from) => {
+    const held =
+      from.getTime() === HISTORY_START.getTime()
+        ? olderFetchesHeld.shift()
+        : undefined;
+    if (held !== undefined) return held;
     if (!google.grants.includes(token))
       return failure({ kind: "tokenRejected" });
     return {
@@ -298,6 +309,31 @@ export function holdFetch() {
   vi.mocked(fetchMeasurements).mockReturnValueOnce(answer.promise);
   return answer;
 }
+
+/**
+ * Holds the next fetch of the older measurements, the one that asks for
+ * everything since 1.1.2000, until the test answers it; the fetch of the last
+ * 90 days before it is answered as before.
+ */
+export function holdOlderFetch() {
+  const answer = deferred<GoogleHealthResult<Measurement[]>>();
+  olderFetchesHeld.push(answer.promise);
+  return answer;
+}
+
+/** The answers {@link holdOlderFetch} holds, in the order they were held. */
+const olderFetchesHeld: Promise<GoogleHealthResult<Measurement[]>>[] = [];
+
+/**
+ * How many fetches have asked Google for measurements: each asks once for
+ * its first part, and again for the older measurements where it fetches
+ * them. A fetch whose sign-in fails asks nothing.
+ */
+export const fetchesAsked = () =>
+  vi
+    .mocked(fetchMeasurements)
+    .mock.calls.filter(([, from]) => from.getTime() !== HISTORY_START.getTime())
+    .length;
 
 /** The time the tests of fetching run at. */
 export const NOW = new Date("2026-10-17T08:00:00.000Z");

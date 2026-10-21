@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CACHE_KEY,
+  olderPeriodToFetch,
   parseCache,
   periodToFetch,
   replaceFetchedPeriod,
@@ -150,16 +151,25 @@ const fetchedDaysAgo = (days: number, fullHistory = true) => ({
 });
 
 describe("periodToFetch", () => {
-  it("fetches everything since 1.1.2000 without a valid cache", () => {
-    expect(periodToFetch(null, now)).toEqual({ from: HISTORY_START, to: now });
-  });
-
-  it("fetches everything since 1.1.2000 after a fetch of less than the whole history", () => {
-    expect(periodToFetch(fetchedDaysAgo(1 / 24, false), now)).toEqual({
-      from: HISTORY_START,
+  it("fetches the last 90 days first without a valid cache", () => {
+    expect(periodToFetch(null, now)).toEqual({
+      from: daysBeforeNow(90),
       to: now,
     });
   });
+
+  it.each([
+    ["an hour ago", 1 / 24],
+    ["three years ago", 3 * 365],
+  ])(
+    "fetches the last 90 days first after a fetch of less than the whole history %s",
+    (_, fetchedAgo) => {
+      expect(periodToFetch(fetchedDaysAgo(fetchedAgo, false), now)).toEqual({
+        from: daysBeforeNow(90),
+        to: now,
+      });
+    },
+  );
 
   it.each([
     ["the last 14 days after a fetch an hour ago", 1 / 24, 14],
@@ -174,6 +184,24 @@ describe("periodToFetch", () => {
       from: daysBeforeNow(days),
       to: now,
     });
+  });
+});
+
+describe("olderPeriodToFetch", () => {
+  it.each([
+    ["an hour ago", 1 / 24],
+    ["three years ago", 3 * 365],
+  ])(
+    "fetches everything since 1.1.2000 after a fetch of less than the whole history %s",
+    (_, fetchedAgo) => {
+      expect(
+        olderPeriodToFetch(fetchedDaysAgo(fetchedAgo, false), now),
+      ).toEqual({ from: HISTORY_START, to: now });
+    },
+  );
+
+  it("fetches nothing more where the cache holds the whole history", () => {
+    expect(olderPeriodToFetch(fetchedDaysAgo(1 / 24), now)).toBeNull();
   });
 });
 

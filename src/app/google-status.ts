@@ -35,7 +35,8 @@ export interface StatusLine {
  * it; otherwise the mark says whether the page is signed in.
  */
 export function statusLine(state: GoogleState, today: CalendarDay): StatusLine {
-  const busy = state.signingIn || state.savingKg !== null || state.fetching;
+  const busy =
+    state.signingIn || state.savingKg !== null || state.fetching !== null;
   return { ...markAndDetail(state, today), busy };
 }
 
@@ -64,7 +65,10 @@ function markAndDetail(
   if (state.savingKg !== null) {
     return { mark, detail: `speichert ${formatKg(state.savingKg)} kg …` };
   }
-  if (state.fetching) return { mark, detail: "ruft ab …" };
+  if (state.fetching === "first") return { mark, detail: "ruft ab …" };
+  if (state.fetching === "older") {
+    return { mark, detail: "ruft ältere Messungen ab …" };
+  }
   if (state.fetchFailure !== null) {
     return {
       mark: "failed",

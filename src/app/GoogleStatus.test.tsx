@@ -19,9 +19,11 @@ import {
   enterWeight,
   FIRST_VISIT,
   failure,
+  fetchesAsked,
   google,
   HINT,
   holdFetch,
+  holdOlderFetch,
   holdSignIn,
   isNotShown,
   isShown,
@@ -142,6 +144,22 @@ describe("the status line", () => {
     await detailIs("ruft ab …");
     expect(await refreshButton()).toBeDisabled();
     expect(await refreshButton()).toHaveAttribute("data-busy");
+    answer.resolve({ ok: true, value: [] });
+    await detailIs("abgerufen 10:00 Uhr");
+    expect(await refreshButton()).toBeEnabled();
+    expect(await refreshButton()).not.toHaveAttribute("data-busy");
+  });
+
+  it("says „ruft ältere Messungen ab …“ while the older measurements are fetched, and ⟳ turns and takes no tap until it ends (AC-3)", async () => {
+    const answer = holdOlderFetch();
+    const user = await openAndClick(signInButton);
+
+    await detailIs("ruft ältere Messungen ab …");
+    const refresh = await refreshButton();
+    expect(refresh).toBeDisabled();
+    expect(refresh).toHaveAttribute("data-busy");
+    await user.click(refresh);
+    expect(fetchesAsked()).toBe(1);
     answer.resolve({ ok: true, value: [] });
     await detailIs("abgerufen 10:00 Uhr");
     expect(await refreshButton()).toBeEnabled();
@@ -291,7 +309,7 @@ describe("a tap", () => {
     await user.click(await refreshButton());
 
     await detailIs("ruft ab …");
-    expect(fetchMeasurements).toHaveBeenCalledTimes(2);
+    expect(fetchesAsked()).toBe(2);
     expect(google.tokensIssued).toBe(1);
   });
 
@@ -311,7 +329,7 @@ describe("a tap", () => {
     await user.click(await statusLine());
 
     await waitFor(() => expect(statusSheet()).toBeInTheDocument());
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
     expect(google.tokensIssued).toBe(1);
   });
 
@@ -410,7 +428,7 @@ describe("the sheet of the status line", () => {
     await user.click(await statusLine());
 
     await waitFor(() => expect(statusSheet()).toBeInTheDocument());
-    expect(fetchMeasurements).toHaveBeenCalledTimes(2);
+    expect(fetchesAsked()).toBe(2);
   });
 
   it.each<[string, (user: UserEvent) => Promise<void>]>([
@@ -572,6 +590,20 @@ describe("the layout", () => {
 
   it("keeps the status line and ⟳ as wide as the content on the wide screen", () => {
     expect(/\.status\s*\{/.test(wide(status) ?? "")).toBe(false);
+  });
+
+  // „ruft ältere Messungen ab …“ is the longest second line while something
+  // runs; where it does not fit, it takes another line rather than a cut.
+  it("lets the second line wrap between words, and cuts nothing off (AC-11)", () => {
+    for (const rule of [".line", ".text", ".detail"]) {
+      const declarations = new RegExp(`\\${rule}\\s*\\{([^}]*)\\}`).exec(
+        status,
+      )?.[1];
+      expect(declarations).toBeDefined();
+      expect(declarations).not.toMatch(
+        /white-space|overflow|text-overflow|word-break|line-clamp|(^|[^-])height:/,
+      );
+    }
   });
 
   it("shows a failure neither faded nor light", () => {

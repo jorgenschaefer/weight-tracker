@@ -66,7 +66,11 @@ the page once it has loaded (javascript tool). It puts a Google in memory in
 place of the real one until the next reload; `window.standIn` holds its
 measurements and how it answers - grants reading and writing, only reading,
 declines, hangs, answers 403 - and every request the page sent. Its header
-lists the settings. Never drive „Eintragen“ on the deployed page at
+lists the settings. To see the page while the older measurements are
+fetched, behind the last 90 days of a first fetch, set `olderDelayMs` long
+before signing in - but under 20000: the page gives up on an answer that
+takes 20 s and says „Abruf fehlgeschlagen: Google antwortet nicht.“ Never
+drive „Eintragen“ on the deployed page at
 https://gewicht.jorgenschaefer.de: it enters into the person's real weights.
 
 Under `next dev`, Next.js's round badge at the bottom left lies over

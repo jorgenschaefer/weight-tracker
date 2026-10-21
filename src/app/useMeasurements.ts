@@ -3,7 +3,9 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   CACHE_KEY,
+  type FetchPeriod,
   type MeasurementCache,
+  olderPeriodToFetch,
   parseCache,
   periodToFetch,
   replaceFetchedPeriod,
@@ -40,7 +42,11 @@ export interface Measurements {
   signingIn: boolean;
   /** The weight being entered while Google has not taken it; `null` if none. */
   savingKg: number | null;
-  fetching: boolean;
+  /**
+   * Which part of a fetch runs: the first, or the older measurements behind
+   * it (`olderPeriodToFetch`); `null` where none runs.
+   */
+  fetching: "first" | "older" | null;
   /**
    * Until when the sign-in this visit holds lasts and whether it may enter
    * measurements; `null` where it holds none, and a fetch signs in.
@@ -81,7 +87,7 @@ export function useMeasurements(): Measurements | null {
   const [token, setToken] = useState<HeldToken | null>(null);
   const [signInsOpen, setSignInsOpen] = useState(0);
   const [savingKg, setSavingKg] = useState<number | null>(null);
-  const [fetching, setFetching] = useState(false);
+  const [fetching, setFetching] = useState<Measurements["fetching"]>(null);
   const [fetchFailure, setFetchFailure] = useState<GoogleHealthError | null>(
     null,
   );
@@ -143,7 +149,7 @@ export function useMeasurements(): Measurements | null {
     const thisFetch = ++fetchesStarted.current;
     const isCurrent = () =>
       logOuts.current === started && fetchesStarted.current === thisFetch;
-    setFetching(true);
+    setFetching("first");
     setFetchFailure(null);
 
     // signIn runs before the first await, so the popup still counts as
@@ -152,26 +158,64 @@ export function useMeasurements(): Measurements | null {
       heldToken === null ? await signInWithPopup() : signedInWith(heldToken);
     if (!isCurrent()) return;
     if (!access.ok) {
-      setFetching(false);
+      setFetching(null);
       setFetchFailure(access.error);
       return;
     }
     if (heldToken === null) saveToken(access.value);
     setToken(access.value);
+    await fetchParts(cached, access.value, isCurrent);
+  }
 
-    const period = periodToFetch(cached, new Date());
-    const fetched = await fetchMeasurements(access.value.token, period.from);
-    if (!isCurrent()) return;
-    setFetching(false);
+  /**
+   * Fetches into `cached` with `heldToken`: the first part, and the older
+   * measurements behind it where the cache does not hold them yet.
+   */
+  async function fetchParts(
+    cached: MeasurementCache | null,
+    heldToken: HeldToken,
+    isCurrent: () => boolean,
+  ) {
+    // Both parts end where the fetch started, as the cache dates it.
+    const startedAt = new Date();
+    const first = periodToFetch(cached, startedAt);
+    const withFirst = await fetchInto(cached, first, heldToken, isCurrent);
+    if (withFirst === null) return;
+    // The page shows the cache with the first part while the older
+    // measurements are fetched behind it.
+    const older = olderPeriodToFetch(withFirst, startedAt);
+    if (older !== null) {
+      setFetching("older");
+      const withOlder = await fetchInto(withFirst, older, heldToken, isCurrent);
+      if (withOlder === null) return;
+    }
+    setFetching(null);
+  }
+
+  /**
+   * Fetches `period` with `heldToken` into `cached`, and keeps and shows the
+   * cache it makes; `null` where the fetch failed, which ends it, or where
+   * it is no longer current and is dropped.
+   */
+  async function fetchInto(
+    cached: MeasurementCache | null,
+    period: FetchPeriod,
+    heldToken: HeldToken,
+    isCurrent: () => boolean,
+  ): Promise<MeasurementCache | null> {
+    const fetched = await fetchMeasurements(heldToken.token, period.from);
+    if (!isCurrent()) return null;
     if (!fetched.ok) {
-      if (fetched.error.kind === "tokenRejected") dropToken(access.value);
+      setFetching(null);
+      if (fetched.error.kind === "tokenRejected") dropToken(heldToken);
       setFetchFailure(fetched.error);
-      return;
+      return null;
     }
     const replaced = replaceFetchedPeriod(cached, period, fetched.value);
     saveCache(replaced);
     setCache(replaced);
     entered.dropAfterFetch(fetched.value, period.to);
+    return replaced;
   }
 
   async function enter(
@@ -260,7 +304,7 @@ export function useMeasurements(): Measurements | null {
       entered.clear();
       removeToken();
       setToken(null);
-      setFetching(false);
+      setFetching(null);
       setFetchFailure(null);
       setRevokeFailure(null);
       // An expired token cannot revoke; a new sign-in gets one that can.

@@ -23,6 +23,10 @@
 //                 "hang" (never answered) | a status such as 403 or 500
 //   read          "answer" | "hang" | a status such as 401 or 503
 //   delayMs       how long each answer from Google Health takes (800)
+//   olderDelayMs  how long each answer to the fetch of the older
+//                 measurements takes instead, the one that asks for
+//                 everything since 1.1.2000 (800); make it long, but under
+//                 the page's 20000, to see the page while they are fetched
 //   requests      every request to Google Health, in order
 if (location.hostname !== "walk.localhost") {
   throw new Error(
@@ -35,6 +39,7 @@ if (location.hostname !== "walk.localhost") {
   const WRITE =
     "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.writeonly";
   const API = "https://health.googleapis.com/v4/";
+  const OLDER_FROM = "2000-01-01T00:00:00.000Z";
   const state = {
     measurements: [],
     scopes: "both",
@@ -42,6 +47,7 @@ if (location.hostname !== "walk.localhost") {
     write: "accept",
     read: "answer",
     delayMs: 800,
+    olderDelayMs: 800,
     requests: [],
   };
   let issued = 0;
@@ -87,7 +93,13 @@ if (location.hostname !== "walk.localhost") {
       state.requests.push({ method, url: String(url), body: init.body });
       const answer = method === "POST" ? state.write : state.read;
       if (answer === "hang") return new Promise(() => {});
-      await new Promise((resolve) => setTimeout(resolve, state.delayMs));
+      // A fetch asks for the measurements since the time in its filter; an
+      // entry has none.
+      const from = /"([^"]+)"/.exec(
+        new URL(url).searchParams.get("filter") ?? "",
+      )?.[1];
+      const delayMs = from === OLDER_FROM ? state.olderDelayMs : state.delayMs;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
       const token = new Headers(init.headers).get("Authorization").slice(7);
       if (revoked.has(token)) return json({ error: {} }, 401);
       if (typeof answer === "number") return json({ error: {} }, answer);
@@ -102,12 +114,14 @@ if (location.hostname !== "walk.localhost") {
         return json({ name: "operations/stand-in", done: false });
       }
       return json({
-        dataPoints: state.measurements.map(({ time, kg }) => ({
-          weight: {
-            sampleTime: { physicalTime: time },
-            weightGrams: kg * 1000,
-          },
-        })),
+        dataPoints: state.measurements
+          .filter(({ time }) => new Date(time) >= new Date(from))
+          .map(({ time, kg }) => ({
+            weight: {
+              sampleTime: { physicalTime: time },
+              weightGrams: kg * 1000,
+            },
+          })),
       });
     };
   }

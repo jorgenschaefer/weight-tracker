@@ -26,22 +26,35 @@ export interface FetchPeriod {
 }
 
 /**
- * The period to fetch at `now`: everything since {@link HISTORY_START} until
- * a fetch has reached back that far; after that the last 14 days, or
- * everything since the last fetch where that lies further back.
+ * The period a fetch at `now` asks for first: the last 90 days until a fetch
+ * has reached back to {@link HISTORY_START}, so the page shows them before
+ * the older measurements arrive; after that the last 14 days, or everything
+ * since the last fetch where that lies further back.
  */
 export function periodToFetch(
   cache: MeasurementCache | null,
   now: Date,
 ): FetchPeriod {
   if (cache === null || !cache.fullHistory) {
-    return { from: HISTORY_START, to: now };
+    return { from: daysBefore(now, FIRST_FETCHED_DAYS), to: now };
   }
   const sinceLastFetch = Math.min(
     cache.fetchedAt.getTime(),
     daysBefore(now, REFETCHED_DAYS).getTime(),
   );
   return { from: new Date(sinceLastFetch), to: now };
+}
+
+/**
+ * The period a fetch at `now` asks for after the first, into `cache` as the
+ * first left it: everything since {@link HISTORY_START} where it does not
+ * hold the whole history, the older measurements; otherwise none.
+ */
+export function olderPeriodToFetch(
+  cache: MeasurementCache,
+  now: Date,
+): FetchPeriod | null {
+  return cache.fullHistory ? null : { from: HISTORY_START, to: now };
 }
 
 /**
@@ -100,8 +113,12 @@ export function parseCache(stored: string | null): MeasurementCache | null {
   return { fetchedAt, fullHistory, measurements };
 }
 
-/** How far back the first fetch reaches, before any weight Google Health has. */
-const HISTORY_START = new Date("2000-01-01T00:00:00.000Z");
+/**
+ * How far back the fetch of the older measurements reaches, before any
+ * weight Google Health has.
+ */
+export const HISTORY_START = new Date("2000-01-01T00:00:00.000Z");
+const FIRST_FETCHED_DAYS = 90;
 const REFETCHED_DAYS = 14;
 
 function isIn(period: FetchPeriod, measurement: Measurement): boolean {

@@ -16,7 +16,7 @@ const IDLE: GoogleState = {
   signedIn: false,
   signingIn: false,
   savingKg: null,
-  fetching: false,
+  fetching: null,
   fetchFailure: null,
   fetchedAt: null,
 };
@@ -77,7 +77,12 @@ describe("statusLine", () => {
   });
 
   it.each<[string, Partial<GoogleState>, string]>([
-    ["„ruft ab …“ while a fetch runs", { fetching: true }, "ruft ab …"],
+    ["„ruft ab …“ while a fetch runs", { fetching: "first" }, "ruft ab …"],
+    [
+      "„ruft ältere Messungen ab …“ while a fetch gets the older measurements",
+      { fetching: "older" },
+      "ruft ältere Messungen ab …",
+    ],
     [
       "„speichert <Gewicht> kg …“ while an entry waits on Google",
       { savingKg: 84.1 },
@@ -120,7 +125,7 @@ describe("statusLine", () => {
     signedIn: true,
     signingIn: true,
     savingKg: 84.1,
-    fetching: true,
+    fetching: "first",
     fetchFailure: FAILED,
     fetchedAt: new Date("2026-10-20T07:14:00+02:00"),
   };
@@ -130,14 +135,14 @@ describe("statusLine", () => {
     [{ signingIn: false }, "speichert 84,1 kg …"],
     [{ signingIn: false, savingKg: null }, "ruft ab …"],
     [
-      { signingIn: false, savingKg: null, fetching: false },
+      { signingIn: false, savingKg: null, fetching: null },
       "Abruf fehlgeschlagen: Google antwortet nicht.",
     ],
     [
       {
         signingIn: false,
         savingKg: null,
-        fetching: false,
+        fetching: null,
         fetchFailure: null,
         signedIn: false,
       },
@@ -150,7 +155,8 @@ describe("statusLine", () => {
   it.each<[Partial<GoogleState>, boolean]>([
     [{ signingIn: true }, true],
     [{ savingKg: 84.1 }, true],
-    [{ fetching: true }, true],
+    [{ fetching: "first" }, true],
+    [{ fetching: "older" }, true],
     [{ fetchFailure: FAILED }, false],
     [{ signedIn: true, fetchedAt: new Date() }, false],
     [{}, false],

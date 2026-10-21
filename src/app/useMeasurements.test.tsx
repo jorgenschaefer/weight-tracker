@@ -18,9 +18,11 @@ import {
   enterWeight,
   FIRST_VISIT,
   failure,
+  fetchesAsked,
   google,
   hasNoButton,
   holdFetch,
+  holdOlderFetch,
   holdSignIn,
   isNotShown,
   isShown,
@@ -183,6 +185,183 @@ describe("fetching", () => {
   });
 });
 
+describe("the older measurements", () => {
+  const OLDER = at("2025-06-02T05:00:00Z", 110.0);
+  const LAST_90_DAYS = steady("2026-10-17", 35, -0.5);
+  const WHOLE_HISTORY = [OLDER, ...LAST_90_DAYS];
+  const graph = () =>
+    screen.findByRole("img", { name: /^Messungen und Trend/ });
+  const earlier = () => screen.findByRole("button", { name: "Früher" });
+  const detailIs = (detail: string) =>
+    waitFor(async () => expect(await statusDetail()).toBe(detail));
+  beforeEach(() => {
+    google.measurements = [...WHOLE_HISTORY];
+  });
+
+  it("come behind the last 90 days, which the page shows at once (AC-1)", async () => {
+    holdOlderFetch();
+    await openAndClick(signInButton);
+
+    await isShown("Du nimmst seit Wochen ab.");
+    expect(await graph()).toBeInTheDocument();
+    await detailIs("ruft ältere Messungen ab …");
+    expect(storedCache()).toEqual({
+      fetchedAt: NOW,
+      fullHistory: false,
+      measurements: LAST_90_DAYS,
+    });
+  });
+
+  it("are not fetched while the last 90 days are, which says „ruft ab …“ (AC-2)", async () => {
+    holdFetch();
+    await openAndClick(signInButton);
+
+    await detailIs("ruft ab …");
+    isNotShown("ruft ältere Messungen ab …");
+  });
+
+  it("reach the graph and ‹ back to the first measurement once they are there (AC-4)", async () => {
+    const answer = holdOlderFetch();
+    const user = await openAndClick(signInButton);
+    await user.click(await screen.findByRole("button", { name: "1 Jahr" }));
+    await detailIs("ruft ältere Messungen ab …");
+    expect(await earlier()).toHaveAttribute("aria-disabled", "true");
+
+    answer.resolve({ ok: true, value: WHOLE_HISTORY });
+
+    await detailIs("abgerufen 10:00 Uhr");
+    await user.click(await earlier());
+    expect(await graph()).toHaveAccessibleName(
+      "Messungen und Trend, 1 Jahr, 2025",
+    );
+    expect(await earlier()).toHaveAttribute("aria-disabled", "true");
+    expect(storedCache()).toEqual({
+      fetchedAt: NOW,
+      fullHistory: true,
+      measurements: WHOLE_HISTORY,
+    });
+  });
+
+  it("leave the last 90 days shown where their fetch fails, and come on the next tap (AC-5)", async () => {
+    holdOlderFetch().resolve(failure({ kind: "unreachable" }));
+    const user = await openAndClick(signInButton);
+
+    await detailIs("Abruf fehlgeschlagen: Google antwortet nicht.");
+    expect(await statusMark()).toBe("failed");
+    await isShown("Du nimmst seit Wochen ab.");
+    expect(storedCache()?.fullHistory).toBe(false);
+
+    await user.click(await refreshButton());
+
+    await waitFor(() =>
+      expect(storedCache()?.measurements).toEqual(WHOLE_HISTORY),
+    );
+  });
+
+  it("come on the next open with the sign-in where their fetch failed (AC-5)", async () => {
+    holdOlderFetch().resolve(failure({ kind: "unreachable" }));
+    await openAndClick(signInButton);
+    await detailIs("Abruf fehlgeschlagen: Google antwortet nicht.");
+
+    reload();
+
+    await waitFor(() =>
+      expect(storedCache()?.measurements).toEqual(WHOLE_HISTORY),
+    );
+  });
+
+  it("come on the next open where the page was closed while they were fetched, the cache shown at once (AC-6)", async () => {
+    holdOlderFetch();
+    await openAndClick(signInButton);
+    await detailIs("ruft ältere Messungen ab …");
+    const recent = holdFetch();
+    const older = holdOlderFetch();
+
+    reload();
+
+    await isShown("Du nimmst seit Wochen ab.");
+    await detailIs("ruft ab …");
+    recent.resolve({ ok: true, value: LAST_90_DAYS });
+    await detailIs("ruft ältere Messungen ab …");
+    older.resolve({ ok: true, value: WHOLE_HISTORY });
+    await waitFor(() =>
+      expect(storedCache()?.measurements).toEqual(WHOLE_HISTORY),
+    );
+  });
+
+  it("come behind the cache of a page closed before them, shown at once (AC-7)", async () => {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        fetchedAt: daysAgo(1).toISOString(),
+        measurements: LAST_90_DAYS.map(toStoredMeasurement),
+      }),
+    );
+    const answer = holdOlderFetch();
+    await openAndClick(signInButton);
+
+    await isShown("Du nimmst seit Wochen ab.");
+    await detailIs("ruft ältere Messungen ab …");
+    answer.resolve({ ok: true, value: WHOLE_HISTORY });
+    await waitFor(() =>
+      expect(storedCache()).toEqual({
+        fetchedAt: NOW,
+        fullHistory: true,
+        measurements: WHOLE_HISTORY,
+      }),
+    );
+  });
+
+  it("are not fetched where the cache holds the whole history (AC-8)", async () => {
+    storeCache(daysAgo(1), LAST_90_DAYS);
+    const answer = holdFetch();
+    await openAndClick(signInButton);
+    await detailIs("ruft ab …");
+
+    answer.resolve({ ok: true, value: LAST_90_DAYS });
+
+    await detailIs("abgerufen 10:00 Uhr");
+    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(storedCache()?.measurements).toEqual(LAST_90_DAYS);
+  });
+
+  it("still come where a weight is entered while they are fetched, their fetch begun anew (AC-9)", async () => {
+    const overtaken = holdOlderFetch();
+    const user = await openAndClick(signInButton);
+    await detailIs("ruft ältere Messungen ab …");
+
+    const begunAnew = holdFetch();
+
+    await enterWeight(user);
+
+    await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
+    overtaken.resolve({ ok: true, value: [] });
+    begunAnew.resolve({ ok: true, value: [...LAST_90_DAYS, at(NOW, 98.6)] });
+    await waitFor(() =>
+      expect(storedCache()).toEqual({
+        fetchedAt: NOW,
+        fullHistory: true,
+        measurements: [...WHOLE_HISTORY, at(NOW, 98.6)],
+      }),
+    );
+    await isShown(ENTERED_SHOWN);
+  });
+
+  it("do not appear after „Abmelden“ while they are fetched (AC-10)", async () => {
+    const answer = holdOlderFetch();
+    const user = await openAndClick(signInButton);
+    await detailIs("ruft ältere Messungen ab …");
+
+    await logOut(user);
+    answer.resolve({ ok: true, value: WHOLE_HISTORY });
+
+    await isShown(FIRST_VISIT);
+    await detailIs("nicht angemeldet");
+    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
+    isNotShown(/Letzte Messung/);
+  });
+});
+
 describe("coming back into view", () => {
   const LATER = at("2026-10-17T08:05:00Z", 98.2);
   const LATER_SHOWN = "Letzte Messung 17.10. um 10:05 Uhr: 98,2 kg";
@@ -202,7 +381,7 @@ describe("coming back into view", () => {
     await comeIntoView();
 
     isNotShown(LATER_SHOWN);
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
     expect(await statusMark()).toBe("signedIn");
   });
 
@@ -247,7 +426,7 @@ describe("the sign-in expiring while the page is open", () => {
     );
     expect(await statusMark()).toBe("signedOut");
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
   });
 
   it("does so with the sign-in from before the open too", async () => {
@@ -255,7 +434,7 @@ describe("the sign-in expiring while the page is open", () => {
     await statusMark();
     await passTime(10 * 60_000);
     reload();
-    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchesAsked()).toBe(2));
 
     await passTime((TOKEN_LIFETIME_S - 10 * 60) * 1000);
 
@@ -324,7 +503,7 @@ describe("opening the page again", () => {
     await signInButton();
     await isShown(MORNING_SHOWN);
     isNotShown(/Abruf fehlgeschlagen/);
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
@@ -339,7 +518,7 @@ describe("opening the page again", () => {
 
     await signInButton();
     isNotShown(/Abruf fehlgeschlagen/);
-    expect(fetchMeasurements).toHaveBeenCalledTimes(2);
+    expect(fetchesAsked()).toBe(2);
   });
 
   it("does not fetch on the next open where Google rejected the token on „Eintragen“", async () => {
@@ -352,7 +531,7 @@ describe("opening the page again", () => {
     reload();
 
     await signInButton();
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
   });
 
   it("keeps the token another tab has signed in for since, where Google rejects the old one", async () => {
@@ -463,7 +642,7 @@ describe("„Abmelden“", () => {
     reload();
 
     await signInButton();
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
   });
 
   it("does not keep the sign-in it makes to revoke the access for the next open", async () => {
@@ -476,7 +655,7 @@ describe("„Abmelden“", () => {
     reload();
 
     await signInButton();
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
   });
 
   it("leaves the first visit to the next open, which does not fetch", async () => {
@@ -489,7 +668,7 @@ describe("„Abmelden“", () => {
 
     await signInButton();
     await isShown(FIRST_VISIT);
-    expect(fetchMeasurements).toHaveBeenCalledTimes(1);
+    expect(fetchesAsked()).toBe(1);
   });
 
   it("revokes the access with the token of the sign-in before the open", async () => {
@@ -639,7 +818,7 @@ describe("entering a weight", () => {
 
     reload();
 
-    await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchesAsked()).toBe(2));
     hasNoButton("Anmelden und abrufen");
     expect(google.tokensIssued).toBe(1);
   });
@@ -668,10 +847,10 @@ describe("entering a weight", () => {
       await enterWeight(user);
 
       await screen.findByText(/^Speichern fehlgeschlagen/);
-      await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(fetchesAsked()).toBe(1));
       expect(await statusMark()).toBe("signedIn");
       reload();
-      await waitFor(() => expect(fetchMeasurements).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(fetchesAsked()).toBe(2));
       expect(signIn).toHaveBeenCalledTimes(1);
     },
   );
