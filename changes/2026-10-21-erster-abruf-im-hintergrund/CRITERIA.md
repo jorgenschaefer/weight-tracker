@@ -43,6 +43,7 @@ Der erste Abruf holt die letzten 90 Tage, die Seite zeigt sie sofort. Die Messun
 - `pageSize`, um weniger Anfragen zu stellen.
 - Anzeigen, wie lange der Abruf der älteren Messungen noch dauert. Google nennt keine Gesamtzahl; die Seite zeigt währenddessen die letzten 90 Tage, und „ruft ältere Messungen ab …“ sagt, welcher Teil läuft. Ein Abruf, der hängt, scheitert nach 20 s je Seite (`answeredInTime`) und sagt das.
 - Dass Urteil und vier Zahlen aus 90 Tagen genau denen aus der ganzen Historie gleichen. Sie dürfen sich ändern, wenn die älteren Messungen kommen; in den Testdaten am 20.10.2026 erst in der dritten Nachkommastelle.
+- Was die Seite sagt, wenn die letzten 90 Tage keine Messung haben, ältere aber noch kommen: Sie sagt „Noch keine Messung in Google Health“, bis die älteren da sind.
 
 ## Ruled out
 - **Nur eine Anzahl oder ein Datum in der Statuszeile** - die Seite bleibt während der ganzen Wartezeit leer.
