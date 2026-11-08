@@ -15,7 +15,7 @@ import { isLossLikelier, lossCertainty, trafficLight } from "./traffic-light";
  * 7. `twoHeavierMornings` „Zwei schwerere Morgen: Du nimmst noch ab, aber langsamer.“
  * 8. `losingForDays` „Du nimmst seit N Tagen ab.“, `losingForWeeks` „Du nimmst seit Wochen ab.“
  * 9. `probablyLosing` „Es geht wahrscheinlich abwärts, noch nicht sicher.“
- * 10. `open` „Ob du abnimmst, ist noch offen.“
+ * 10. `probablyNotLosing` „Es geht wahrscheinlich nicht abwärts, noch nicht sicher.“
  * 11. `gainingForDays` „Du nimmst seit N Tagen zu.“, `gainingForWeeks` „Du nimmst seit Wochen zu.“
  */
 export type MorningSentence =
@@ -29,7 +29,7 @@ export type MorningSentence =
   | { kind: "losingForDays"; days: number }
   | { kind: "losingForWeeks" }
   | { kind: "probablyLosing" }
-  | { kind: "open" }
+  | { kind: "probablyNotLosing" }
   | { kind: "gainingForDays"; days: number }
   | { kind: "gainingForWeeks" };
 
@@ -80,7 +80,7 @@ export function morningSentence(trends: Trend[]): MorningSentence {
     case "yellow":
       return isLossLikelier(lossCertainty(today))
         ? { kind: "probablyLosing" }
-        : { kind: "open" };
+        : { kind: "probablyNotLosing" };
     case "red": {
       const days = daysOf(light, trends);
       return days >= WEEKS_FROM_DAYS

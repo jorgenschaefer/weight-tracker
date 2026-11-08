@@ -83,7 +83,7 @@ describe("the Ampel, the line and the Satz zum Morgen on the user's weight (AC-7
       "2026-10-05",
       "Gelb",
       "54 % sicher, dass du nicht abnimmst",
-      "Ob du abnimmst, ist noch offen.",
+      "Es geht wahrscheinlich nicht abwärts, noch nicht sicher.",
     ],
     [
       "2026-10-06",
@@ -240,7 +240,7 @@ describe("a day without a measurement (AC-8)", () => {
     openOn("2026-10-17", steady("2026-10-17", 1, 0));
 
     expect(await headline()).toHaveTextContent(
-      /^Ob du abnimmst, ist noch offen\.$/,
+      /^Es geht wahrscheinlich nicht abwärts, noch nicht sicher\.$/,
     );
     expect(await lineAbove()).toBe("58 % sicher, dass du nicht abnimmst");
     expect(surface()).toHaveStyle(COLOURS.Gelb);

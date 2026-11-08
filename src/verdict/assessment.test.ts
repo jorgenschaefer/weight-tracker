@@ -59,7 +59,7 @@ describe("assess: the verdict on the fixture", () => {
     ).toMatchObject({
       kind: "verdict",
       trafficLight: "yellow",
-      morningSentence: { kind: "open" },
+      morningSentence: { kind: "probablyNotLosing" },
     });
   });
 

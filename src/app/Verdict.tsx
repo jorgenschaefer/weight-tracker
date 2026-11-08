@@ -147,8 +147,8 @@ function sentenceText(sentence: MorningSentence): string {
       return "Du nimmst seit Wochen ab.";
     case "probablyLosing":
       return "Es geht wahrscheinlich abwärts, noch nicht sicher.";
-    case "open":
-      return "Ob du abnimmst, ist noch offen.";
+    case "probablyNotLosing":
+      return "Es geht wahrscheinlich nicht abwärts, noch nicht sicher.";
     case "gainingForDays":
       return `Du nimmst seit ${sentence.days} Tagen zu.`;
     case "gainingForWeeks":

@@ -73,7 +73,7 @@ describe("an entered weight", () => {
     await user.click(await refreshButton());
 
     await isShown(ENTERED_SHOWN);
-    isNotShown(/noch nicht/);
+    isNotShown(/noch nicht aus Google Health/);
   });
 
   it("stays on the page where only the fetch after it fails", async () => {
@@ -106,7 +106,7 @@ describe("an entered weight", () => {
     renderPage();
 
     await isShown(ENTERED_SHOWN + NOT_YET_FETCHED);
-    await isShown("Ob du abnimmst, ist noch offen.");
+    await isShown("Es geht wahrscheinlich nicht abwärts, noch nicht sicher.");
     isNotShown(FIRST_VISIT);
     await signInButton();
   });
