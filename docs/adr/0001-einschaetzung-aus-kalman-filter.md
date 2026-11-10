@@ -11,7 +11,7 @@ Der Reflex bei einem falschen Tag ist, eine Regel, eine Schwelle oder einen Sond
 
 ## Decision
 
-Gewicht, Tempo, ihre Unsicherheit, Ausreißer und Ampel kommen aus einem Kalman-Filter mit Niveau und Tempo (`src/trend/trend.ts`), mit wenigen benannten Einstellungen: Messrauschen, Wandern des Gewichts, Änderung des Tempos, die Grenze, ab der eine Messung schwächer zählt, und für die Ampel −0,1 kg pro Woche, grün bei 80 %, rot ab 66 %. Liegt ein Tag falsch, wird eine dieser Einstellungen geändert und mit `analysis/kalman/kalman.py` an der eigenen Historie geprüft - Code und Skript tragen dieselben Werte und ändern sich zusammen. Eine neue Regel neben dem Filter, die seine Zahlen oder die Ampel übersteuert, wird nicht eingeführt.
+Gewicht, Tempo, ihre Unsicherheit, Ausreißer und Ampel kommen aus einem Kalman-Filter mit Niveau und Tempo (`src/trend/trend.ts`), mit wenigen benannten Einstellungen: Messrauschen, Wandern des Gewichts, Änderung des Tempos, die Grenze, ab der eine Messung schwächer zählt, und für die Ampel −0,1 kg pro Woche, grün über 80 %, rot über 66 %. Liegt ein Tag falsch, wird eine dieser Einstellungen geändert und mit `analysis/kalman/kalman.py` an der eigenen Historie geprüft - Code und Skript tragen dieselben Werte und ändern sich zusammen. Eine neue Regel neben dem Filter, die seine Zahlen oder die Ampel übersteuert, wird nicht eingeführt.
 
 ## Alternatives
 
@@ -22,6 +22,6 @@ Gewicht, Tempo, ihre Unsicherheit, Ausreißer und Ampel kommen aus einem Kalman-
 
 ## Consequences
 
-Das Verhalten folgt aus fünf Zahlen, die sich an der Historie messen lassen: seit 2023 an 8 % der Tage mit Abnahme rot, an 4 % ohne Abnahme grün, rot im Median 11 Tage nach Beginn einer Zunahme. Seit dem 10.11.2026 wird die Ampel schon ab 66 % rot statt ab 80 %: rot im Median nach 7 statt 11 Tagen, dafür an 16 % der Tage mit Abnahme rot. Lücken und Ausreißer brauchen keine eigenen Regeln mehr. Dafür ist der Filter eine Rekursion über alle Tage, schwerer zu lesen als eine Formel, und eine Einstellung zu ändern heißt, die Auswertung neu laufen zu lassen.
+Das Verhalten folgt aus diesen wenigen Einstellungen, und es lässt sich an der Historie messen. Seit 2023 ist die Ampel an 16 % der Tage mit Abnahme rot und an 5 % der Tage ohne Abnahme grün. Nach Beginn einer Zunahme wird sie im Median nach 7 Tagen rot, und sie wechselt im Schnitt 2,9-mal in 30 Tagen die Farbe. Mitten in einer roten Strecke kann ein einzelner Tag gelb sein. Bis zum 10.11.2026 wurde die Ampel erst über 80 % rot: das war an 8 % der Tage mit Abnahme rot, aber erst im Median nach 11 Tagen, im schlimmsten Fall nach 40, mit 2,2 Wechseln in 30 Tagen. Lücken und Ausreißer brauchen keine eigenen Regeln mehr. Dafür ist der Filter eine Rekursion über alle Tage, schwerer zu lesen als eine Formel, und eine Einstellung zu ändern heißt, die Auswertung neu laufen zu lassen.
 
 Der Satz zum Morgen ist bewusst eine Schicht fester Regeln über dem Filter (Grenzen bei z = 1 und 2, 14 Tage); seine Grenzen sind nicht an der Historie geprüft. Diese Regeln deuten die Zahlen des Filters, sie ändern weder die Zahlen noch die Ampel.
