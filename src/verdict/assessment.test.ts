@@ -24,10 +24,10 @@ const assessOn = (day: string) => assess(historyUntil(day), day as CalendarDay);
 
 describe("assess: the verdict on the fixture", () => {
   it.each([
-    ["2026-07-13", "red", { kind: "gainingAgain" }],
-    ["2026-07-14", "red", { kind: "gainingForDays", days: 2 }],
+    ["2026-07-12", "red", { kind: "gainingAgain" }],
+    ["2026-07-13", "red", { kind: "gainingForDays", days: 2 }],
     ["2026-10-01", "red", { kind: "gainingForWeeks" }],
-    ["2026-10-04", "yellow", { kind: "gainStopped" }],
+    ["2026-10-05", "yellow", { kind: "gainStopped" }],
     ["2026-10-06", "yellow", { kind: "probablyLosing" }],
     ["2026-10-13", "green", { kind: "losingForDays", days: 6 }],
     ["2026-10-20", "green", { kind: "losingForDays", days: 2 }],

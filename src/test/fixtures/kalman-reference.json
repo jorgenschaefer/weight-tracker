@@ -40,7 +40,7 @@
     "levelVariance": 0.13817839175359303,
     "pacePerDayVariance": 0.005223668892941854,
     "z": 3.0875145188006727,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.6834128377027564
   },
   {
@@ -51,7 +51,7 @@
     "levelVariance": 0.11150036216413507,
     "pacePerDayVariance": 0.005007664919430532,
     "z": 0.564012326256548,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.735368422782808
   },
   {
@@ -62,7 +62,7 @@
     "levelVariance": 0.10087493129156076,
     "pacePerDayVariance": 0.004746549081012292,
     "z": -0.573202860118903,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.6872606483102653
   },
   {
@@ -128,7 +128,7 @@
     "levelVariance": 0.11399445317844563,
     "pacePerDayVariance": 0.0032110233261431332,
     "z": 3.198255342742632,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.757490703324593
   },
   {
@@ -315,7 +315,7 @@
     "levelVariance": 0.08499073997586923,
     "pacePerDayVariance": 0.0017941686175203995,
     "z": -1.2927439289551481,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.7376896344798508
   },
   {
@@ -326,7 +326,7 @@
     "levelVariance": 0.08406361188954145,
     "pacePerDayVariance": 0.001782252320034595,
     "z": 0.29105448931438016,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.7615500135380892
   },
   {
@@ -348,7 +348,7 @@
     "levelVariance": 0.08315831234900356,
     "pacePerDayVariance": 0.0017647915484190959,
     "z": 1.4949912484148873,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.7716413876631447
   },
   {
@@ -359,7 +359,7 @@
     "levelVariance": 0.08293970436507073,
     "pacePerDayVariance": 0.0017580646940273067,
     "z": 0.27826680084248145,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.7922483707237813
   },
   {
@@ -920,7 +920,7 @@
     "levelVariance": 0.12749506101441438,
     "pacePerDayVariance": 0.001799420384082732,
     "z": -3.0961629204052312,
-    "light": "gelb",
+    "light": "rot",
     "pNotLosing": 0.7309831622801508
   },
   {

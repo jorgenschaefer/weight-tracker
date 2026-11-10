@@ -50,15 +50,21 @@ const COLOURS = {
 describe("the Ampel, the line and the Satz zum Morgen on the user's weight (AC-7)", () => {
   it.each<[string, keyof typeof COLOURS, string, string]>([
     [
-      "2026-07-13",
+      "2026-07-11",
+      "Gelb",
+      "58 % sicher, dass du nicht abnimmst",
+      "Es geht wahrscheinlich nicht abwärts, noch nicht sicher.",
+    ],
+    [
+      "2026-07-12",
       "Rot",
-      "92 % sicher, dass du nicht abnimmst",
+      "76 % sicher, dass du nicht abnimmst",
       "Achtung, du nimmst wieder zu.",
     ],
     [
-      "2026-07-14",
+      "2026-07-13",
       "Rot",
-      "90 % sicher, dass du nicht abnimmst",
+      "92 % sicher, dass du nicht abnimmst",
       "Du nimmst seit 2 Tagen zu.",
     ],
     [
@@ -74,16 +80,10 @@ describe("the Ampel, the line and the Satz zum Morgen on the user's weight (AC-7
       "Leichter Morgen, aber ein Tag ändert den Trend noch nicht.",
     ],
     [
-      "2026-10-04",
-      "Gelb",
-      "73 % sicher, dass du nicht abnimmst",
-      "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.",
-    ],
-    [
       "2026-10-05",
       "Gelb",
       "54 % sicher, dass du nicht abnimmst",
-      "Es geht wahrscheinlich nicht abwärts, noch nicht sicher.",
+      "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.",
     ],
     [
       "2026-10-06",
@@ -195,10 +195,10 @@ describe("a day without a measurement (AC-8)", () => {
       "Du nimmst seit 6 Tagen ab.",
     ],
     [
-      "2026-10-07",
-      "2026-10-04",
+      "2026-10-08",
+      "2026-10-05",
       "Gelb",
-      "73 % sicher, dass du nicht abnimmst",
+      "54 % sicher, dass du nicht abnimmst",
       "Die Zunahme ist gestoppt. Ob du abnimmst, ist noch offen.",
     ],
   ])(

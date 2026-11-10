@@ -23,10 +23,12 @@ EVALUATE_FROM = dt.date(2023, 3, 1)  # after the filter has settled
 MEASUREMENT_VAR = 0.3
 LEVEL_VAR = 0.02
 PACE_VAR = 1e-4
-# Traffic light: green where it is this likely that the pace is under the
-# threshold, red where it is this likely that it is not.
+# Traffic light: green where it is more than GREEN_CONFIDENCE likely that the
+# pace is under the threshold, red where it is more than RED_CONFIDENCE likely
+# that it is not. Red needs less, so a gain shows sooner.
 THRESHOLD_KG_PER_WEEK = -0.1
-CONFIDENCE = 0.8
+GREEN_CONFIDENCE = 0.8
+RED_CONFIDENCE = 0.66
 PLAN_KG_PER_WEEK = -0.5
 
 
@@ -80,16 +82,15 @@ def kalman(days, kgs, r=MEASUREMENT_VAR, q_level=LEVEL_VAR, q_pace=PACE_VAR, rob
     return out, loglik
 
 
-def traffic_light(out, threshold=THRESHOLD_KG_PER_WEEK, confidence=CONFIDENCE, hysteresis=0.0):
+def traffic_light(out, threshold=THRESHOLD_KG_PER_WEEK, green=GREEN_CONFIDENCE, red=RED_CONFIDENCE, hysteresis=0.0):
     """Per day (colour, P(pace over threshold)). A colour once shown holds
-    until its probability falls under confidence - hysteresis."""
+    until its probability falls under its confidence - hysteresis."""
     state, res = "gelb", []
     for _level, pace, _vl, var_pace, _z in out:
         p_not = phi((pace * 7 - threshold) / (math.sqrt(var_pace) * 7))
         p_loss = 1 - p_not
-        if not ((state == "rot" and p_not > confidence - hysteresis) or (state == "grün" and p_loss > confidence - hysteresis)):
-            enter = confidence + hysteresis
-            state = "rot" if p_not > enter else ("grün" if p_loss > enter else "gelb")
+        if not ((state == "rot" and p_not > red - hysteresis) or (state == "grün" and p_loss > green - hysteresis)):
+            state = "rot" if p_not > red + hysteresis else ("grün" if p_loss > green + hysteresis else "gelb")
         res.append((state, p_not))
     return res
 
@@ -131,13 +132,13 @@ def episodes(phases, days, target, min_days=14):
     return eps
 
 
-def evaluate(days, kgs, phases, q_level, q_pace, confidence, hysteresis):
+def evaluate(days, kgs, phases, q_level, q_pace, green, red, hysteresis):
     out, _ = kalman(days, kgs, q_level=q_level, q_pace=q_pace)
-    light = traffic_light(out, confidence=confidence, hysteresis=hysteresis)
+    light = [colour for colour, _ in traffic_light(out, green=green, red=red, hysteresis=hysteresis)]
     idx = [i for i in range(len(days)) if days[i] >= EVALUATE_FROM and phases[i]]
 
     def share(ph, colour):
-        return sum(phases[i] == ph and light[i][0] == colour for i in idx) / sum(phases[i] == ph for i in idx)
+        return sum(phases[i] == ph and light[i] == colour for i in idx) / sum(phases[i] == ph for i in idx)
 
     def delays(target, colour, cap=42):
         res = []
@@ -148,13 +149,13 @@ def evaluate(days, kgs, phases, q_level, q_pace, confidence, hysteresis):
             for j in range(s, len(days)):
                 if (days[j] - days[s]).days > cap:
                     break
-                if light[j][0] == colour:
+                if light[j] == colour:
                     d = (days[j] - days[s]).days
                     break
             res.append(d)
         return res
 
-    changes = sum(1 for i in range(1, len(days)) if days[i] >= EVALUATE_FROM and light[i][0] != light[i - 1][0])
+    changes = sum(1 for i in range(1, len(days)) if days[i] >= EVALUATE_FROM and light[i] != light[i - 1])
     return {
         "false_red": share("ab", "rot"),
         "false_green": share("nicht", "grün"),
@@ -183,19 +184,20 @@ def cmd_fit(days, kgs):
 
 def cmd_grid(days, kgs):
     phases = [phase(None if (lr := local_regression(days, kgs, i)) is None else lr[1]) for i in range(len(days))]
-    print("q_level q_pace   conf hyst | red while losing | green while not | changes/30d | days to red (median) | days to green")
+    print("q_level q_pace   green red  hyst | red while losing | green while not | changes/30d | days to red (median) | days to green")
     for ql in [0.0, 0.02, 0.08]:
         for qp in [1e-6, 3e-6, 1e-5, 3e-5, 1e-4]:
-            for c in [0.7, 0.8, 0.9]:
-                for h in [0, 0.05, 0.1]:
-                    if c + h >= 0.99:
-                        continue
-                    e = evaluate(days, kgs, phases, ql, qp, c, h)
-                    print(
-                        f"{ql:<7} {qp:<8g} {c:.2f} {h:.2f} | {e['false_red'] * 100:5.1f} %          "
-                        f"| {e['false_green'] * 100:5.1f} %         | {e['changes_per_30_days']:4.1f}        "
-                        f"| {median(e['days_to_red']):2d} {e['days_to_red']} | {median(e['days_to_green']):2d} {e['days_to_green']}"
-                    )
+            for g in [0.7, 0.8, 0.9]:
+                for r in [0.6, 0.66, 0.8]:
+                    for h in [0, 0.05, 0.1]:
+                        if max(g, r) + h >= 0.99:
+                            continue
+                        e = evaluate(days, kgs, phases, ql, qp, g, r, h)
+                        print(
+                            f"{ql:<7} {qp:<8g} {g:.2f}  {r:.2f} {h:.2f} | {e['false_red'] * 100:5.1f} %          "
+                            f"| {e['false_green'] * 100:5.1f} %         | {e['changes_per_30_days']:4.1f}        "
+                            f"| {median(e['days_to_red']):2d} {e['days_to_red']} | {median(e['days_to_green']):2d} {e['days_to_green']}"
+                        )
 
 
 def cmd_days(days, kgs, first, last):

@@ -2,9 +2,9 @@ import type { Trend } from "@/trend/trend";
 
 /**
  * The Ampel of a day: green where the pace lies under
- * {@link LOSS_THRESHOLD_KG_PER_WEEK} with more than {@link CONFIDENCE}
- * probability, red where it lies not under it with more than that, otherwise
- * yellow. It depends on its day alone.
+ * {@link LOSS_THRESHOLD_KG_PER_WEEK} with more than {@link GREEN_CONFIDENCE}
+ * probability, red where it lies not under it with more than
+ * {@link RED_CONFIDENCE}, otherwise yellow. It depends on its day alone.
  */
 export type TrafficLight = "green" | "yellow" | "red";
 
@@ -25,8 +25,8 @@ export function isLossLikelier(certainty: number): boolean {
 /** The Ampel of the day of `trend`. */
 export function trafficLight(trend: Trend): TrafficLight {
   const certainty = lossCertainty(trend);
-  if (certainty > CONFIDENCE) return "green";
-  if (1 - certainty > CONFIDENCE) return "red";
+  if (certainty > GREEN_CONFIDENCE) return "green";
+  if (1 - certainty > RED_CONFIDENCE) return "red";
   return "yellow";
 }
 
@@ -34,8 +34,13 @@ export function trafficLight(trend: Trend): TrafficLight {
 // together.
 /** The pace a loss worth the name lies under, in kg per week. */
 const LOSS_THRESHOLD_KG_PER_WEEK = -0.1;
-/** How likely a side has to be for green or red. */
-const CONFIDENCE = 0.8;
+/** How likely a loss has to be for green. */
+const GREEN_CONFIDENCE = 0.8;
+/**
+ * How likely no loss has to be for red: less than for green, so a gain shows
+ * sooner, at the price of more red days while losing.
+ */
+const RED_CONFIDENCE = 0.66;
 /** From this {@link lossCertainty} on, a loss is the likelier side. */
 const EVEN_CHANCE = 0.5;
 

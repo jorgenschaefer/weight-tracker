@@ -232,12 +232,12 @@ describe("morningSentence: how long a colour has held (AC-4)", () => {
 
 describe("morningSentence on the test data (AC-7)", () => {
   it.each<[string, MorningSentence]>([
-    ["2026-07-13", { kind: "gainingAgain" }],
-    ["2026-07-14", { kind: "gainingForDays", days: 2 }],
+    ["2026-07-11", { kind: "probablyNotLosing" }],
+    ["2026-07-12", { kind: "gainingAgain" }],
+    ["2026-07-13", { kind: "gainingForDays", days: 2 }],
     ["2026-10-01", { kind: "gainingForWeeks" }],
     ["2026-10-03", { kind: "lightMorning" }],
-    ["2026-10-04", { kind: "gainStopped" }],
-    ["2026-10-05", { kind: "probablyNotLosing" }],
+    ["2026-10-05", { kind: "gainStopped" }],
     ["2026-10-06", { kind: "probablyLosing" }],
     ["2026-10-08", { kind: "losingAgain" }],
     ["2026-10-09", { kind: "losingForDays", days: 2 }],

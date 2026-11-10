@@ -39,7 +39,7 @@ describe("trafficLight and lossCertainty on the test data (AC-7)", () => {
     ["2026-07-14", "red", "no loss", 90],
     ["2026-10-01", "red", "no loss", 95],
     ["2026-10-03", "red", "no loss", 86],
-    ["2026-10-04", "yellow", "no loss", 73],
+    ["2026-10-04", "red", "no loss", 73],
     ["2026-10-05", "yellow", "no loss", 54],
     ["2026-10-06", "yellow", "loss", 64],
     ["2026-10-08", "green", "loss", 88],
@@ -81,6 +81,8 @@ const withPace = (pace: number, sd: number): Trend => ({
 
 /** How many standard deviations a normal value lies under its 80 % quantile. */
 const QUANTILE_80 = 0.8416212335729143;
+/** How many standard deviations a normal value lies under its 66 % quantile. */
+const QUANTILE_66 = 0.41246312944140484;
 
 describe("lossCertainty", () => {
   it.each([
@@ -112,8 +114,8 @@ describe("trafficLight (AC-2)", () => {
     ["green", "just over 80 %", -0.1 - (QUANTILE_80 + 1e-6) * 0.3],
     ["yellow", "just under 80 %", -0.1 - (QUANTILE_80 - 1e-6) * 0.3],
     ["yellow", "50 %", -0.1],
-    ["yellow", "just over 20 %", -0.1 + (QUANTILE_80 - 1e-6) * 0.3],
-    ["red", "just under 20 %", -0.1 + (QUANTILE_80 + 1e-6) * 0.3],
+    ["yellow", "just over 34 %", -0.1 + (QUANTILE_66 - 1e-6) * 0.3],
+    ["red", "just under 34 %", -0.1 + (QUANTILE_66 + 1e-6) * 0.3],
   ])(
     "is %s where the pace lies under -0.1 kg per week with %s (%f ± 0.3)",
     (light, _, pace) => {
