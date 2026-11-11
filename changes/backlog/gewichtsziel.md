@@ -1,6 +1,6 @@
 ---
 effort: L
-utility: S
+value: S
 ---
 
 # Gewichtsziel

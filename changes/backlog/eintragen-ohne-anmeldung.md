@@ -1,6 +1,6 @@
 ---
 effort: L
-utility: M
+value: M
 ---
 
 # Eintragen ohne Anmeldung
